@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     # Format: [{"key_hash":"sha256hex","name":"Acme","plan":"pro","scopes":["process","metadata",...]}]
     api_keys_json: str = "[]"
 
+    # TESTING ONLY — when true, requests without an Authorization header are
+    # treated as an anonymous user with all scopes. Requests that DO send a key
+    # are still validated normally. /v1/keys always requires a real key.
+    auth_disabled: bool = False
+
     # Claude AI (Haiku for ticket parsing + smart labeling)
     anthropic_api_key: str = ""
 

@@ -27,6 +27,19 @@ class KeyConfig:
 # Registry populated at startup
 _KEY_REGISTRY: dict[str, KeyConfig] = {}
 
+ALL_SCOPES = [
+    "process", "metadata", "convert", "crosstab", "frequency", "parse_ticket",
+    "tabulate", "auto_analyze", "correlation", "anova", "gap_analysis", "satisfaction_summary",
+]
+
+# Identity used for unauthenticated requests when AUTH_DISABLED=true (testing only)
+ANONYMOUS_KEY = KeyConfig(
+    key_hash="anonymous",
+    name="anonymous",
+    plan="business",
+    scopes=list(ALL_SCOPES),
+)
+
 
 def init_key_registry() -> None:
     """Parse API_KEYS_JSON into the in-memory registry. Called during app lifespan."""
@@ -51,7 +64,18 @@ def _hash_key(raw: str) -> str:
 
 
 async def require_auth(request: Request) -> KeyConfig:
-    """FastAPI dependency: validate Bearer token and return KeyConfig."""
+    """FastAPI dependency: validate Bearer token and return KeyConfig.
+
+    When AUTH_DISABLED=true, requests without an Authorization header get ANONYMOUS_KEY.
+    """
+    if get_settings().auth_disabled and not request.headers.get("Authorization"):
+        request.state.key_config = ANONYMOUS_KEY
+        return ANONYMOUS_KEY
+    return await require_api_key(request)
+
+
+async def require_api_key(request: Request) -> KeyConfig:
+    """FastAPI dependency: always require a valid API key, even when AUTH_DISABLED=true."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(

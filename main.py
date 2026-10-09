@@ -34,6 +34,13 @@ async def lifespan(app: FastAPI):
     # Load API keys into memory
     init_key_registry()
 
+    if settings.auth_disabled:
+        logger.warning(
+            "AUTH_DISABLED=true — requests without an Authorization header are served as "
+            "'anonymous' with all scopes (env=%s). Testing only; unset to restore auth.",
+            settings.app_env,
+        )
+
     # Validate Anthropic key presence (warn, don't crash — Haiku features will be disabled)
     if not settings.anthropic_api_key:
         logger.warning("ANTHROPIC_API_KEY not set — ticket parsing and smart labeling will be disabled")

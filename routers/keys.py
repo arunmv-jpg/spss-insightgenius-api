@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from auth import require_auth, KeyConfig
+from auth import require_api_key, KeyConfig
 from config import get_settings
 from shared.response import success_response, error_response
 
@@ -42,7 +42,7 @@ def _get_supabase():
 @router.post("/v1/keys", summary="Create a new API key")
 async def create_key(
     body: CreateKeyRequest,
-    auth_key: KeyConfig = Depends(require_auth),
+    auth_key: KeyConfig = Depends(require_api_key),
 ):
     """Create a new API key for the authenticated user.
 
@@ -96,7 +96,7 @@ async def create_key(
 
 @router.get("/v1/keys", summary="List your API keys")
 async def list_keys(
-    auth_key: KeyConfig = Depends(require_auth),
+    auth_key: KeyConfig = Depends(require_api_key),
 ):
     """List all API keys for the authenticated user. Raw keys are NOT returned."""
     url, headers = _get_supabase()
@@ -125,7 +125,7 @@ async def list_keys(
 @router.delete("/v1/keys/{key_id}", summary="Revoke an API key")
 async def revoke_key(
     key_id: str,
-    auth_key: KeyConfig = Depends(require_auth),
+    auth_key: KeyConfig = Depends(require_api_key),
 ):
     """Revoke (deactivate) an API key. The key will no longer work."""
     url, headers = _get_supabase()
