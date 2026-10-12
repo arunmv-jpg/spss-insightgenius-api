@@ -20,14 +20,20 @@ def test_no_header_allowed_when_disabled(client, auth_disabled, test_sav_bytes):
     assert response.status_code == 200
 
 
-def test_invalid_key_still_rejected_when_disabled(client, auth_disabled):
-    """A key that IS sent is still validated."""
+@pytest.mark.parametrize("header", ["Bearer demo", "Bearer sk_test_wrong_key_999", "Bearer "])
+def test_placeholder_or_invalid_key_falls_back_when_disabled(client, auth_disabled, test_sav_bytes, header):
+    """Frontends send 'Bearer demo' — must not 401 when auth is disabled."""
     response = client.post(
         "/v1/metadata",
-        headers={"Authorization": "Bearer sk_test_wrong_key_999"},
-        files={"file": ("test.sav", b"dummy", "application/octet-stream")},
+        headers={"Authorization": header},
+        files={"file": ("test.sav", test_sav_bytes, "application/octet-stream")},
     )
-    assert response.status_code == 401
+    assert response.status_code == 200
+
+
+def test_valid_key_still_honored_when_disabled(auth_disabled):
+    from mcp_server.auth import _auth
+    assert _auth("sk_test_quantipro_test_key_abc123").name == "Test Key"
 
 
 def test_upload_reaches_handler_when_disabled(client, auth_disabled, test_sav_bytes):
@@ -49,6 +55,7 @@ def test_mcp_anonymous_when_disabled(auth_disabled):
     import asyncio
     from mcp_server.auth import _auth, _auth_async
     assert _auth("") is ANONYMOUS_KEY
+    assert _auth("demo") is ANONYMOUS_KEY
     assert asyncio.run(_auth_async("")) is ANONYMOUS_KEY
 
 

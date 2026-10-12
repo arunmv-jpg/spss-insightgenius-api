@@ -89,9 +89,12 @@ async def _auth_async(api_key: str = "") -> KeyConfig:
     - If api_key looks like a JWT: validate as Clerk OAuth token.
     - If api_key starts with sk_: validate as API key.
     """
-    # AUTH_DISABLED (testing only): no key → anonymous user with all scopes
-    if get_settings().auth_disabled and (not api_key or api_key in OAUTH_PLACEHOLDER_KEYS):
-        return ANONYMOUS_KEY
+    # AUTH_DISABLED (testing only): honor a valid sk_ key, otherwise anonymous with all scopes
+    if get_settings().auth_disabled:
+        try:
+            return get_key_config(api_key)
+        except ValueError:
+            return ANONYMOUS_KEY
 
     # OAuth users via Claude.ai connector don't send api_key — grant rate-limited free tier
     if not api_key or api_key in OAUTH_PLACEHOLDER_KEYS:
@@ -148,9 +151,12 @@ def _auth(api_key: str = "") -> KeyConfig:
     """Sync wrapper for backwards compatibility. For new code, use _auth_async."""
     import asyncio
 
-    # AUTH_DISABLED (testing only): no key → anonymous user with all scopes
-    if get_settings().auth_disabled and (not api_key or api_key in OAUTH_PLACEHOLDER_KEYS):
-        return ANONYMOUS_KEY
+    # AUTH_DISABLED (testing only): honor a valid sk_ key, otherwise anonymous with all scopes
+    if get_settings().auth_disabled:
+        try:
+            return get_key_config(api_key)
+        except ValueError:
+            return ANONYMOUS_KEY
 
     # OAuth users via Claude.ai connector — grant rate-limited free tier
     if not api_key or api_key in OAUTH_PLACEHOLDER_KEYS:

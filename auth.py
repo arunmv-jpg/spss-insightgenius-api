@@ -66,11 +66,15 @@ def _hash_key(raw: str) -> str:
 async def require_auth(request: Request) -> KeyConfig:
     """FastAPI dependency: validate Bearer token and return KeyConfig.
 
-    When AUTH_DISABLED=true, requests without an Authorization header get ANONYMOUS_KEY.
+    When AUTH_DISABLED=true, a valid key is still honored; anything else (no header,
+    placeholder like "Bearer demo", invalid key) falls back to ANONYMOUS_KEY.
     """
-    if get_settings().auth_disabled and not request.headers.get("Authorization"):
-        request.state.key_config = ANONYMOUS_KEY
-        return ANONYMOUS_KEY
+    if get_settings().auth_disabled:
+        try:
+            return await require_api_key(request)
+        except HTTPException:
+            request.state.key_config = ANONYMOUS_KEY
+            return ANONYMOUS_KEY
     return await require_api_key(request)
 
 
