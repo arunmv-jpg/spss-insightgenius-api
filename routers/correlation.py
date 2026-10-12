@@ -14,13 +14,14 @@ from shared.file_resolver import resolve_file
 from shared.response import success_response
 from shared.validators import clean_numeric
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
+from services.data_loader import load_data
 
 router = APIRouter(tags=["Analysis"])
 
 
 def _run_correlation(file_bytes: bytes, filename: str, spec: dict):
     """Run correlation analysis (blocking, executed in thread pool)."""
-    data = QuantiProEngine.load_spss(file_bytes, filename)
+    data = load_data(file_bytes, filename)
 
     variables = spec.get("variables", [])
     method = spec.get("method", "pearson")
@@ -73,7 +74,7 @@ def _run_correlation(file_bytes: bytes, filename: str, spec: dict):
              description="Calculate correlation matrix between 2+ numeric variables with p-values and significance flags.")
 async def correlation(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     spec: str = Form(..., description='JSON: {"variables": ["Q1","Q2","Q3"], "method": "pearson"}'),
     key: KeyConfig = Depends(require_scope("crosstab")),

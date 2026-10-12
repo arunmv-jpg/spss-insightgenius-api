@@ -40,11 +40,11 @@ def test_metadata(client, auth_headers, test_sav_bytes):
 
 
 def test_metadata_invalid_file(client, auth_headers):
-    """POST /v1/metadata with non-.sav file → 400."""
+    """POST /v1/metadata with unsupported file type → 400."""
     response = client.post(
         "/v1/metadata",
         headers=auth_headers,
-        files={"file": ("data.csv", b"a,b,c\n1,2,3", "text/csv")},
+        files={"file": ("data.json", b'{"a": 1}', "application/json")},
     )
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "INVALID_FILE_FORMAT"

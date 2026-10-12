@@ -14,9 +14,10 @@ def validate_upload(file: UploadFile, allowed: set[str] | None = None) -> None:
 
     Args:
         file: The uploaded file
-        allowed: Set of allowed extensions. Defaults to SPSS_EXTENSIONS.
+        allowed: Set of allowed extensions. Defaults to ALLOWED_EXTENSIONS
+            (SPSS, CSV/TSV and Excel — all loadable via services.data_loader).
     """
-    exts = allowed or SPSS_EXTENSIONS
+    exts = allowed or ALLOWED_EXTENSIONS
     if not file.filename:
         raise HTTPException(400, detail={
             "code": "INVALID_FILE_FORMAT",

@@ -142,9 +142,10 @@ class LibraryService:
 
     def _extract_metadata(self, file_bytes: bytes, filename: str) -> dict:
         """Extract metadata from file using the engine."""
+        from services.data_loader import load_data
         from services.quantipy_engine import QuantiProEngine
         engine = QuantiProEngine()
-        data = engine.load_spss(file_bytes, filename)
+        data = load_data(file_bytes, filename)
         return engine.extract_metadata(data)
 
     async def _index_variables(self, library_id: str, variables: list[dict]):
@@ -306,8 +307,8 @@ class LibraryService:
             ttl = settings.spss_session_ttl_seconds
 
             # Load to get metadata
-            from services.quantipy_engine import QuantiProEngine
-            data = QuantiProEngine.load_spss(file_bytes, filename)
+            from services.data_loader import load_data
+            data = load_data(file_bytes, filename)
 
             meta_info = json.dumps({
                 "filename": filename,

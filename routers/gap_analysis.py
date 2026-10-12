@@ -14,13 +14,14 @@ from shared.file_resolver import resolve_file
 from shared.response import success_response
 from shared.validators import clean_numeric
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
+from services.data_loader import load_data
 
 router = APIRouter(tags=["Analysis"])
 
 
 def _run_gap_analysis(file_bytes: bytes, filename: str, spec: dict):
     """Run gap analysis (blocking, executed in thread pool)."""
-    data = QuantiProEngine.load_spss(file_bytes, filename)
+    data = load_data(file_bytes, filename)
     df = data.df
 
     importance_vars = spec.get("importance_vars", [])
@@ -120,7 +121,7 @@ def _run_gap_analysis(file_bytes: bytes, filename: str, spec: dict):
              description="Analyze gaps between paired importance and performance variables. Returns gaps, priorities, and quadrant assignments.")
 async def gap_analysis_endpoint(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     spec: str = Form(..., description='JSON: {"importance_vars": ["Q1_imp","Q2_imp"], "performance_vars": ["Q1_perf","Q2_perf"]}'),
     key: KeyConfig = Depends(require_scope("crosstab")),

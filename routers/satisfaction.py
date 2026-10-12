@@ -14,6 +14,7 @@ from shared.file_resolver import resolve_file
 from shared.response import success_response
 from shared.validators import clean_numeric
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
+from services.data_loader import load_data
 
 router = APIRouter(tags=["Analysis"])
 
@@ -34,7 +35,7 @@ def _detect_scale(values):
 
 def _run_satisfaction_summary(file_bytes: bytes, filename: str, spec: dict):
     """Run satisfaction summary (blocking, executed in thread pool)."""
-    data = QuantiProEngine.load_spss(file_bytes, filename)
+    data = load_data(file_bytes, filename)
     df = data.df
 
     variables = spec.get("variables", [])
@@ -132,7 +133,7 @@ def _run_satisfaction_summary(file_bytes: bytes, filename: str, spec: dict):
              description="Compact summary of T2B%, B2B%, Mean, and distribution for multiple scale variables in one call.")
 async def satisfaction_summary_endpoint(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     spec: str = Form(..., description='JSON: {"variables": ["sat_speed","sat_price"], "scale": "1-5"}'),
     key: KeyConfig = Depends(require_scope("crosstab")),

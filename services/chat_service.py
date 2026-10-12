@@ -257,7 +257,7 @@ async def _execute_tool(tool_name: str, tool_input: dict, data: SPSSData) -> dic
             from routers.downloads import store_download
             download_id, download_url = await store_download(
                 result.excel_bytes,
-                filename=f"tabulation_{data.file_name.replace('.sav', '')}.xlsx",
+                filename=f"tabulation_{data.file_name.rsplit('.', 1)[0]}.xlsx",
             )
 
             return {

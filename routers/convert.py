@@ -11,6 +11,7 @@ from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine
+from services.data_loader import load_data
 from services.converter import FormatConverter
 
 router = APIRouter(tags=["Conversion"])
@@ -21,7 +22,7 @@ VALID_FORMATS = {"xlsx", "csv", "dta", "parquet"}
 @router.post("/v1/convert", summary="Convert SPSS to other formats", description="Convert .sav file to xlsx, csv, dta (Stata), or parquet format.")
 async def convert(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     target_format: str = Form(..., description="Target format: xlsx, csv, dta, parquet"),
     apply_labels: bool = Form(True, description="Replace codes with value labels in output"),
@@ -35,7 +36,7 @@ async def convert(
         raise HTTPException(400, detail={"code": "VALIDATION_ERROR", "message": f"Unsupported format '{target_format}'. Accepted: {', '.join(VALID_FORMATS)}"})
 
     try:
-        data = await run_in_executor(QuantiProEngine.load_spss, file_bytes, filename)
+        data = await run_in_executor(load_data, file_bytes, filename)
     except (asyncio.TimeoutError, RuntimeError):
         raise
     except Exception as e:

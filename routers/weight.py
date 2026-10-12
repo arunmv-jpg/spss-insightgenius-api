@@ -12,6 +12,7 @@ from middleware.rate_limiter import check_rate_limit
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 from services.quantipy_engine import QuantiProEngine
+from services.data_loader import load_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Weighting"])
@@ -19,7 +20,7 @@ router = APIRouter(tags=["Weighting"])
 
 @router.post("/v1/weight/preview", summary="Preview variable distribution for weighting")
 async def weight_preview(
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     variable: str = Form(...),
     key: KeyConfig = Depends(require_auth),
@@ -32,7 +33,7 @@ async def weight_preview(
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
 
     def _preview():
-        data = QuantiProEngine.load_spss(file_bytes, filename)
+        data = load_data(file_bytes, filename)
         df = data.df
         if variable not in df.columns:
             return {"error": f"Variable '{variable}' not found."}
@@ -85,7 +86,7 @@ async def weight_preview(
 
 @router.post("/v1/weight/compute", summary="Compute RIM weight from target distributions")
 async def weight_compute(
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     targets: str = Form(...),
     max_iterations: int = Form(50),
@@ -119,7 +120,7 @@ async def weight_compute(
     def _compute():
         from services.rim_weighter import WeightTarget, compute_rim_weight
 
-        data = QuantiProEngine.load_spss(file_bytes, filename)
+        data = load_data(file_bytes, filename)
 
         # Build WeightTarget objects
         weight_targets = []

@@ -10,6 +10,7 @@ from auth import require_scope, KeyConfig
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from services.quantipy_engine import QuantiProEngine
+from services.data_loader import load_data
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 
@@ -38,8 +39,8 @@ async def wave_compare(
         bytes1, name1 = await resolve_file(file=file1, file_id=file1_id)
         bytes2, name2 = await resolve_file(file=file2, file_id=file2_id)
 
-        data1 = await run_in_executor(QuantiProEngine.load_spss, bytes1, name1)
-        data2 = await run_in_executor(QuantiProEngine.load_spss, bytes2, name2)
+        data1 = await run_in_executor(load_data, bytes1, name1)
+        data2 = await run_in_executor(load_data, bytes2, name2)
     except ValueError as e:
         raise HTTPException(400, detail={"code": "LOAD_ERROR", "message": str(e)})
     except Exception as e:

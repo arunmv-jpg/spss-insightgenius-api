@@ -12,6 +12,7 @@ from config import get_settings
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from services.quantipy_engine import QuantiProEngine
+from services.data_loader import load_data
 from shared.file_resolver import resolve_file as shared_resolve_file
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ async def chat_stream_endpoint(
             file_bytes, filename = await shared_resolve_file(file=file, file_id=file_id)
 
             # Load data
-            data = await run_in_executor(QuantiProEngine.load_spss, file_bytes, filename)
+            data = await run_in_executor(load_data, file_bytes, filename)
 
             # Parse context
             history_parsed = json.loads(history) if history else []

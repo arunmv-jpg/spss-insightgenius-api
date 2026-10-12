@@ -18,6 +18,7 @@ from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine
+from services.data_loader import load_data
 from services.tabulation_builder import TabulateSpec, build_tabulation, _build_excel
 
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ async def tabulate(
             _ticket_bytes = await ticket.read()
 
         async def _do_tabulate():
-            data = await run_in_executor(QuantiProEngine.load_spss, _file_bytes, _filename)
+            data = await run_in_executor(load_data, _file_bytes, _filename)
             spec_dict = json.loads(_spec)
             spec_obj = TabulateSpec(**spec_dict)
             result = await run_in_executor(build_tabulation, QuantiProEngine, data, spec_obj)
@@ -130,7 +131,7 @@ async def tabulate(
 
             # Load SPSS first for variable list context
             data_for_vars = await run_in_executor(
-                QuantiProEngine.load_spss, file_bytes, filename
+                load_data, file_bytes, filename
             )
             var_info = [
                 {"name": c, "label": "", "type": str(data_for_vars.df[c].dtype)}
@@ -193,7 +194,7 @@ async def tabulate(
     # ── Load SPSS ──
     try:
         data = await run_in_executor(
-            QuantiProEngine.load_spss, file_bytes, filename
+            load_data, file_bytes, filename
         )
     except (asyncio.TimeoutError, RuntimeError):
         raise
@@ -282,7 +283,7 @@ async def tabulate(
 
     # ── Return Excel ──
     import io
-    file_name = f"tabulation_{banners_str}_{data.file_name.replace('.sav', '')}.xlsx"
+    file_name = f"tabulation_{banners_str}_{data.file_name.rsplit('.', 1)[0]}.xlsx"
 
     return StreamingResponse(
         io.BytesIO(result.excel_bytes),

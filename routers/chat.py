@@ -12,6 +12,7 @@ from config import get_settings
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from services.quantipy_engine import QuantiProEngine
+from services.data_loader import load_data
 from shared.file_resolver import resolve_file
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ async def chat_endpoint(
 
     # Load SPSS data
     try:
-        data = await run_in_executor(QuantiProEngine.load_spss, file_bytes, filename)
+        data = await run_in_executor(load_data, file_bytes, filename)
     except Exception as e:
         return JSONResponse(status_code=400, content={
             "success": False,

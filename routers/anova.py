@@ -13,13 +13,14 @@ from shared.file_resolver import resolve_file
 from shared.response import success_response
 from shared.validators import clean_numeric
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
+from services.data_loader import load_data
 
 router = APIRouter(tags=["Analysis"])
 
 
 def _run_anova(file_bytes: bytes, filename: str, spec: dict):
     """Run ANOVA (blocking, executed in thread pool)."""
-    data = QuantiProEngine.load_spss(file_bytes, filename)
+    data = load_data(file_bytes, filename)
     df = data.df
 
     dependent = spec.get("dependent", "")
@@ -90,7 +91,7 @@ def _run_anova(file_bytes: bytes, filename: str, spec: dict):
              description="Test if means of a numeric variable differ across groups, with optional Tukey HSD post-hoc comparisons.")
 async def anova(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     spec: str = Form(..., description='JSON: {"dependent": "Q1", "factor": "age_group", "post_hoc": true}'),
     key: KeyConfig = Depends(require_scope("crosstab")),

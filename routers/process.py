@@ -14,6 +14,7 @@ from middleware.rate_limiter import check_rate_limit
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
+from services.data_loader import load_data
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ async def _execute_operation(data, op: dict, op_id: str) -> dict:
 @router.post("/v1/process", summary="Full processing pipeline", description="Upload a .sav file with optional Reporting Ticket or manual operations spec. Returns metadata + all analysis results.")
 async def process(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     operations: str | None = Form(None, description="JSON array of operation specs"),
     ticket: UploadFile | None = File(None, description="Reporting Ticket .docx (optional)"),
@@ -73,7 +74,7 @@ async def process(
 
     # Load SPSS
     try:
-        data = await run_in_executor(QuantiProEngine.load_spss, file_bytes, filename)
+        data = await run_in_executor(load_data, file_bytes, filename)
     except (asyncio.TimeoutError, RuntimeError):
         raise
     except Exception as e:

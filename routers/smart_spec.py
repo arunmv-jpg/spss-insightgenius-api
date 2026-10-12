@@ -9,6 +9,7 @@ from auth import require_scope, KeyConfig
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from services.quantipy_engine import QuantiProEngine
+from services.data_loader import load_data
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 
@@ -36,7 +37,7 @@ async def smart_spec(
     # Load SPSS metadata
     try:
         file_bytes, filename = await resolve_file(file=file, file_id=file_id)
-        data = await run_in_executor(QuantiProEngine.load_spss, file_bytes, filename)
+        data = await run_in_executor(load_data, file_bytes, filename)
         metadata = await run_in_executor(QuantiProEngine.extract_metadata, data)
     except ValueError as e:
         raise HTTPException(400, detail={"code": "LOAD_ERROR", "message": str(e)})

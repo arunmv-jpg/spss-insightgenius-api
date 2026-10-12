@@ -13,7 +13,8 @@ from fastmcp.exceptions import ToolError
 
 from config import get_settings
 from mcp_server.auth import _make_error
-from services.quantipy_engine import QuantiProEngine, SPSSData
+from services.data_loader import SUPPORTED_FORMATS, file_format, load_data
+from services.quantipy_engine import SPSSData
 
 logger = logging.getLogger(__name__)
 
@@ -129,29 +130,12 @@ async def _resolve_file(
 def _load_data(file_bytes: bytes, format_str: str, filename: str) -> SPSSData:
     """Load file bytes into SPSSData. Supports .sav, .csv, .tsv, .xlsx, .xls.
 
+    CSV/Excel are converted to SPSS form (value labels, variable labels) so they
+    get the same auto-detection and significance testing as .sav files.
+
     CPU-bound — call via run_in_executor.
     """
-    if format_str == "sav":
-        return QuantiProEngine.load_spss(file_bytes, filename)
-    elif format_str in ("csv", "tsv"):
-        import csv as csv_mod
-        import io
-        import pandas as pd
-        sep = "\t" if format_str == "tsv" else ","
-        try:
-            sample = file_bytes[:8192].decode("utf-8", errors="replace")
-            dialect = csv_mod.Sniffer().sniff(sample)
-            sep = dialect.delimiter
-        except Exception:
-            pass
-        df = pd.read_csv(io.BytesIO(file_bytes), sep=sep)
-        return SPSSData(df=df, meta=None, mrx_dataset=None, file_name=filename)
-    elif format_str in ("xlsx", "xls"):
-        import io
-        import pandas as pd
-        df = pd.read_excel(io.BytesIO(file_bytes))
-        return SPSSData(df=df, meta=None, mrx_dataset=None, file_name=filename)
-    else:
+    if format_str not in SUPPORTED_FORMATS:
         raise ToolError(json.dumps(_make_error(
             "unsupported_format",
             f"The file format .{format_str} is not supported. "
@@ -159,3 +143,7 @@ def _load_data(file_bytes: bytes, format_str: str, filename: str) -> SPSSData:
             "Ask the user if they can export their data in one of the supported formats.",
             supported_formats=[".sav", ".csv", ".tsv", ".xlsx", ".xls"],
         )))
+    # Make the extension authoritative even if the stored filename lacks one
+    if file_format(filename) != format_str:
+        filename = f"{filename}.{format_str}"
+    return load_data(file_bytes, filename)

@@ -9,6 +9,7 @@ from auth import require_scope, KeyConfig
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
+from services.data_loader import load_data
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 
@@ -19,7 +20,7 @@ router = APIRouter(tags=["Analysis"])
              description="Calculate frequency distribution for a single variable, optionally weighted.")
 async def frequency(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     variable: str = Form(..., description="Variable name to analyze"),
     weight: str | None = Form(None, description="Weight variable name"),
@@ -30,7 +31,7 @@ async def frequency(
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
 
     try:
-        data = await run_in_executor(QuantiProEngine.load_spss, file_bytes, filename)
+        data = await run_in_executor(load_data, file_bytes, filename)
     except (asyncio.TimeoutError, RuntimeError):
         raise
     except Exception as e:

@@ -16,6 +16,7 @@ from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
+from services.data_loader import load_data
 from services.tabulation_builder import TabulateSpec, build_tabulation
 
 router = APIRouter(tags=["Processing"])
@@ -35,7 +36,7 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
     (MRS sheet or Grid summary). Only ungrouped variables get individual sheets.
     """
     # Step 1: Load and extract metadata
-    data = QuantiProEngine.load_spss(file_bytes, filename)
+    data = load_data(file_bytes, filename)
     meta = QuantiProEngine.extract_metadata(data)
 
     # Step 2: Pick banners — ticket overrides auto-detect
@@ -161,7 +162,7 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
 
     return {
         "excel_bytes": result.excel_bytes,
-        "filename": f"auto_analysis_{filename.replace('.sav', '')}.xlsx",
+        "filename": f"auto_analysis_{filename.rsplit('.', 1)[0]}.xlsx",
         "_tabulation_result": result,
         "_spec": spec,
         "_data": data,
@@ -189,7 +190,7 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
                          "stubs, nets, MRS groups, and significance testing. No configuration needed.")
 async def auto_analyze(
     request: Request,
-    file: UploadFile = File(None, description="SPSS .sav file (or use file_id)"),
+    file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     ticket: UploadFile = File(None, description="Reporting Ticket .docx — AI parses it to override auto-detection"),
     options: str = Form("{}", description='Optional JSON: {"max_banners": 3, "output_mode": "multi_sheet", "significance_level": 0.95}'),
@@ -212,7 +213,7 @@ async def auto_analyze(
             from services.ticket_parser import TicketParser
             parser = TicketParser()
             # Get variable list for fuzzy matching
-            data_tmp = await run_in_executor(QuantiProEngine.load_spss, file_bytes, filename)
+            data_tmp = await run_in_executor(load_data, file_bytes, filename)
             meta_tmp = await run_in_executor(QuantiProEngine.extract_metadata, data_tmp)
             var_list = [v["name"] for v in (meta_tmp.get("variables") or [])]
             ticket_spec = await parser.parse(ticket_bytes, var_list)
