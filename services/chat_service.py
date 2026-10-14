@@ -19,6 +19,7 @@ from anthropic import AsyncAnthropic
 
 from config import get_settings
 from services.quantipy_engine import QuantiProEngine, SPSSData
+from shared.filenames import output_filename
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +258,7 @@ async def _execute_tool(tool_name: str, tool_input: dict, data: SPSSData) -> dic
             from routers.downloads import store_download
             download_id, download_url = await store_download(
                 result.excel_bytes,
-                filename=f"tabulation_{data.file_name.rsplit('.', 1)[0]}.xlsx",
+                filename=output_filename("tables", data.file_name),
             )
 
             return {

@@ -13,6 +13,7 @@ from services.tabulation_builder import TabulateSpec, build_tabulation
 
 from mcp_server.auth import _auth_async
 from mcp_server.file_session import _resolve_file, _load_data
+from shared.filenames import output_filename
 
 
 def _extract_tables_summary(sheets: list) -> list[dict[str, Any]]:
@@ -173,8 +174,7 @@ async def create_tabulation(
     tables_summary = _extract_tables_summary(result.sheets)
 
     # Store for download
-    base_name = filename.rsplit(".", 1)[0] if "." in filename else filename
-    dl_filename = f"tabulation_{base_name}.xlsx"
+    dl_filename = output_filename("tables", filename)
     _, download_url = await store_download(result.excel_bytes, dl_filename)
 
     tab_results = {
@@ -263,7 +263,7 @@ async def auto_analyze(
         raise ToolError(f"Auto-analyze failed: {e}")
 
     # Store for download
-    dl_filename = result.get("filename", f"auto_analyze_{filename.rsplit('.', 1)[0]}.xlsx")
+    dl_filename = result.get("filename") or output_filename("analysis", filename)
     _, download_url = await store_download(result["excel_bytes"], dl_filename)
 
     summary = result["summary"]

@@ -207,6 +207,16 @@
 </main>
 
 <script>
+// Short, safe download names (Excel can't open files whose full path exceeds 218 characters)
+function shortName(kind, sourceName) {
+  let stem = (sourceName || '').replace(/\.[^.]+$/, '')
+    .replace(/^(hubspot[-_]crm[-_]exports?[-_]|hubspot[-_]|qualtrics[-_]|surveymonkey[-_])/i, '')
+    .replace(/[-_ ]?\d{4}-\d{2}-\d{2}([-_]\d+)?$/, '')
+    .replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^[_-]+|[_-]+$/g, '');
+  if (stem.length > 40) stem = stem.slice(0, 40).replace(/[_-]+$/, '');
+  return `${kind}_${stem || 'data'}.xlsx`;
+}
+
 const API_KEY = window.__INSIGHTGENIUS_DEMO_KEY__ || 'demo';
 const API_BASE = window.location.origin;
 
@@ -440,7 +450,7 @@ async function generateExcel() {
     }
 
     resultBlob = await resp.blob();
-    resultFilename = `express_${mainFile.name.replace(/\.[^.]+$/, '')}.xlsx`;
+    resultFilename = shortName('analysis', mainFile.name);
 
     const total = resp.headers.get('X-Stubs-Total') || '?';
     const success = resp.headers.get('X-Stubs-Success') || '?';

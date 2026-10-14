@@ -13,6 +13,7 @@ from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine
 from services.data_loader import load_data
 from services.converter import FormatConverter
+from shared.filenames import output_filename as short_output_name
 
 router = APIRouter(tags=["Conversion"])
 
@@ -51,8 +52,7 @@ async def convert(
     except Exception as e:
         raise HTTPException(500, detail={"code": "PROCESSING_FAILED", "message": str(e)})
 
-    base_name = filename.rsplit(".", 1)[0]
-    output_filename = f"{base_name}{extension}"
+    output_filename = short_output_name("data", filename, extension)
 
     return Response(
         content=output_bytes,

@@ -21,6 +21,7 @@ from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine
 from services.data_loader import load_data
 from services.tabulation_builder import TabulateSpec, build_tabulation, _build_excel
+from shared.filenames import output_filename
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ async def tabulate(
             spec_obj = TabulateSpec(**spec_dict)
             result = await run_in_executor(build_tabulation, QuantiProEngine, data, spec_obj)
             excel_bytes = await run_in_executor(_build_excel, result, spec_obj, data)
-            token, download_url = await store_download(excel_bytes, f"{spec_obj.title or 'tabulation'}.xlsx")
+            token, download_url = await store_download(excel_bytes, output_filename("tables", _filename))
             return excel_bytes, download_url
 
         asyncio.create_task(run_tabulation_job(job_id, _do_tabulate))
@@ -295,7 +296,7 @@ async def tabulate(
 
     # ── Return Excel ──
     import io
-    file_name = f"tabulation_{banners_str}_{data.file_name.rsplit('.', 1)[0]}.xlsx"
+    file_name = output_filename("tables", data.file_name)
 
     return StreamingResponse(
         io.BytesIO(result.excel_bytes),

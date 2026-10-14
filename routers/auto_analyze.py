@@ -21,6 +21,7 @@ from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
 from services.data_loader import load_data, read_table
 from services.respondent_sheet import add_respondent_sheets
 from services.tabulation_builder import TabulateSpec, build_tabulation
+from shared.filenames import output_filename
 
 router = APIRouter(tags=["Processing"])
 
@@ -192,7 +193,7 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
 
     return {
         "excel_bytes": result.excel_bytes,
-        "filename": f"auto_analysis_{filename.rsplit('.', 1)[0]}.xlsx",
+        "filename": output_filename("analysis", filename),
         "_tabulation_result": result,
         "_spec": spec,
         "_data": data,
