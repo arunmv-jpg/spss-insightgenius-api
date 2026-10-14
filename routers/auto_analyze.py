@@ -12,14 +12,22 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import StreamingResponse
 
 from auth import require_scope, KeyConfig
+from config import get_settings
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
-from services.data_loader import load_data
+from services.data_loader import load_data, read_table
+from services.respondent_sheet import add_respondent_sheets
 from services.tabulation_builder import TabulateSpec, build_tabulation
 
 router = APIRouter(tags=["Processing"])
+
+
+def _with_respondent_sheet(excel_bytes: bytes, file_bytes: bytes, filename: str) -> bytes:
+    """Append the analyst-style FULL DATA + per-category sheets for tabular (non-SPSS) uploads."""
+    raw = read_table(file_bytes, filename)
+    return excel_bytes if raw is None else add_respondent_sheets(excel_bytes, raw, filename)
 
 
 def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
@@ -90,6 +98,21 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
             # Grid: same scale across variables — compact T2B/Mean summary
             grid_groups[name] = {"variables": members, "show": ["t2b", "b2b", "mean"]}
             grouped_vars.update(members)
+
+    # A single option of a multi-select set is a poor banner, and tabulating the set
+    # against one of its own members fails — drop auto-picked banners that are grouped.
+    if not ticket_banners and banner_set & grouped_vars:
+        banners = [b for b in banners if b not in grouped_vars]
+        if not banners:
+            for v in meta.get("variables", []):
+                vl = v.get("value_labels")
+                if vl and 2 <= len(vl) <= 8 and v["name"] not in grouped_vars:
+                    banners.append(v["name"])
+                    if len(banners) >= options.get("max_banners", 3):
+                        break
+        if not banners:
+            raise ValueError("No suitable banner variables found in the dataset")
+        banner_set = set(banners)
 
     # Step 4: Build stubs — ticket overrides auto-detect
     ticket_stubs = options.get("ticket_stubs")
@@ -270,6 +293,14 @@ async def auto_analyze(
                     logger.info("[AUTO] Executive summary added (%d chars)", len(summary_text))
         except Exception as e:
             logger.warning("[AUTO] Executive summary failed (non-blocking): %s", e)
+
+    # LEGACY client rule: analyst-style respondent data sheets for Excel/CSV exports
+    # (replaced by the codebook-driven data workbook in IMPLEMENTATION_PLAN.md M7)
+    if get_settings().client_rules_legacy and options_dict.get("include_respondent_sheet", True):
+        try:
+            excel_bytes = await run_in_executor(_with_respondent_sheet, excel_bytes, file_bytes, filename)
+        except Exception as e:
+            logger.warning("[AUTO] Respondent sheet failed (non-blocking): %s", e)
 
     return StreamingResponse(
         io.BytesIO(excel_bytes),
