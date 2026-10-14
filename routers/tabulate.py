@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from auth import KeyConfig, require_scope
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
+from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine
 from services.data_loader import load_data
@@ -64,6 +65,7 @@ async def tabulate(
     request: Request,
     file: UploadFile = File(None, description=".sav file to tabulate (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     spec: str = Form(..., description="JSON tabulation specification"),
     ticket: UploadFile | None = File(None, description="Optional .docx Reporting Ticket — Haiku parses it into a tab plan"),
     webhook_url: str | None = Form(None, description="URL to POST job result when processing completes. If provided, returns 202 with job_id instead of blocking."),
@@ -74,6 +76,7 @@ async def tabulate(
     request_id = getattr(request.state, "request_id", "")
 
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
+    cb = await resolve_codebook(codebook, file_id)
 
     # ── Check file size ──
     max_size = _MAX_FILE_SIZE.get(key.plan, _MAX_FILE_SIZE["free"])
@@ -99,7 +102,7 @@ async def tabulate(
             _ticket_bytes = await ticket.read()
 
         async def _do_tabulate():
-            data = await run_in_executor(load_data, _file_bytes, _filename)
+            data = await run_in_executor(load_data, _file_bytes, _filename, cb)
             spec_dict = json.loads(_spec)
             spec_obj = TabulateSpec(**spec_dict)
             result = await run_in_executor(build_tabulation, QuantiProEngine, data, spec_obj)
@@ -134,7 +137,7 @@ async def tabulate(
 
             # Load SPSS first for variable list context
             data_for_vars = await run_in_executor(
-                load_data, file_bytes, filename
+                load_data, file_bytes, filename, cb
             )
             var_info = [
                 {"name": c, "label": "", "type": str(data_for_vars.df[c].dtype)}
@@ -203,7 +206,7 @@ async def tabulate(
     # ── Load SPSS ──
     try:
         data = await run_in_executor(
-            load_data, file_bytes, filename
+            load_data, file_bytes, filename, cb
         )
     except (asyncio.TimeoutError, RuntimeError):
         raise

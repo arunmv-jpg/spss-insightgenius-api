@@ -34,6 +34,7 @@ from services.codebook.apply import apply_codebook, write_sav
 from services.codebook.describe import annotate_counts, summarize
 from services.codebook.infer import infer_codebook
 from services.codebook.model import Code, Codebook, Inferred, Source, Variable
+from services.codebook.patch import EditError, apply_ops  # noqa: F401
 from services.quantipy_engine import QuantiProEngine, SPSSData
 
 # Re-exported for existing importers (routers, MCP, respondent_sheet, tests)
@@ -110,6 +111,19 @@ def describe_file(file_bytes: bytes, filename: str, codebook: Codebook | None = 
         columns, unmatched = coded.columns, coded.unmatched
     cb = annotate_counts(cb, columns)
     return {"summary": summarize(cb, unmatched), "codebook": cb.model_dump(mode="json")}
+
+
+def edit_codebook(file_bytes: bytes, filename: str, edits: list[dict], codebook: Codebook | None = None) -> dict:
+    """Apply edits to the file's codebook (inferred if none given) → described result.
+
+    Raises EditError for invalid edits and ValueError for SPSS files (their codebook is
+    their own metadata; editing it isn't supported yet).
+    """
+    if file_format(filename) in SPSS_FORMATS:
+        raise ValueError("Editing the codebook of an SPSS file isn't supported yet (it uses the file's own labels)")
+    raw = read_raw(file_bytes, filename)
+    edited = apply_ops(codebook or infer_codebook(raw), edits, raw.df)
+    return describe_file(file_bytes, filename, edited)
 
 
 def codebook_from_spss(file_bytes: bytes, data: SPSSData, filename: str = "upload.sav") -> Codebook:

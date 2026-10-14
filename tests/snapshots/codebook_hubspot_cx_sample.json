@@ -1234,6 +1234,7 @@
      "count": null
     }
    ],
+   "outputs": [],
    "measure": "nominal",
    "inferred": {
     "rule": "legacy:job_role_group",
@@ -1289,6 +1290,7 @@
      "count": null
     }
    ],
+   "outputs": [],
    "measure": "ordinal",
    "inferred": {
     "rule": "nps",

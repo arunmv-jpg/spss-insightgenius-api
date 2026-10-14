@@ -13,8 +13,9 @@ from typing import Any
 import pandas as pd
 import pyreadstat
 
-from services.codebook.heuristics import _job_role_group, _merge_case_variants
-from services.codebook.model import Codebook, Derived, Variable
+from services.codebook.heuristics import _merge_case_variants
+from services.codebook.model import Codebook, Variable
+from services.codebook.rules import Context, compute
 
 
 @dataclass
@@ -84,12 +85,13 @@ def apply_codebook(df: pd.DataFrame, codebook: Codebook) -> Coded:
     df = df.dropna(axis=0, how="all")
     by_column = {str(c): c for c in df.columns}
     coded = Coded()
+    ctx = Context(codebook, coded.columns, pd.RangeIndex(len(df)))
 
-    def emit_derived(after: str):
+    def emit_derived(after: str | None):
         for d in codebook.derived:
             if d.after == after:
-                coded.add(d.name, _derive(d, coded, df, by_column, codebook), d.label, d.measure,
-                          {c.code: c.label for c in d.codes})
+                for name, label, values, labels, measure in compute(d, ctx):
+                    coded.add(name, values, label, measure, labels)
 
     for var in codebook.variables:
         if var.role == "ignore":
@@ -101,7 +103,7 @@ def apply_codebook(df: pd.DataFrame, codebook: Codebook) -> Coded:
         if var.role == "multi":
             for opt, flags in zip(var.options, multi_flags(series, var.delimiter, [o.label for o in var.options])):
                 coded.add(opt.name, flags, f"{var.label}: {opt.label}", "nominal", {0.0: "Not selected", 1.0: "Selected"})
-            emit_derived(var.options[-1].name)
+            emit_derived(var.anchor())
             continue
 
         unmatched: list[str] = []
@@ -114,26 +116,10 @@ def apply_codebook(df: pd.DataFrame, codebook: Codebook) -> Coded:
         if len(missing) > 3:  # SPSS allows at most three discrete missing values
             missing = [{"lo": min(missing), "hi": max(missing)}]
         coded.add(var.name, values, var.label, var.measure or "nominal", labels or None, missing or None)
-        emit_derived(var.name)
+        emit_derived(var.anchor())
 
+    emit_derived(None)  # derived variables placed at the end
     return coded
-
-
-def _derive(d: Derived, coded: Coded, df: pd.DataFrame, by_column: dict, codebook: Codebook) -> pd.Series:
-    if d.rule == "bands":
-        source = coded.columns[d.source]
-        src_var = codebook.variable(d.source)
-        missing = {m.code for m in src_var.missing} if src_var else set()
-        valid = source.where(~source.isin(missing))
-        out = pd.Series(float("nan"), index=valid.index)
-        for band in d.params["bands"]:
-            out[(valid >= band["min"]) & (valid <= band["max"])] = float(band["code"])
-        return out
-    if d.rule == "legacy_job_role_group":
-        var = next(v for v in codebook.variables if v.column == d.source)
-        flags = multi_flags(df[by_column[d.source]], var.delimiter, [o.label for o in var.options])
-        return _job_role_group(var.column.strip(), list(zip([o.label for o in var.options], flags)))
-    raise ValueError(f"Unknown derived rule '{d.rule}'")
 
 
 def write_sav(coded: Coded) -> bytes:

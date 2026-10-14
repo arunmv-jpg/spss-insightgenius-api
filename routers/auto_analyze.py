@@ -15,6 +15,7 @@ from auth import require_scope, KeyConfig
 from config import get_settings
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
+from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
 from services.data_loader import load_data, read_table
@@ -44,7 +45,7 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
     (MRS sheet or Grid summary). Only ungrouped variables get individual sheets.
     """
     # Step 1: Load and extract metadata
-    data = load_data(file_bytes, filename)
+    data = load_data(file_bytes, filename, options.get("_codebook"))
     meta = QuantiProEngine.extract_metadata(data)
 
     # Step 2: Pick banners — ticket overrides auto-detect
@@ -221,6 +222,7 @@ async def auto_analyze(
     request: Request,
     file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     ticket: UploadFile = File(None, description="Reporting Ticket .docx — AI parses it to override auto-detection"),
     options: str = Form("{}", description='Optional JSON: {"max_banners": 3, "output_mode": "multi_sheet", "significance_level": 0.95, '
                                          '"significance_levels": [0.95, 0.90]}. Default: CAPITAL letters at 95%, lowercase at 90%'),
@@ -230,6 +232,7 @@ async def auto_analyze(
     start = time.perf_counter()
 
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
+    cb = await resolve_codebook(codebook, file_id)
 
     try:
         options_dict = json.loads(options)
@@ -243,7 +246,7 @@ async def auto_analyze(
             from services.ticket_parser import TicketParser
             parser = TicketParser()
             # Get variable list for fuzzy matching
-            data_tmp = await run_in_executor(load_data, file_bytes, filename)
+            data_tmp = await run_in_executor(load_data, file_bytes, filename, cb)
             meta_tmp = await run_in_executor(QuantiProEngine.extract_metadata, data_tmp)
             var_list = [v["name"] for v in (meta_tmp.get("variables") or [])]
             ticket_spec = await parser.parse(ticket_bytes, var_list)
@@ -264,6 +267,7 @@ async def auto_analyze(
             logger.warning("[AUTO] Ticket parsing failed (continuing with auto-detect): %s", e)
 
     try:
+        options_dict["_codebook"] = cb
         result = await run_in_executor(_run_auto_analyze, file_bytes, filename, options_dict)
     except (asyncio.TimeoutError, RuntimeError):
         raise

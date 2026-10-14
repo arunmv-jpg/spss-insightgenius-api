@@ -52,18 +52,32 @@ class Variable(BaseModel):
     status: Literal["ok", "needs_review", "new"] = "ok"
     base: int | None = Field(None, description="Respondents who answered (filled for review)")
 
+    def anchor(self) -> str | None:
+        """Last SPSS variable this column produces (derived variables can be placed after it)."""
+        if self.role == "ignore":
+            return None
+        return self.options[-1].name if self.role == "multi" and self.options else self.name
+
+
+DerivedRule = Literal["recode", "bands", "priority", "count", "combination", "coalesce", "flags",
+                      "legacy_job_role_group"]
+
 
 class Derived(BaseModel):
-    """A variable computed from others by a rule (PLAN_ANY_FORMAT.md §5)."""
+    """A variable computed from others by a rule (PLAN_ANY_FORMAT.md §5, services.codebook.rules)."""
     name: str
     label: str
-    rule: Literal["bands", "legacy_job_role_group"]
-    source: str = Field(description="Name of the variable it's computed from (column for multi-select)")
-    after: str = Field(description="Output position: right after this variable")
+    rule: DerivedRule
+    source: str = Field("", description="Main input: a variable name, or a multi-select's column/label")
+    after: str | None = Field(None, description="Output position: right after this variable (None = at the end)")
     params: dict[str, Any] = Field(default_factory=dict)
-    codes: list[Code] = Field(default_factory=list)
+    codes: list[Code] = Field(default_factory=list, description="Categories of a single-variable result")
+    outputs: list[Option] = Field(default_factory=list, description="0/1 variables of a multi-variable result")
     measure: Measure = "nominal"
     inferred: Inferred | None = None
+
+    def output_names(self) -> list[str]:
+        return [o.name for o in self.outputs] if self.outputs else [self.name]
 
 
 class Source(BaseModel):
@@ -86,9 +100,20 @@ class Codebook(BaseModel):
         """SPSS variables produced, in file order."""
         names: list[str] = []
         for var in self.variables:
-            if var.role == "multi":
-                names += [o.name for o in var.options]
-            elif var.name and var.role != "ignore":
-                names.append(var.name)
-            names += [d.name for d in self.derived if d.after == (var.options[-1].name if var.options else var.name)]
+            anchor = var.anchor()
+            if anchor is None:
+                continue
+            names += [o.name for o in var.options] if var.role == "multi" else [var.name]
+            names += [n for d in self.derived if d.after == anchor for n in d.output_names()]
+        names += [n for d in self.derived if d.after is None for n in d.output_names()]
         return names
+
+    def find(self, ref: str) -> "Variable | None":
+        """A variable by SPSS name, or a multi-select by its column or label."""
+        for var in self.variables:
+            if var.name == ref or (var.role == "multi" and ref in (var.column, var.column.strip(), var.label)):
+                return var
+        return None
+
+    def find_derived(self, name: str) -> "Derived | None":
+        return next((d for d in self.derived if d.name == name), None)
