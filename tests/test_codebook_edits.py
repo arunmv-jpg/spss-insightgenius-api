@@ -227,3 +227,23 @@ def test_invalid_codebook_rejected(client, auth_headers):
     spec = {"row": EXAM, "col": "CX_Pulse_Overall_NPS_group"}
     response = _post(client, auth_headers, "/v1/crosstab", {"spec": json.dumps(spec), "codebook": '{"variables": 3}'})
     assert response.status_code == 400
+
+
+def test_metadata_and_frequency_use_edited_codebook(client, auth_headers):
+    """A derived variable added by an edit is a real variable for every analysis endpoint."""
+    edits = [{"op": "add_derived", "derived": {"name": "Product_count", "label": "Number of products",
+              "rule": "count", "params": {"from": "Customer type", "bands": [
+                  {"code": 1, "label": "Single", "min": 1, "max": 1},
+                  {"code": 2, "label": "Multiple", "min": 2, "max": None}]}}}]
+    codebook = _post(client, auth_headers, "/v1/codebook", {"edits": json.dumps(edits)}).json()["data"]["codebook"]
+    meta = _post(client, auth_headers, "/v1/metadata", {"codebook": json.dumps(codebook)})
+    assert meta.status_code == 200, meta.text
+    assert "Product_count" in [v["name"] for v in meta.json()["data"]["variables"]]
+    freq = _post(client, auth_headers, "/v1/frequency", {"variable": "Product_count", "codebook": json.dumps(codebook)})
+    assert freq.status_code == 200, freq.text
+    assert {f["label"] for f in freq.json()["data"]["frequencies"]} == {"Single", "Multiple"}
+
+
+def test_review_page_has_editing():
+    html = (Path(__file__).parent.parent / "public" / "review.html").read_text(encoding="utf-8")
+    assert "add_derived" in html and "set_role" in html and "innerHTML" not in html

@@ -21,7 +21,9 @@
 ### Review how a file was read
 
 Open `/review`, drop any SPSS / Excel / CSV file and see the codebook — how every column was coded, with
-counts and reasons — next to a live crosstab and chart. Approve to run the full analysis.
+counts and reasons — next to a live crosstab and chart. Fix anything that was misread (rename, change type,
+exclude "Don't know" from bases, merge or reorder answers) and build derived variables (bands, groups,
+Single/Dual/Triple counts, priority groups…) with a live preview. Approve to run the full analysis.
 
 ### Option 2: Auto-Analyze (zero config)
 
@@ -84,7 +86,7 @@ Connect to `https://spss.insightgenius.io/mcp/sse` and use any of the 12 tools. 
 | **POST** | `/v1/auto-analyze` | **Zero-config** — upload .sav, get complete Excel (AI-detected banners, MRS, grids, nets) |
 | **POST** | `/v1/tabulate` | **Full tabulation → Excel** with sig letters, nets, means, MRS, grids, custom groups. Accepts optional .docx Reporting Ticket. |
 | POST | `/v1/metadata` | Variable metadata + suggested banners + detected groups + preset nets |
-| POST | `/v1/codebook` | How each column is coded: codes + raw answers + counts, missing codes, multi-selects, derived variables, reasons (also `GET /v1/files/{file_id}/codebook`) |
+| POST | `/v1/codebook` | How each column is coded: codes + raw answers + counts, missing codes, multi-selects, derived variables, reasons (also `GET /v1/files/{file_id}/codebook`). Send `edits` to change it (rename, recode, exclude from base, merge, derived variables: bands / recode / priority / count / combination / coalesce / flags); `PATCH /v1/files/{file_id}/codebook` saves edits with the file session. Analysis endpoints accept the edited `codebook` |
 | POST | `/v1/frequency` | Frequency table (counts, %, mean, std, median) |
 | POST | `/v1/crosstab` | Single crosstab with sig letters (A/B/C) + chi-square p-value |
 | POST | `/v1/correlation` | Correlation matrix (Pearson/Spearman/Kendall) with p-values |

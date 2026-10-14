@@ -30,6 +30,9 @@ def annotate_counts(codebook: Codebook, columns: dict[str, pd.Series]) -> Codebo
         for code in [*var.codes, *var.missing]:
             code.count = int(counts.get(code.code, 0))
     for d in cb.derived:
+        for opt in d.outputs:
+            flags = columns.get(opt.name)
+            opt.count = int((flags == 1).sum()) if flags is not None else None
         series = columns.get(d.name)
         if series is not None:
             counts = Counter(series.dropna().tolist())

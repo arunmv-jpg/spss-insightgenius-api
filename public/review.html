@@ -28,6 +28,13 @@
     .spinner { border: 3px solid #e5e7eb; border-top: 3px solid #2563eb; border-radius: 50%; width: 18px; height: 18px; animation: spin 0.8s linear infinite; display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
     #xtab tbody tr:nth-child(even) { background: #f8fafc; }
+    .edit-only { display: none; }
+    .editable .edit-only { display: inline-flex; }
+    .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; color: #64748b; font-size: 12px; }
+    .icon-btn:hover { background: #e2e8f0; color: #0f172a; }
+    .code-row:hover .row-tools { visibility: visible; }
+    .row-tools { visibility: hidden; }
+    dialog::backdrop { background: rgba(15, 23, 42, 0.35); }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-900">
@@ -64,6 +71,7 @@
         <div id="role-chips" class="flex flex-wrap gap-2"></div>
         <div id="unmatched-note" class="hidden text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-1.5"></div>
         <div class="ml-auto flex flex-wrap gap-2">
+          <button id="undo" class="edit-only text-sm font-medium px-3 py-2 rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 disabled:opacity-40" disabled>Undo</button>
           <button id="download-codebook" class="text-sm font-medium px-3 py-2 rounded-lg ring-1 ring-gray-300 hover:bg-gray-50">Download codebook</button>
           <button id="approve" class="text-sm font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
             <span>Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
@@ -81,7 +89,10 @@
         <div class="px-4 pt-4 pb-3 space-y-3 ring-1 ring-gray-100 rounded-t-xl">
           <div class="flex items-center justify-between">
             <h2 class="font-semibold">Codebook</h2>
-            <span id="var-count" class="text-xs text-gray-500"></span>
+            <div class="flex items-center gap-3">
+              <span id="var-count" class="text-xs text-gray-500"></span>
+              <button id="add-derived" class="edit-only text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-900 hover:bg-amber-200">+ Derived variable</button>
+            </div>
           </div>
           <input id="search" type="search" placeholder="Search columns or answers…"
                  class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
@@ -119,13 +130,46 @@
     </section>
   </main>
 
+  <!-- Derived variable builder -->
+  <dialog id="builder" class="rounded-xl ambient p-0 w-[min(640px,calc(100vw-32px))]">
+    <form method="dialog" class="p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-semibold">New derived variable</h3>
+        <button value="cancel" class="icon-btn" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="text-sm"><span class="block text-gray-500 mb-1">Name (label)</span>
+          <input id="b-label" required class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300" placeholder="e.g. Role group"></label>
+        <label class="text-sm"><span class="block text-gray-500 mb-1">Rule</span>
+          <select id="b-rule" class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 bg-white">
+            <option value="bands">Number bands (e.g. NPS 0-6 / 7-8 / 9-10)</option>
+            <option value="recode">Group answers (e.g. Top 2 Box)</option>
+            <option value="count">Count options ticked (e.g. Single / Dual / Triple)</option>
+            <option value="flags">One column per answer</option>
+            <option value="coalesce">Combine multi-select questions</option>
+            <option value="priority">Priority groups — first match wins (advanced)</option>
+            <option value="combination">Exact combinations of options (advanced)</option>
+          </select></label>
+      </div>
+      <div id="b-form" class="space-y-3"></div>
+      <div id="b-preview" class="text-sm"></div>
+      <div class="flex justify-end gap-2">
+        <button type="button" id="b-test" class="text-sm font-medium px-3 py-2 rounded-lg ring-1 ring-gray-300 hover:bg-gray-50">Preview</button>
+        <button type="button" id="b-add" class="text-sm font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white">Add</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 max-w-[calc(100vw-32px)] text-sm px-4 py-2.5 rounded-lg bg-gray-900 text-white ambient z-50"></div>
+
 <script src="/static/config.js"></script>
 <script>
 const API_KEY = window.__INSIGHTGENIUS_DEMO_KEY__ || 'demo';
 const SIG_LEVELS = [0.95, 0.90];
 const ROLE_NAMES = { single: 'Coded', multi: 'Multi-select', numeric: 'Number', text: 'Text', date: 'Date', ignore: 'Ignored' };
 
-const state = { file: null, fileId: null, codebook: null, summary: null, filter: 'all', view: 'table', chart: null };
+const state = { file: null, fileId: null, codebook: null, summary: null, filter: 'all', view: 'table', chart: null,
+                editable: false, edited: false, history: [] };
 const $ = (id) => document.getElementById(id);
 
 // ── DOM helpers (every file-derived string goes through textContent) ──
@@ -141,10 +185,12 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
-function fileForm(extra = {}) {
+function fileForm(extra = {}, withCodebook = false) {
   const form = new FormData();
   if (state.fileId) form.append('file_id', state.fileId);
   else form.append('file', state.file, state.file.name);
+  // Once edited (or when editing), the page's codebook decides how the file is coded
+  if (state.codebook && (withCodebook || state.edited)) form.append('codebook', JSON.stringify(state.codebook));
   for (const [k, v] of Object.entries(extra)) form.append(k, v);
   return form;
 }
@@ -181,6 +227,8 @@ async function start(file) {
   try {
     const data = await api('/v1/codebook', fileForm());
     state.codebook = data.codebook; state.summary = data.summary;
+    state.editable = !['sav', 'zsav', 'por'].includes(data.codebook.source.format);
+    state.edited = false; state.history = [];
     status.classList.add('hidden');
     $('upload').classList.add('hidden');
     render();
@@ -191,26 +239,61 @@ async function start(file) {
 
 // ── Codebook model helpers ──
 function isTabulable(v) { return v.name && (v.role === 'single' || v.role === 'numeric') && v.codes.length > 0; }
-function derivedFor(v) {
-  const after = v.role === 'multi' ? v.options.at(-1)?.name : v.name;
-  return state.codebook.derived.filter(d => d.after === after);
-}
+function anchor(v) { return v.role === 'ignore' ? null : (v.role === 'multi' ? v.options.at(-1)?.name : v.name); }
+function derivedFor(v) { const a = anchor(v); return a ? state.codebook.derived.filter(d => d.after === a) : []; }
+function trailingDerived() { return state.codebook.derived.filter(d => d.after == null); }
+function derivedRows(d) { return d.outputs.length ? d.outputs.map(o => ({ name: o.name, label: `${d.label}: ${o.label}` })) : [{ name: d.name, label: d.label }]; }
 function rowCandidates() {
   const out = [];
   for (const v of state.codebook.variables) {
     if (isTabulable(v)) out.push({ name: v.name, label: v.label });
     if (v.role === 'multi') v.options.forEach(o => out.push({ name: o.name, label: `${v.label}: ${o.label}` }));
-    derivedFor(v).forEach(d => out.push({ name: d.name, label: d.label }));
+    derivedFor(v).forEach(d => out.push(...derivedRows(d)));
   }
+  trailingDerived().forEach(d => out.push(...derivedRows(d)));
   return out;
 }
 function bannerCandidates() {
   const out = [];
+  const add = d => { if (!d.outputs.length && d.codes.length >= 2 && d.codes.length <= 12) out.push({ name: d.name, label: d.label }); };
   for (const v of state.codebook.variables) {
     if (isTabulable(v) && v.codes.length >= 2 && v.codes.length <= 12) out.push({ name: v.name, label: v.label });
-    derivedFor(v).forEach(d => out.push({ name: d.name, label: d.label }));
+    derivedFor(v).forEach(add);
   }
+  trailingDerived().forEach(add);
   return out;
+}
+function codedVars() { return state.codebook.variables.filter(isTabulable); }
+function multiVars() { return state.codebook.variables.filter(v => v.role === 'multi'); }
+
+// ── Edits (validated by the server; the page keeps the codebook) ──
+async function edit(ops) {
+  try {
+    const data = await api('/v1/codebook', fileForm({ edits: JSON.stringify(ops) }, true));
+    state.history.push({ codebook: state.codebook, summary: state.summary });
+    state.codebook = data.codebook; state.summary = data.summary; state.edited = true;
+    render();
+    return true;
+  } catch (e) {
+    toast(e.message, true);
+    renderList();  // put controls (e.g. a role dropdown) back to the real state
+    return false;
+  }
+}
+
+$('undo').addEventListener('click', () => {
+  const prev = state.history.pop();
+  if (!prev) return;
+  state.codebook = prev.codebook; state.summary = prev.summary; state.edited = state.history.length > 0;
+  render();
+});
+
+let toastTimer;
+function toast(message, isError = false) {
+  const t = $('toast');
+  t.textContent = message;
+  t.className = `fixed bottom-4 left-1/2 -translate-x-1/2 max-w-[calc(100vw-32px)] text-sm px-4 py-2.5 rounded-lg ambient z-50 ${isError ? 'bg-red-700' : 'bg-gray-900'} text-white`;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), isError ? 6000 : 2500);
 }
 
 // ── Render ──
@@ -218,7 +301,9 @@ function render() {
   const cb = state.codebook, s = state.summary;
   $('summary').classList.remove('hidden');
   $('workspace').classList.remove('hidden');
-  $('file-name').textContent = state.file.name;
+  document.body.classList.toggle('editable', state.editable);
+  $('undo').disabled = !state.history.length;
+  $('file-name').textContent = state.file.name + (state.edited ? ' (edited)' : '');
   $('file-facts').textContent = `${cb.source.rows.toLocaleString()} respondents · ${s.columns} columns → ${s.output_variables} variables` +
     (s.derived ? ` · ${s.derived} derived` : '');
 
@@ -253,7 +338,7 @@ function fillSelect(select, items) {
 function pickDefaults() {
   // Banner: a derived group (NPS group, …) or a short coded question — not a 0-10 scale
   const vars = state.codebook.variables;
-  const banner = state.codebook.derived[0]?.name
+  const banner = bannerCandidates().find(b => state.codebook.derived.some(d => d.name === b.name))?.name
     || vars.find(v => isTabulable(v) && v.codes.length >= 2 && v.codes.length <= 6)?.name;
   // Row: the coded question most people answered (that isn't the banner)
   const byBase = (a, b) => (b.base || 0) - (a.base || 0);
@@ -281,21 +366,78 @@ function renderList() {
   const vars = state.codebook.variables.filter(v => matchesFilter(v) && matchesSearch(v, q));
   $('var-count').textContent = `${vars.length} of ${state.codebook.variables.length}`;
   $('var-list').replaceChildren(...vars.map(card));
-  if (!vars.length) $('var-list').append(el('p', { class: 'p-4 text-sm text-gray-500' }, 'No columns match.'));
+  const trailing = trailingDerived().filter(d => !q || d.label.toLowerCase().includes(q));
+  if (trailing.length && (state.filter === 'all' || state.filter === 'derived')) {
+    $('var-list').append(el('div', { class: 'px-4 py-3 space-y-2 bg-amber-50/40' },
+      el('p', { class: 'text-sm font-medium' }, 'Added variables'), ...trailing.map(derivedBlock)));
+  }
+  if (!vars.length && !trailing.length) $('var-list').append(el('p', { class: 'p-4 text-sm text-gray-500' }, 'No columns match.'));
 }
 
-function bars(items, base, isMissing = false) {
+const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
+const ref = (v) => v.name || v.column;
+
+function codeTools(v, item, isMissing) {
+  if (!state.editable || item.code == null || !(v.role === 'single' || v.role === 'numeric')) return null;
+  const valid = v.codes;
+  const i = valid.indexOf(item);
+  const move = (delta) => {
+    const order = valid.map(c => c.code);
+    [order[i], order[i + delta]] = [order[i + delta], order[i]];
+    edit([{ op: 'reorder_codes', var: ref(v), order }]);
+  };
+  const merge = el('select', { class: 'text-[11px] bg-transparent text-gray-500 w-14', title: 'Merge into…',
+    onclick: (e) => e.stopPropagation(),
+    onchange: (e) => e.target.value && edit([{ op: 'merge_codes', var: ref(v), codes: [item.code], into: +e.target.value }]) },
+    el('option', { value: '' }, 'merge'),
+    ...[...v.codes, ...v.missing].filter(c => c !== item).map(c => el('option', { value: c.code }, `→ ${c.label}`)));
+  return el('span', { class: 'row-tools inline-flex items-center gap-0.5' },
+    !isMissing && i > 0 ? el('button', { class: 'icon-btn', title: 'Move up', onclick: stop(() => move(-1)) }, '↑') : null,
+    !isMissing && i < valid.length - 1 ? el('button', { class: 'icon-btn', title: 'Move down', onclick: stop(() => move(1)) }, '↓') : null,
+    el('button', { class: 'icon-btn', title: 'Rename answer', onclick: stop(() => {
+      const label = prompt('Answer label', item.label);
+      if (label && label.trim() && label !== item.label) edit([{ op: 'relabel_code', var: ref(v), code: item.code, label: label.trim() }]);
+    }) }, '✎'),
+    el('button', { class: 'icon-btn', title: isMissing ? 'Count in bases again' : 'Exclude from bases (like "Don\'t know")',
+      onclick: stop(() => edit([{ op: 'set_missing', var: ref(v), code: item.code, missing: !isMissing }])) }, isMissing ? '↺' : '⊘'),
+    merge);
+}
+
+function bars(items, base, { isMissing = false, v = null } = {}) {
   return items.map(item => {
     const pct = base ? Math.round(100 * (item.count || 0) / base) : 0;
-    return el('div', { class: 'grid grid-cols-12 items-center gap-2 text-xs' },
+    return el('div', { class: 'code-row grid grid-cols-12 items-center gap-2 text-xs' },
       el('span', { class: `col-span-1 text-right tabular-nums ${isMissing ? 'text-gray-400' : 'text-gray-500'}` }, item.code != null ? fmtCode(item.code) : ''),
       el('span', { class: `col-span-5 truncate ${isMissing ? 'text-gray-400 italic' : ''}`, title: (item.match || []).join(' | ') || item.label }, item.label),
-      el('div', { class: 'col-span-3' }, el('div', { class: `bar ${isMissing ? 'missing' : ''}`, style: `width:${Math.min(pct, 100)}%` })),
+      el('div', { class: 'col-span-3 flex items-center gap-1' },
+        el('div', { class: `bar ${isMissing ? 'missing' : ''}`, style: `width:${Math.min(pct, 100)}%` }),
+        v ? codeTools(v, item, isMissing) : null),
       el('span', { class: 'col-span-3 text-right tabular-nums text-gray-500 whitespace-nowrap' }, item.count == null ? '' : `${item.count}${isMissing ? '' : ` · ${pct}%`}`));
   });
 }
 
 function fmtCode(c) { return Number.isInteger(c) ? String(c) : String(+c.toFixed(2)); }
+
+function roleSelect(v) {
+  if (!state.editable || v.role === 'date') return el('span', { class: `chip role-${v.role}` }, ROLE_NAMES[v.role] || v.role);
+  const choices = v.role === 'multi' ? ['multi', 'ignore'] : ['single', 'numeric', 'text', 'ignore'];
+  return el('select', { class: `chip role-${v.role} border-0 cursor-pointer`, title: 'Change how this column is coded',
+    onclick: (e) => e.stopPropagation(),
+    onchange: (e) => edit([{ op: 'set_role', var: ref(v), role: e.target.value }]) },
+    ...choices.map(r => { const o = el('option', { value: r }, ROLE_NAMES[r]); if (r === v.role) o.selected = true; return o; }));
+}
+
+function derivedBlock(d) {
+  const items = d.outputs.length ? d.outputs : d.codes;
+  const base = d.outputs.length ? Math.max(...d.outputs.map(o => o.count || 0), 0) : d.codes.reduce((s, c) => s + (c.count || 0), 0);
+  return el('div', { class: 'space-y-1 pt-1' },
+    el('p', { class: 'text-xs flex items-center gap-1' },
+      el('span', { class: 'chip role-derived' }, 'Derived'), el('span', { class: 'truncate' }, d.label),
+      d.inferred ? el('span', { class: 'text-gray-500 truncate' }, `— ${d.inferred.reason}`) : null,
+      el('button', { class: 'edit-only icon-btn ml-auto', title: 'Remove this derived variable',
+        onclick: stop(() => edit([{ op: 'remove_derived', name: d.name }])) }, '✕')),
+    bars(items, d.outputs.length ? (state.codebook.source.rows || base) : base));
+}
 
 function card(v) {
   const reason = v.inferred?.reason || '';
@@ -304,21 +446,20 @@ function card(v) {
                            onclick: () => { if (rowName && [...$('row-select').options].some(o => o.value === rowName)) { $('row-select').value = rowName; preview(); renderList(); } } },
     el('div', { class: 'flex items-start justify-between gap-2' },
       el('div', { class: 'min-w-0' },
-        el('p', { class: 'text-sm font-medium truncate', title: v.column }, v.label),
+        el('p', { class: 'text-sm font-medium truncate flex items-center gap-1', title: v.column }, v.label,
+          el('button', { class: 'edit-only icon-btn', title: 'Rename question', onclick: stop(() => {
+            const label = prompt('Question label', v.label);
+            if (label && label.trim() && label !== v.label) edit([{ op: 'set_label', var: ref(v), label: label.trim() }]);
+          }) }, '✎')),
         el('p', { class: 'text-xs text-gray-500 truncate' }, v.name ? `${v.name}${v.base != null ? ` · base ${v.base}` : ''}` : (v.base != null ? `base ${v.base}` : ''))),
-      el('span', { class: `chip role-${v.role}` }, ROLE_NAMES[v.role] || v.role)),
+      roleSelect(v)),
     reason ? el('p', { class: 'text-xs text-gray-600' }, reason) : null);
 
-  if (v.codes.length) node.append(el('div', { class: 'space-y-1' }, bars(v.codes, v.base)));
+  if (v.codes.length) node.append(el('div', { class: 'space-y-1' }, bars(v.codes, v.base, { v })));
   if (v.missing.length) node.append(el('div', { class: 'space-y-1' },
-    el('p', { class: 'text-[11px] uppercase tracking-wide text-gray-400' }, 'Excluded from bases'), bars(v.missing, v.base, true)));
+    el('p', { class: 'text-[11px] uppercase tracking-wide text-gray-400' }, 'Excluded from bases'), bars(v.missing, v.base, { isMissing: true, v })));
   if (v.options.length) node.append(el('div', { class: 'space-y-1' }, bars(v.options, v.base)));
-  for (const d of derivedFor(v)) {
-    const base = d.codes.reduce((s, c) => s + (c.count || 0), 0);
-    node.append(el('div', { class: 'space-y-1 pt-1' },
-      el('p', { class: 'text-xs' }, el('span', { class: 'chip role-derived mr-1' }, 'Derived'), d.label, d.inferred ? ` — ${d.inferred.reason}` : ''),
-      bars(d.codes, base)));
-  }
+  derivedFor(v).forEach(d => node.append(derivedBlock(d)));
   return node;
 }
 
@@ -428,6 +569,155 @@ $('approve').addEventListener('click', async () => {
     $('approve-spin').classList.add('hidden'); $('approve').disabled = false;
   }
 });
+// ── Derived variable builder ──
+const builder = $('builder');
+const field = (label, input) => el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, label), input);
+const inputCls = 'w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 bg-white';
+function varSelect(vars, id) {
+  return el('select', { id, class: inputCls },
+    ...vars.map(v => el('option', { value: ref(v) }, v.label)));
+}
+function bandRows(rows) {
+  const body = el('div', { id: 'b-bands', class: 'space-y-2' });
+  const addRow = (r = {}) => body.append(el('div', { class: 'grid grid-cols-12 gap-2 band-row' },
+    el('input', { class: `${inputCls} col-span-6`, placeholder: 'Label', value: r.label ?? '' }),
+    el('input', { class: `${inputCls} col-span-3`, placeholder: 'From', type: 'number', step: 'any', value: r.min ?? '' }),
+    el('input', { class: `${inputCls} col-span-3`, placeholder: 'To (blank = no limit)', type: 'number', step: 'any', value: r.max ?? '' })));
+  rows.forEach(addRow);
+  return [body, el('button', { type: 'button', class: 'text-xs text-blue-600', onclick: () => addRow() }, '+ band')];
+}
+function readBands() {
+  return [...document.querySelectorAll('#b-bands .band-row')].map((row, i) => {
+    const [label, min, max] = [...row.querySelectorAll('input')].map(x => x.value.trim());
+    return label ? { code: i + 1, label, min: min === '' ? null : +min, max: max === '' ? null : +max } : null;
+  }).filter(Boolean);
+}
+
+const RULE_HELP = {
+  priority: 'Each group has a "when" condition; the first group that matches wins. Conditions: {"var": V, "any"|"all"|"none": [options]}, {"var": V, "in": [answers]}, {"var": V, "between": [lo, hi]}, {"and"|"or": [...]}, {"not": {...}}. V is a question (its name) or a multi-select (its column).',
+  combination: 'Each combo is "exact" (exactly these options ticked) or "within" (only options from this list). First match wins; "ignore" lists options to disregard.',
+};
+
+function renderBuilderForm(reset = true) {
+  const rule = $('b-rule').value, form = $('b-form');
+  const keep = reset ? {} : { src: $('b-src')?.value };
+  $('b-preview').replaceChildren();
+  const coded = codedVars(), multis = multiVars();
+  const parts = [];
+  if (rule === 'bands') {
+    parts.push(field('From question', varSelect(state.codebook.variables.filter(v => v.role === 'numeric' || isTabulable(v)), 'b-src')));
+    parts.push(el('div', { class: 'space-y-2' }, el('p', { class: 'text-sm text-gray-500' }, 'Bands (inclusive)'),
+      ...bandRows([{ label: 'Low', min: 0, max: 6 }, { label: 'Middle', min: 7, max: 8 }, { label: 'High', min: 9, max: 10 }])));
+  } else if (rule === 'recode') {
+    parts.push(field('From question', varSelect(coded, 'b-src')));
+    parts.push(el('div', { id: 'b-groups', class: 'space-y-1' }));
+  } else if (rule === 'count') {
+    parts.push(field('Multi-select question', varSelect(multis, 'b-src')));
+    parts.push(el('div', { id: 'b-exclude', class: 'flex flex-wrap gap-2 text-xs' }));
+    parts.push(el('label', { class: 'text-sm flex items-center gap-2' }, el('input', { id: 'b-usebands', type: 'checkbox', checked: '' }), 'Group the counts into bands'));
+    parts.push(el('div', { class: 'space-y-2' }, ...bandRows([{ label: 'Single', min: 1, max: 1 }, { label: 'Dual', min: 2, max: 2 }, { label: 'Triple+', min: 3, max: null }])));
+  } else if (rule === 'flags') {
+    parts.push(field('From question', varSelect(coded, 'b-src')));
+    parts.push(el('p', { class: 'text-sm text-gray-500' }, 'Creates one 0/1 column per answer (like the analysts\' 1-5 score columns).'));
+  } else if (rule === 'coalesce') {
+    parts.push(el('p', { class: 'text-sm text-gray-500' }, 'Pick the multi-select questions to combine. For each respondent the first one they answered is used (e.g. detractor / passive / promoter drivers → one set).'));
+    parts.push(el('div', { id: 'b-sources', class: 'space-y-1' }, ...multis.map(v =>
+      el('label', { class: 'text-sm flex items-center gap-2' }, el('input', { type: 'checkbox', value: ref(v) }), v.label))));
+  } else {
+    const m = multis[0];
+    const opts = m ? m.options.map(o => o.label) : ['Option A', 'Option B'];
+    const col = m ? m.column : 'Question';
+    const template = rule === 'priority'
+      ? { base: col, groups: [{ code: 1, label: opts[0], when: { var: col, any: [opts[0]] } },
+                               { code: 2, label: opts[1] || 'Group 2', when: { var: col, any: [opts[1] || opts[0]] } }],
+          else: { code: 9, label: 'Other' } }
+      : { from: col, combos: [{ code: 1, label: `${opts[0]} only`, exact: [opts[0]] },
+                              { code: 2, label: `${opts[0]} + ${opts[1] || '…'}`, exact: opts.slice(0, 2) }] };
+    parts.push(el('p', { class: 'text-xs text-gray-500' }, RULE_HELP[rule]));
+    const area = el('textarea', { id: 'b-json', class: `${inputCls} font-mono text-xs`, rows: '12', spellcheck: 'false' });
+    area.value = JSON.stringify(template, null, 2);
+    parts.push(area);
+  }
+  form.replaceChildren(...parts);
+  if (keep.src && $('b-src')) $('b-src').value = keep.src;
+  fillSourceDetails();
+}
+
+function fillSourceDetails() {
+  const rule = $('b-rule').value;
+  const v = $('b-src') && state.codebook.variables.find(x => ref(x) === $('b-src').value);
+  if (rule === 'recode' && v) {
+    $('b-groups').replaceChildren(el('p', { class: 'text-sm text-gray-500' }, 'Give answers the same group name to combine them (blank = leave out).'),
+      ...v.codes.map(c => el('div', { class: 'grid grid-cols-12 gap-2 items-center text-sm' },
+        el('span', { class: 'col-span-5 truncate' }, c.label),
+        el('input', { class: `${inputCls} col-span-7 group-name`, 'data-code': c.code, value: c.label }))));
+  }
+  if (rule === 'count' && v) {
+    $('b-exclude').replaceChildren(el('span', { class: 'text-gray-500 w-full' }, "Don't count:"),
+      ...v.options.map(o => el('label', { class: 'flex items-center gap-1' }, el('input', { type: 'checkbox', value: o.label }), o.label)));
+  }
+}
+
+function builderSpec() {
+  const rule = $('b-rule').value, label = $('b-label').value.trim();
+  const src = $('b-src')?.value;
+  let params;
+  if (rule === 'bands') params = { from: src, bands: readBands() };
+  else if (rule === 'recode') {
+    const groups = [];
+    document.querySelectorAll('#b-groups .group-name').forEach(input => {
+      const name = input.value.trim();
+      if (!name) return;
+      let g = groups.find(x => x.label === name);
+      if (!g) groups.push(g = { code: groups.length + 1, label: name, values: [] });
+      g.values.push(+input.dataset.code);
+    });
+    params = { from: src, groups };
+  } else if (rule === 'count') {
+    params = { from: src, exclude: [...document.querySelectorAll('#b-exclude input:checked')].map(x => x.value) };
+    if ($('b-usebands').checked) params.bands = readBands();
+  } else if (rule === 'flags') params = { from: src };
+  else if (rule === 'coalesce') params = { from: [...document.querySelectorAll('#b-sources input:checked')].map(x => x.value) };
+  else {
+    try { params = JSON.parse($('b-json').value); }
+    catch (e) { throw new Error(`The rule isn't valid JSON: ${e.message}`); }
+  }
+  return { label, rule, params };
+}
+
+async function builderRun(commit) {
+  let spec;
+  try {
+    if (!$('b-label').value.trim()) throw new Error('Give the new variable a name.');
+    spec = builderSpec();
+  } catch (e) { $('b-preview').replaceChildren(el('p', { class: 'text-red-600' }, e.message)); return; }
+  const op = [{ op: 'add_derived', derived: spec }];
+  if (commit) {
+    if (await edit(op)) { builder.close(); toast(`Added "${spec.label}"`); }
+    return;
+  }
+  $('b-preview').replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), 'Checking…');
+  try {
+    const data = await api('/v1/codebook', fileForm({ edits: JSON.stringify(op) }, true));
+    const d = data.codebook.derived.at(-1);
+    const items = d.outputs.length ? d.outputs : d.codes;
+    const base = d.outputs.length ? data.codebook.source.rows : d.codes.reduce((s, c) => s + (c.count || 0), 0);
+    $('b-preview').replaceChildren(el('p', { class: 'text-gray-600 mb-1' },
+      d.outputs.length ? `${d.outputs.length} new columns` : `${base.toLocaleString()} respondents get a group`),
+      el('div', { class: 'space-y-1' }, bars(items, base)));
+  } catch (e) {
+    $('b-preview').replaceChildren(el('p', { class: 'text-red-600' }, e.message));
+  }
+}
+
+$('add-derived').addEventListener('click', () => {
+  $('b-label').value = ''; $('b-rule').value = 'bands';
+  renderBuilderForm(); builder.showModal();
+});
+$('b-rule').addEventListener('change', () => renderBuilderForm());
+$('b-form').addEventListener('change', (e) => { if (e.target.id === 'b-src') fillSourceDetails(); });
+$('b-test').addEventListener('click', () => builderRun(false));
+$('b-add').addEventListener('click', () => builderRun(true));
 </script>
 </body>
 </html>

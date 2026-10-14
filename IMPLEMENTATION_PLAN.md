@@ -153,6 +153,14 @@ upload the fixture → 37 variables listed → choose row/banner → table rende
 
 ## M4: Editing + derived rules; remove client code (L)
 
+> **Status (feat/m4-codebook-editing):** M4.1–M4.3 done — edit ops (`services/codebook/patch.py`), the 7
+> rule types + condition vocabulary (`services/codebook/rules.py`), stateless `POST /v1/codebook` edits,
+> Redis-backed `PATCH /v1/files/{id}/codebook`, `codebook` accepted by crosstab/frequency/tabulate/
+> metadata/auto-analyze, and editing + a derived-variable builder in `/review`. M4.4 is half done:
+> `tests/fixtures/codebooks/cx_client_rules.json` expresses the client rules and is verified identical to
+> the legacy code and analyst-sheet logic. **Deleting the client code waits for** the analysts' three
+> answers (so the fixture is right) and M7 (the data workbook still uses `respondent_sheet.py`).
+
 ### M4.1 Patch API
 `PATCH /v1/files/{id}/codebook` with a list of operations:
 `set_role`, `set_measure`, `rename`, `set_label`, `reorder_codes`, `merge_codes`, `set_missing`,
