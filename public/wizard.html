@@ -198,8 +198,11 @@ function shortName(kind, sourceName) {
   let stem = (sourceName || '').replace(/\.[^.]+$/, '')
     .replace(/^(hubspot[-_]crm[-_]exports?[-_]|hubspot[-_]|qualtrics[-_]|surveymonkey[-_])/i, '')
     .replace(/[-_ ]?\d{4}-\d{2}-\d{2}([-_]\d+)?$/, '')
-    .replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^[_-]+|[_-]+$/g, '');
-  if (stem.length > 40) stem = stem.slice(0, 40).replace(/[_-]+$/, '');
+    .replace(/[^A-Za-z0-9_-]+/g, '_').replace(/[_-]*_[_-]*/g, '_').replace(/^[_-]+|[_-]+$/g, '');
+  if (stem.length > 40) {
+    const cut = stem.slice(0, 41), boundary = Math.max(cut.lastIndexOf('_'), cut.lastIndexOf('-'));
+    stem = (boundary >= 20 ? cut.slice(0, boundary) : stem.slice(0, 40)).replace(/[_-]+$/, '');
+  }
   return `${kind}_${stem || 'data'}.xlsx`;
 }
 

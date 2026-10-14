@@ -222,70 +222,73 @@ def create_application() -> FastAPI:
 
     # Serve frontend + static pages
     public_dir = Path(__file__).parent / "public"
+    # Pages are revalidated on every load (cheap 304 via ETag) so a deploy is seen straight away;
+    # without this, browsers heuristically cache the HTML and keep running old page code.
+    PAGE_HEADERS = {"Cache-Control": "no-cache"}
     if public_dir.exists():
         # Landing page (new Stitch design)
         @app.get("/", include_in_schema=False)
         async def root():
-            return FileResponse(public_dir / "index.html")
+            return FileResponse(public_dir / "index.html", headers=PAGE_HEADERS)
 
         # Auth pages
         @app.get("/login", include_in_schema=False)
         async def login_page():
-            return FileResponse(public_dir / "login.html")
+            return FileResponse(public_dir / "login.html", headers=PAGE_HEADERS)
 
         @app.get("/signup", include_in_schema=False)
         async def signup_page():
-            return FileResponse(public_dir / "signup.html")
+            return FileResponse(public_dir / "signup.html", headers=PAGE_HEADERS)
 
         # Dashboard pages
         @app.get("/app", include_in_schema=False)
         async def app_page():
-            return FileResponse(public_dir / "app.html")
+            return FileResponse(public_dir / "app.html", headers=PAGE_HEADERS)
 
         @app.get("/export", include_in_schema=False)
         async def export_page():
-            return FileResponse(public_dir / "app.html")
+            return FileResponse(public_dir / "app.html", headers=PAGE_HEADERS)
 
         @app.get("/express", include_in_schema=False)
         async def express_page():
-            return FileResponse(public_dir / "express.html")
+            return FileResponse(public_dir / "express.html", headers=PAGE_HEADERS)
 
         @app.get("/wizard", include_in_schema=False)
         async def wizard_page():
-            return FileResponse(public_dir / "wizard.html")
+            return FileResponse(public_dir / "wizard.html", headers=PAGE_HEADERS)
 
         @app.get("/export-mcp", include_in_schema=False)
         async def export_mcp_page():
-            return FileResponse(public_dir / "chat.html")
+            return FileResponse(public_dir / "chat.html", headers=PAGE_HEADERS)
 
         @app.get("/upload", include_in_schema=False)
         async def upload_page():
-            return FileResponse(public_dir / "upload.html")
+            return FileResponse(public_dir / "upload.html", headers=PAGE_HEADERS)
 
         @app.get("/review", include_in_schema=False)
         async def review_page():
-            return FileResponse(public_dir / "review.html")
+            return FileResponse(public_dir / "review.html", headers=PAGE_HEADERS)
 
         @app.get("/app/dashboard", include_in_schema=False)
         async def dashboard_page():
-            return FileResponse(public_dir / "dashboard.html")
+            return FileResponse(public_dir / "dashboard.html", headers=PAGE_HEADERS)
 
         @app.get("/app/keys", include_in_schema=False)
         async def api_keys_page():
-            return FileResponse(public_dir / "api-keys.html")
+            return FileResponse(public_dir / "api-keys.html", headers=PAGE_HEADERS)
 
         @app.get("/app/billing", include_in_schema=False)
         async def billing_page():
-            return FileResponse(public_dir / "billing.html")
+            return FileResponse(public_dir / "billing.html", headers=PAGE_HEADERS)
 
         # Info pages
         @app.get("/privacy", include_in_schema=False)
         async def privacy():
-            return FileResponse(public_dir / "privacy.html")
+            return FileResponse(public_dir / "privacy.html", headers=PAGE_HEADERS)
 
         @app.get("/docs/mcp", include_in_schema=False)
         async def mcp_docs():
-            return FileResponse(public_dir / "mcp-docs.html")
+            return FileResponse(public_dir / "mcp-docs.html", headers=PAGE_HEADERS)
 
         app.mount("/static", StaticFiles(directory=str(public_dir)), name="static")
     else:

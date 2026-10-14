@@ -261,6 +261,8 @@ async function start(file) {
     state.codebook = data.codebook; state.summary = data.summary;
     state.editable = !['sav', 'zsav', 'por'].includes(data.codebook.source.format);
     state.edited = false; state.history = []; state.selected = null;
+    state.open = { questions: true, added: true, numbers: false, text: false, ignore: false };
+    $('search').value = '';
     $('row-select').replaceChildren();
     status.classList.add('hidden');
     $('upload').classList.add('hidden');
@@ -278,16 +280,24 @@ function typeOf(v) { return v.role === 'numeric' && v.codes.length ? 'rating' : 
 function anchor(v) { return v.role === 'ignore' ? null : (v.role === 'multi' ? v.options.at(-1)?.name : v.name); }
 function derivedFor(v) { const a = anchor(v); return a ? state.codebook.derived.filter(d => d.after === a) : []; }
 function trailingDerived() { return state.codebook.derived.filter(d => d.after == null); }
-function derivedRows(d) { return d.outputs.length ? d.outputs.map(o => ({ name: o.name, label: `${d.label}: ${o.label}` })) : [{ name: d.name, label: d.label }]; }
 function rowCandidates() {
   const out = [];
   for (const v of state.codebook.variables) {
     if (isTabulable(v)) out.push({ name: v.name, label: v.label });
-    if (v.role === 'multi') v.options.forEach(o => out.push({ name: o.name, label: `${v.label}: ${o.label}` }));
-    derivedFor(v).forEach(d => out.push(...derivedRows(d)));
+    if (v.role === 'multi') out.push({ name: `multi:${v.column}`, label: `${v.label} (select all that apply)` });
+    derivedFor(v).forEach(d => out.push(derivedRow(d)));
   }
-  trailingDerived().forEach(d => out.push(...derivedRows(d)));
+  trailingDerived().forEach(d => out.push(derivedRow(d)));
   return out;
+}
+function derivedRow(d) {
+  return d.outputs.length ? { name: `dmulti:${d.name}`, label: `${d.label} (all columns)` } : { name: d.name, label: d.label };
+}
+// Option variables behind a "multi:…" / "dmulti:…" preview entry
+function multiRows(value) {
+  if (value.startsWith('multi:')) return state.codebook.variables.find(v => v.column === value.slice(6))?.options.map(o => o.name);
+  if (value.startsWith('dmulti:')) return state.codebook.derived.find(d => d.name === value.slice(7))?.outputs.map(o => o.name);
+  return null;
 }
 function bannerCandidates() {
   const out = [];
@@ -305,9 +315,9 @@ const ref = (v) => v.name || v.column;
 const keyOf = (item) => item.kind === 'derived' ? `d:${item.d.name}` : `v:${item.v.column}`;
 // SPSS variable the preview shows for a list item
 function previewName(item) {
-  if (item.kind === 'derived') return item.d.outputs[0]?.name || item.d.name;
+  if (item.kind === 'derived') return derivedRow(item.d).name;
   const v = item.v;
-  return v.role === 'multi' ? v.options[0]?.name : (isTabulable(v) ? v.name : null);
+  return v.role === 'multi' ? `multi:${v.column}` : (isTabulable(v) ? v.name : null);
 }
 
 // ── Edits (validated by the server; the page keeps the codebook) ──
@@ -405,9 +415,14 @@ function fillSelect(select, items) {
 
 function pickDefaults() {
   // Banner: a derived group (NPS group, …) or a short coded question — not a 0-10 scale
+  // …whose groups are big enough to compare (at least two with 30+ people)
   const vars = state.codebook.variables;
-  const banner = bannerCandidates().find(b => state.codebook.derived.some(d => d.name === b.name))?.name
-    || vars.find(v => isTabulable(v) && v.codes.length >= 2 && v.codes.length <= 6)?.name;
+  const codesOf = name => (vars.find(v => v.name === name) || state.codebook.derived.find(d => d.name === name))?.codes || [];
+  const comparable = name => codesOf(name).filter(c => (c.count || 0) >= 30).length >= 2;
+  const candidates = bannerCandidates().map(b => b.name);
+  const derivedFirst = [...candidates.filter(n => state.codebook.derived.some(d => d.name === n)),
+                        ...candidates.filter(n => codesOf(n).length <= 6)];
+  const banner = derivedFirst.find(comparable) || derivedFirst[0] || candidates[0];
   // Row: the coded question most people answered (that isn't the banner)
   const byBase = (a, b) => (b.base || 0) - (a.base || 0);
   const row = vars.filter(v => v.role === 'single' && v.codes.length && v.name !== banner).sort(byBase)[0]?.name
@@ -420,8 +435,7 @@ function pickDefaults() {
 function syncSelectionFromRow() {
   const name = $('row-select').value;
   for (const sec of sections()) for (const item of sec.items) {
-    const owns = item.kind === 'derived' ? item.d.output_names?.includes?.(name) || item.d.name === name || item.d.outputs.some(o => o.name === name)
-      : item.v.name === name || item.v.options.some(o => o.name === name);
+    const owns = previewName(item) === name;
     if (owns) { state.selected = keyOf(item); state.open[sec.id] = true; return; }
   }
 }
@@ -600,10 +614,12 @@ async function preview() {
   const seq = ++previewSeq;
   $('xtab-status').replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), 'Calculating…');
   try {
-    const spec = JSON.stringify({ row, col, significance_levels: SIG_LEVELS });
+    const rows = multiRows(row);
+    const spec = JSON.stringify({ ...(rows ? { rows } : { row }), col, significance_levels: SIG_LEVELS });
     const ct = await api('/v1/crosstab', fileForm({ spec }));
     if (seq !== previewSeq) return;
-    $('xtab-status').textContent = `${ct.total_responses.toLocaleString()} respondents answered both questions`;
+    $('xtab-status').textContent = `${ct.total_responses.toLocaleString()} respondents answered both questions` +
+      (ct.is_mrs ? ' · select all that apply: % of respondents who ticked each option (can add up to more than 100%)' : '');
     drawTable(ct); drawChart(ct);
   } catch (e) {
     if (seq === previewSeq) $('xtab-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message));
@@ -619,7 +635,9 @@ function columns(ct) {
 
 function drawTable(ct) {
   const cols = columns(ct);
-  const total = ct.table.reduce((s, r) => s + cols.reduce((t, c) => t + (r[c.value]?.count || 0), 0), 0);
+  // Single-choice: everyone is in exactly one row. Multi-select: base = everyone who answered.
+  const total = ct.is_mrs ? cols.reduce((t, c) => t + (c.base || 0), 0)
+    : ct.table.reduce((s, r) => s + cols.reduce((t, c) => t + (r[c.value]?.count || 0), 0), 0);
   const th = (text, cls = '') => el('th', { class: `px-2 py-2 font-medium text-right ${cls}` }, text);
   const head = el('thead', {},
     el('tr', { class: 'text-xs text-gray-500' }, th('', 'text-left'), th('Total'), ...cols.map(c => th(c.label))),
@@ -654,7 +672,7 @@ function drawChart(ct) {
     data: { labels: cols.map(c => `${c.label}${c.marker ? ' ' + c.marker : ''}`), datasets },
     options: {
       responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-      scales: { x: { stacked: true, max: 100, ticks: { callback: v => v + '%' } }, y: { stacked: true } },
+      scales: { x: { stacked: !ct.is_mrs, max: 100, ticks: { callback: v => v + '%' } }, y: { stacked: !ct.is_mrs } },
       plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } },
                  tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.x.toFixed(1)}%` } } },
     },

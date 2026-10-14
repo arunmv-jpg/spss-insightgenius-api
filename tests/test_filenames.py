@@ -12,7 +12,8 @@ HUBSPOT = "hubspot-crm-exports-cx-pulse_w3_sept2026_schoollead-2026-10-07-2.xls"
 
 @pytest.mark.parametrize("source,expected", [
     (HUBSPOT, "cx-pulse_w3_sept2026_schoollead"),
-    ("CX Pulse Feb 2026 - anon.xls", "CX_Pulse_Feb_2026_-_anon"),
+    ("CX Pulse Feb 2026 - anon.xls", "CX_Pulse_Feb_2026_anon"),
+    ("CX Pulse_W3_Responses_Sept 2026  - Anonymous.xlsx", "CX_Pulse_W3_Responses_Sept_2026"),
     ("survey.sav", "survey"),
     ("", "data"),
     (r"C:\Users\me\Downloads\results (final).csv", "results_final"),

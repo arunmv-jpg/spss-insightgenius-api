@@ -261,3 +261,21 @@ def test_app_has_review_step():
     assert 'src="/review?embed=1"' in html and "appendData(" in html
     assert "append('file', savFile)" not in html.replace("form.append('file', savFile);\n  if (reviewedCodebook)", "")
     assert ".xlsx" in html and ".csv" in html  # Step 1 accepts Excel / CSV too
+
+
+def test_crosstab_multi_select_rows(client, auth_headers, cb):
+    """A multi-select previewed as one table: % of respondents ticking each option."""
+    rows = [o.name for o in cb.find("Job role").options]
+    spec = {"rows": rows, "col": "CX_Pulse_Overall_NPS_group", "significance_levels": [0.95, 0.90]}
+    r = _post(client, auth_headers, "/v1/crosstab", {"spec": json.dumps(spec)})
+    assert r.status_code == 200, r.text
+    body = r.json()["data"]
+    assert body["is_mrs"] and [t["row_label"] for t in body["table"]] == [o.label for o in cb.find("Job role").options]
+    assert sum(body["column_bases"].values()) == 400
+    bad = _post(client, auth_headers, "/v1/crosstab", {"spec": json.dumps({"rows": ["Job_role_not_listed"], "col": EXAM})})
+    assert bad.status_code == 400
+
+
+def test_pages_are_revalidated(client):
+    for path in ("/app", "/review"):
+        assert client.get(path).headers.get("cache-control") == "no-cache", path

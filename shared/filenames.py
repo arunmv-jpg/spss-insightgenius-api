@@ -20,9 +20,13 @@ def short_stem(filename: str | None, max_len: int = MAX_STEM) -> str:
     stem = stem.rsplit(".", 1)[0] if "." in stem else stem
     stem = _EXPORT_PREFIXES.sub("", stem)
     stem = re.sub(r"[-_ ]?\d{4}-\d{2}-\d{2}([-_]\d+)?$", "", stem)  # trailing export date "-2026-10-07-2"
-    stem = re.sub(r"[^A-Za-z0-9_-]+", "_", stem).strip("_-")
+    stem = re.sub(r"[^A-Za-z0-9_-]+", "_", stem)
+    stem = re.sub(r"[_-]*_[_-]*", "_", stem).strip("_-")  # "Sept_2026_-_Anonymous" → "Sept_2026_Anonymous"
     if len(stem) > max_len:
-        stem = stem[:max_len].rstrip("_-")
+        cut = stem[:max_len + 1]
+        boundary = max(cut.rfind("_"), cut.rfind("-"))
+        # end on a whole word when that keeps a useful name
+        stem = (cut[:boundary] if boundary >= max_len // 2 else stem[:max_len]).rstrip("_-")
     return stem or "data"
 
 
