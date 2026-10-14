@@ -26,6 +26,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from scipy import stats
 
+from services.data_loader import is_non_substantive
 from shared.significance import t_test_means, z_test_proportions
 
 logger = logging.getLogger(__name__)
@@ -531,8 +532,8 @@ def build_tabulation(engine_cls: Any, data: Any, spec: TabulateSpec) -> Tabulati
                     gvar_vl = getattr(meta, "variable_value_labels", {}).get(gvar, {})
                     if gvar_vl and len(gvar_vl) >= 4:
                         try:
-                            keys = sorted([float(k) for k in gvar_vl.keys()])
-                            if gvar not in (spec.nets or {}):
+                            keys = sorted(float(k) for k, lbl in gvar_vl.items() if not is_non_substantive(lbl))
+                            if len(keys) >= 4 and gvar not in (spec.nets or {}):
                                 if not hasattr(spec, '_auto_grid_nets'):
                                     spec._auto_grid_nets = {}
                                 spec._auto_grid_nets[gvar] = {
@@ -685,7 +686,9 @@ def _compute_grid_summary(
 
         # Detect scale endpoints for T2B/B2B
         if vl:
-            scale_vals = sorted([k for k in vl.keys() if isinstance(k, (int, float))])
+            # "Don't know" / "N/A" codes (e.g. 98, 99) are not scale endpoints
+            scale_vals = sorted(k for k, lbl in vl.items()
+                                if isinstance(k, (int, float)) and not is_non_substantive(lbl))
         else:
             scale_vals = sorted(series.unique())
         if len(scale_vals) < 3:
@@ -1283,9 +1286,11 @@ def _write_crosstab_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, dat
             current_row += 1
             alpha = 1 - spec.significance_level
 
-            # Compute means per banner group
-            for b_idx, banner_var in enumerate(banners):
+            # Compute means per banner group. Iterate the column groups themselves:
+            # `banners` excludes the auto-inserted Total, so its indices are off by one.
+            for b_idx in sorted({bc.banner_index for bc in banner_columns}):
                 group_cols = [bc for bc in banner_columns if bc.banner_index == b_idx]
+                banner_var = group_cols[0].banner_var
                 col_vals = [float(bc.value) if bc.value.replace('.', '', 1).replace('-', '', 1).isdigit() else bc.value for bc in group_cols]
                 means_result = _compute_means_by_column(data.df, stub_var, banner_var, col_vals, spec.weight, alpha)
 

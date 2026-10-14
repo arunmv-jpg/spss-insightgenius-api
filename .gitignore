@@ -14,3 +14,6 @@ venv/
 .venv/
 .claude/
 .mcpregistry_*
+
+# Generated analysis workbooks
+outputs/
