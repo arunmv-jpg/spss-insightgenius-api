@@ -36,10 +36,7 @@
         <h1 class="text-xl font-bold text-gray-900">SPSS InsightGenius</h1>
         <p class="text-sm text-gray-500">Upload SPSS &rarr; Professional crosstabs with significance testing</p>
       </div>
-      <div class="flex items-center gap-5">
-        <a href="/review" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Review data (Excel / CSV / SPSS) &rarr;</a>
-        <a href="/docs" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 font-medium">API Docs &rarr;</a>
-      </div>
+      <a href="/docs" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 font-medium">API Docs &rarr;</a>
     </div>
   </header>
 
@@ -53,11 +50,11 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">SPSS file (.sav, .por, .zsav) <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Data file <span class="text-red-500">*</span></label>
           <div id="sav-drop" class="drop-zone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400">
             <div id="sav-icon" class="text-3xl mb-2">&#128202;</div>
-            <p id="sav-label" class="text-sm text-gray-500">Drop .sav, .por, or .zsav file here or click to browse</p>
-            <input type="file" id="sav-input" accept=".sav,.por,.zsav" class="hidden">
+            <p id="sav-label" class="text-sm text-gray-500">Drop SPSS (.sav), Excel (.xlsx, .xls) or CSV / TSV here, or click to browse</p>
+            <input type="file" id="sav-input" accept=".sav,.por,.zsav,.xlsx,.xls,.csv,.tsv" class="hidden">
           </div>
         </div>
         <div>
@@ -164,10 +161,22 @@
       </div>
     </section>
 
-    <!-- Step 2: Banners -->
+    <!-- Step 2: Review data (the /review page, embedded) -->
+    <section id="review-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
+      <div class="flex items-center justify-between gap-2 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="section-badge bg-blue-600 text-white">2</span>
+          <h2 class="text-lg font-semibold text-gray-900">Review data <span class="text-sm font-normal text-gray-400">(how each column was read: fix anything, add derived variables)</span></h2>
+        </div>
+        <span id="review-state" class="text-xs text-gray-500 whitespace-nowrap"></span>
+      </div>
+      <iframe id="review-frame" src="/review?embed=1" title="Review data" class="w-full border-0 rounded-lg" style="height: 680px"></iframe>
+    </section>
+
+    <!-- Step 3: Banners -->
     <section id="banners-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
       <div class="flex items-center gap-2 mb-4">
-        <span class="section-badge bg-blue-600 text-white">2</span>
+        <span class="section-badge bg-blue-600 text-white">3</span>
         <h2 class="text-lg font-semibold text-gray-900">Select banners <span class="text-sm font-normal text-gray-400">(columns in your crosstab)</span></h2>
       </div>
       <p class="text-xs text-gray-500 mb-3">Banners are the demographic variables that appear as columns across the top of your table (e.g., Gender, Age, Region). Each banner category gets a letter for significance testing &mdash; e.g., Gender: Male (A), Female (B); Region: London (C), North (D), South (E).</p>
@@ -175,10 +184,10 @@
       <div id="selected-banners" class="flex flex-wrap gap-2 min-h-[32px]"></div>
     </section>
 
-    <!-- Step 3: Stubs + MRS -->
+    <!-- Step 4: Stubs + MRS -->
     <section id="stubs-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
       <div class="flex items-center gap-2 mb-4">
-        <span class="section-badge bg-blue-600 text-white">3</span>
+        <span class="section-badge bg-blue-600 text-white">4</span>
         <h2 class="text-lg font-semibold text-gray-900">Select stubs <span class="text-sm font-normal text-gray-400">(rows in your crosstab)</span></h2>
       </div>
       <p class="text-xs text-gray-500 mb-3">Stubs are the questions that appear as rows in your tables. Each stub generates one crosstab sheet (or one block in single-sheet mode).</p>
@@ -255,10 +264,10 @@
       </div>
     </section>
 
-    <!-- Step 4: Options -->
+    <!-- Step 5: Options -->
     <section id="options-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
       <div class="flex items-center gap-2 mb-4">
-        <span class="section-badge bg-blue-600 text-white">4</span>
+        <span class="section-badge bg-blue-600 text-white">5</span>
         <h2 class="text-lg font-semibold text-gray-900">Options</h2>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -312,10 +321,10 @@
       </div>
     </section>
 
-    <!-- Step 5: Custom Groups -->
+    <!-- Step 6: Custom Groups -->
     <section id="custom-groups-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
       <div class="flex items-center gap-2 mb-1">
-        <span class="section-badge bg-purple-600 text-white">5</span>
+        <span class="section-badge bg-purple-600 text-white">6</span>
         <h2 class="text-lg font-semibold text-gray-900">Custom Groups <span class="text-sm font-normal text-gray-400">(optional)</span></h2>
       </div>
       <p class="text-xs text-gray-500 mb-4">Define custom banner columns by combining conditions. Example: "London + Uber users" = region is London AND aware of Uber. Each group becomes a column with significance testing.</p>
@@ -459,6 +468,42 @@ let savFile = null, docxFile = null, questFile = null, metadata = null, resultBl
 let smartSpec = null;  // AI-generated spec from smart-spec endpoint
 let selectedBanners = [];
 let mrsGroups = {};  // { "Brand Awareness": ["AWARE_A","AWARE_B"] }
+let reviewedCodebook = null;  // set when the user edits the coding in Step 2 (Review data)
+
+// The data file, plus the reviewed coding once the user has edited it in Step 2
+function appendData(form) {
+  form.append('file', savFile);
+  if (reviewedCodebook) form.append('codebook', JSON.stringify(reviewedCodebook));
+}
+
+// ── Step 2: Review data (embedded /review page) ──
+const reviewFrame = document.getElementById('review-frame');
+let reviewFrameReady = false;
+reviewFrame.addEventListener('load', () => { reviewFrameReady = true; if (savFile) startReview(); });
+function startReview() {
+  document.getElementById('review-section').classList.remove('hidden');
+  document.getElementById('review-state').textContent = 'Reading the file…';
+  if (reviewFrameReady && reviewFrame.contentWindow.start) reviewFrame.contentWindow.start(savFile);
+}
+window.addEventListener('message', async (e) => {
+  if (e.origin !== window.location.origin || e.source !== reviewFrame.contentWindow) return;
+  const msg = e.data || {};
+  const status = document.getElementById('review-state');
+  // body height + room for its margins (sizing from the frame's document height would feed back)
+  if (msg.type === 'review-height') reviewFrame.style.height = `${Math.max(320, msg.height + 32)}px`;
+  if (msg.type === 'review-loaded') status.textContent = 'Inferred coding';
+  if (msg.type === 'review-error') status.textContent = '';
+  if (msg.type === 'review-updated') {
+    status.textContent = msg.edited ? 'Edited: click "Use this coding" to apply it to the next steps' : 'Inferred coding';
+  }
+  if (msg.type === 'review-continue') {
+    reviewedCodebook = msg.codebook;  // null when nothing was edited
+    status.textContent = reviewedCodebook ? 'Edited coding applied' : 'Inferred coding';
+    if (reviewedCodebook) await loadMetadata();  // banners/stubs now include edits + derived variables
+    // After the sections re-render (a smooth scroll started earlier gets cancelled)
+    requestAnimationFrame(() => document.getElementById('banners-section').scrollIntoView({ block: 'start' }));
+  }
+});
 
 // Demo API key — loaded at deploy time. For your own key, visit https://spss.insightgenius.io/account
 const API_KEY = window.__INSIGHTGENIUS_DEMO_KEY__ || 'demo';
@@ -475,9 +520,10 @@ function setupDropZone(dropId, inputId, labelId, iconId, onFile) {
   drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0], label, icon); });
 }
 setupDropZone('sav-drop', 'sav-input', 'sav-label', 'sav-icon', async (f, label, icon) => {
-  savFile = f; icon.textContent = '\u2705';
+  savFile = f; reviewedCodebook = null; icon.textContent = '\u2705';
   label.textContent = `${f.name} (${(f.size/1024).toFixed(0)} KB)`;
   label.className = 'text-sm text-blue-700 font-medium';
+  startReview();
   await loadMetadata();
 });
 setupDropZone('docx-drop', 'docx-input', 'docx-label', 'docx-icon', async (f, label, icon) => {
@@ -499,7 +545,7 @@ setupDropZone('quest-drop', 'quest-input', 'quest-label', 'quest-icon', async (f
 async function loadMetadata() {
   const info = document.getElementById('file-info'), infoText = document.getElementById('file-info-text');
   info.classList.remove('hidden'); infoText.textContent = 'Loading metadata...';
-  const form = new FormData(); form.append('file', savFile);
+  const form = new FormData(); appendData(form);
   try {
     const resp = await fetch(`${API_BASE}/v1/metadata`, { method: 'POST', headers: {'Authorization': `Bearer ${API_KEY}`}, body: form });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -1033,7 +1079,7 @@ async function generate() {
   if (Object.keys(mrsGroups).length > 0) spec.mrs_groups = mrsGroups;
 
   const form = new FormData();
-  form.append('file', savFile);
+  appendData(form);
   form.append('spec', JSON.stringify(spec));
   if (docxFile) form.append('ticket', docxFile);
 
@@ -1084,7 +1130,7 @@ async function runSmartSpec() {
   document.getElementById('ticket-confidence').textContent = 'Processing';
 
   const form = new FormData();
-  form.append('file', savFile);
+  appendData(form);
   if (docxFile) form.append('ticket', docxFile);
   if (questFile) form.append('questionnaire', questFile);
 
@@ -1203,7 +1249,7 @@ function editTicketManually() {
 let autoResultBlob = null, autoResultFilename = '';
 
 async function autoAnalyze() {
-  if (!savFile) { alert('Upload a .sav file first'); return; }
+  if (!savFile) { alert('Upload a data file first'); return; }
   const btn = document.getElementById('auto-analyze-btn');
   const prog = document.getElementById('auto-progress');
   const progText = document.getElementById('auto-progress-text');
@@ -1214,7 +1260,7 @@ async function autoAnalyze() {
   progText.textContent = 'AI is detecting banners, groups, nets and building your Excel...';
 
   const form = new FormData();
-  form.append('file', savFile);
+  appendData(form);
   if (docxFile) form.append('ticket', docxFile);
   form.append('options', JSON.stringify({ output_mode: 'multi_sheet', significance_level: 0.95 }));
 
@@ -1345,7 +1391,7 @@ async function toggleWeightVar(varName) {
   }
   // Fetch distribution from backend
   const formData = new FormData();
-  formData.append('file', savFile);
+  appendData(formData);
   formData.append('variable', varName);
   try {
     const resp = await fetch('/v1/weight/preview', {
@@ -1405,7 +1451,7 @@ async function computeWeight() {
   btn.disabled = true; btn.textContent = 'Computing...';
 
   const formData = new FormData();
-  formData.append('file', savFile);
+  appendData(formData);
   formData.append('targets', JSON.stringify(targets));
   formData.append('max_weight', '5.0');
 

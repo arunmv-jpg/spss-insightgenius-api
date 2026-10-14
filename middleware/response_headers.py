@@ -17,6 +17,17 @@ SECURITY_HEADERS = [
     (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
 ]
 
+# Pages our own app embeds (the "Review data" step of /app frames /review): same-origin
+# framing only, so other sites still can't frame them (clickjacking protection kept).
+SAME_ORIGIN_FRAMEABLE = {"/review"}
+FRAMEABLE_HEADERS = [
+    (b"x-content-type-options", b"nosniff"),
+    (b"x-frame-options", b"SAMEORIGIN"),
+    (b"content-security-policy", b"frame-ancestors 'self'"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+    (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+]
+
 
 class ResponseHeadersMiddleware:
     """Pure ASGI middleware — injects headers into every HTTP response."""
@@ -38,7 +49,8 @@ class ResponseHeadersMiddleware:
                 headers = list(message.get("headers", []))
                 headers.append((b"x-request-id", request_id.encode()))
                 headers.append((b"api-version", API_VERSION.encode()))
-                headers.extend(SECURITY_HEADERS)
+                frameable = scope.get("path") in SAME_ORIGIN_FRAMEABLE
+                headers.extend(FRAMEABLE_HEADERS if frameable else SECURITY_HEADERS)
 
                 # Add rate limit headers if set
                 rl_headers = scope.get("state", {}).get("rate_limit_headers")

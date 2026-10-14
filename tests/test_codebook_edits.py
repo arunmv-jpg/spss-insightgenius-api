@@ -247,3 +247,17 @@ def test_metadata_and_frequency_use_edited_codebook(client, auth_headers):
 def test_review_page_has_editing():
     html = (Path(__file__).parent.parent / "public" / "review.html").read_text(encoding="utf-8")
     assert "add_derived" in html and "set_role" in html and "innerHTML" not in html
+
+
+def test_review_page_frameable_only_by_same_origin(client):
+    review = client.get("/review?embed=1")
+    assert review.headers["x-frame-options"] == "SAMEORIGIN"
+    assert review.headers["content-security-policy"] == "frame-ancestors 'self'"
+    assert client.get("/app").headers["x-frame-options"] == "DENY"  # everything else unchanged
+
+
+def test_app_has_review_step():
+    html = (Path(__file__).parent.parent / "public" / "app.html").read_text(encoding="utf-8")
+    assert 'src="/review?embed=1"' in html and "appendData(" in html
+    assert "append('file', savFile)" not in html.replace("form.append('file', savFile);\n  if (reviewedCodebook)", "")
+    assert ".xlsx" in html and ".csv" in html  # Step 1 accepts Excel / CSV too

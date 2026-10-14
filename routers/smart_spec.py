@@ -10,6 +10,7 @@ from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from services.quantipy_engine import QuantiProEngine
 from services.data_loader import load_data
+from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 
@@ -23,6 +24,7 @@ router = APIRouter(tags=["AI Features"])
 async def smart_spec(
     file: UploadFile = File(None, description="SPSS .sav file"),
     file_id: str | None = Form(None, description="File session ID"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     questionnaire: UploadFile = File(None, description="Questionnaire .docx or .pdf"),
     ticket: UploadFile = File(None, description="Reporting Ticket .docx"),
     key: KeyConfig = Depends(require_scope("process")),
@@ -37,7 +39,8 @@ async def smart_spec(
     # Load SPSS metadata
     try:
         file_bytes, filename = await resolve_file(file=file, file_id=file_id)
-        data = await run_in_executor(load_data, file_bytes, filename)
+        cb = await resolve_codebook(codebook, file_id)
+        data = await run_in_executor(load_data, file_bytes, filename, cb)
         metadata = await run_in_executor(QuantiProEngine.extract_metadata, data)
     except ValueError as e:
         raise HTTPException(400, detail={"code": "LOAD_ERROR", "message": str(e)})

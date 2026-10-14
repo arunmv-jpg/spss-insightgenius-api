@@ -20,7 +20,7 @@
 
 ### Review how a file was read
 
-Open `/review`, drop any SPSS / Excel / CSV file and see the codebook — how every column was coded, with
+In the web app (`/app`) this is **Step 2 — Review data**, right after upload; the following steps (banners, stubs, tabulation, one-click analysis) use the reviewed coding. Standalone: open `/review`, drop any SPSS / Excel / CSV file and see the codebook — how every column was coded, with
 counts and reasons — next to a live crosstab and chart. Fix anything that was misread (rename, change type,
 exclude "Don't know" from bases, merge or reorder answers) and build derived variables (bands, groups,
 Single/Dual/Triple counts, priority groups…) with a live preview. Approve to run the full analysis.

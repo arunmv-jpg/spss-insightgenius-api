@@ -35,11 +35,21 @@
     .code-row:hover .row-tools { visibility: visible; }
     .row-tools { visibility: hidden; }
     dialog::backdrop { background: rgba(15, 23, 42, 0.35); }
+    /* Embedded as a step of /app: no page chrome, fixed-height panels */
+    /* min-height must not follow the frame's height, or auto-sizing grows it forever */
+    .embed { background: transparent; min-height: 0 !important; }
+    @media (min-width: 700px) {
+      .embed #workspace { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+    }
+    .embed .page-chrome { display: none !important; }
+    .embed main { padding: 0; max-width: none; }
+    .embed #var-list { max-height: 560px !important; }
+    .embed .lg\:sticky { position: static; }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-900">
 
-  <header class="bg-white ring-1 ring-gray-200">
+  <header class="page-chrome bg-white ring-1 ring-gray-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
       <div class="min-w-0">
         <h1 class="text-lg font-bold">Review your data</h1>
@@ -52,7 +62,7 @@
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
     <!-- Upload -->
-    <section id="upload" class="bg-white rounded-xl ambient p-6">
+    <section id="upload" class="page-chrome bg-white rounded-xl ambient p-6">
       <div id="drop" class="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-blue-400 transition-colors">
         <p class="text-base font-medium">Drop a data file here, or click to choose</p>
         <p class="text-sm text-gray-500 mt-1">SPSS (.sav), Excel (.xlsx, .xls) or CSV / TSV — including survey platform exports</p>
@@ -74,7 +84,7 @@
           <button id="undo" class="edit-only text-sm font-medium px-3 py-2 rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 disabled:opacity-40" disabled>Undo</button>
           <button id="download-codebook" class="text-sm font-medium px-3 py-2 rounded-lg ring-1 ring-gray-300 hover:bg-gray-50">Download codebook</button>
           <button id="approve" class="text-sm font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
-            <span>Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
+            <span id="approve-label">Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
           </button>
         </div>
       </div>
@@ -170,6 +180,22 @@ const ROLE_NAMES = { single: 'Coded', multi: 'Multi-select', numeric: 'Number', 
 
 const state = { file: null, fileId: null, codebook: null, summary: null, filter: 'all', view: 'table', chart: null,
                 editable: false, edited: false, history: [] };
+
+// Embedded in /app as the "Review data" step: the app hands us the file (start(file)) and
+// we report the codebook back so the following steps use the reviewed coding.
+const EMBED = new URLSearchParams(location.search).has('embed');
+if (EMBED) {
+  document.body.classList.add('embed');
+  document.getElementById('approve-label').textContent = 'Use this coding → continue';
+  new ResizeObserver(() => notifyParent('review-height')).observe(document.body);
+}
+function notifyParent(type) {
+  if (!EMBED || window.parent === window) return;
+  window.parent.postMessage({
+    type, height: document.body.scrollHeight, file: state.file?.name, edited: state.edited,
+    codebook: state.edited ? state.codebook : null,
+  }, location.origin);
+}
 const $ = (id) => document.getElementById(id);
 
 // ── DOM helpers (every file-derived string goes through textContent) ──
@@ -232,8 +258,10 @@ async function start(file) {
     status.classList.add('hidden');
     $('upload').classList.add('hidden');
     render();
+    notifyParent('review-loaded');
   } catch (e) {
     status.replaceChildren(el('span', { class: 'text-red-600' }, `Couldn't read the file: ${e.message}`));
+    if (EMBED) { $('upload').classList.remove('page-chrome'); notifyParent('review-error'); }
   }
 }
 
@@ -273,6 +301,7 @@ async function edit(ops) {
     state.history.push({ codebook: state.codebook, summary: state.summary });
     state.codebook = data.codebook; state.summary = data.summary; state.edited = true;
     render();
+    notifyParent('review-updated');
     return true;
   } catch (e) {
     toast(e.message, true);
@@ -286,6 +315,7 @@ $('undo').addEventListener('click', () => {
   if (!prev) return;
   state.codebook = prev.codebook; state.summary = prev.summary; state.edited = state.history.length > 0;
   render();
+  notifyParent('review-updated');
 });
 
 let toastTimer;
@@ -553,6 +583,7 @@ $('download-codebook').addEventListener('click', () => {
 });
 
 $('approve').addEventListener('click', async () => {
+  if (EMBED) { notifyParent('review-continue'); return; }
   const status = $('approve-status');
   $('approve-spin').classList.remove('hidden'); $('approve').disabled = true;
   status.classList.remove('hidden'); status.textContent = 'Running the full analysis…';
