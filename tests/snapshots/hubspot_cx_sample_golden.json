@@ -767,7 +767,15 @@
    ],
    [
     "Significance Level",
-    "95%",
+    "95% (CAPITALS) / 90% (lowercase)",
+    null,
+    null,
+    null,
+    null
+   ],
+   [
+    "Low Base Markers",
+    "** base < 30, * base < 100",
     null,
     null,
     null,
@@ -1029,7 +1037,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -1116,7 +1124,7 @@
     "4.5% FG",
     "0.0%",
     "0.0%",
-    "11.1%",
+    "11.1% i",
     "0.0%"
    ],
    [
@@ -1369,7 +1377,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -1583,7 +1591,7 @@
     "4.21",
     "4.06",
     "4.00",
-    "4.36",
+    "4.36 g",
     "4.11",
     "4.07",
     "4.56",
@@ -1618,7 +1626,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -1737,7 +1745,7 @@
    [
     "5",
     "49.8%",
-    "58.9%",
+    "58.9% b",
     "42.8%",
     "51.2%",
     "40.0%",
@@ -1867,7 +1875,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -2116,7 +2124,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -2212,7 +2220,7 @@
     "6.8%",
     "8.9%",
     "11.1%",
-    "40.0%",
+    "40.0% a",
     "9.3%",
     "11.1%",
     "9.0%",
@@ -2242,7 +2250,7 @@
     "20.9%",
     "17.5%",
     "21.2%",
-    "35.3%",
+    "35.3% i",
     "11.5%"
    ],
    [
@@ -2365,7 +2373,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -2446,7 +2454,7 @@
     "Head of Department",
     "46.5%",
     "37.8%",
-    "58.6% AC",
+    "58.6% ACd",
     "41.9%",
     "0.0%",
     "40.9%",
@@ -2462,7 +2470,7 @@
     "8.3% C",
     "0.0%",
     "0.0%",
-    "6.8%",
+    "6.8% f",
     "0.8%",
     "4.9%",
     "11.1%",
@@ -2523,7 +2531,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -2668,7 +2676,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -2834,7 +2842,7 @@
     "0.0%",
     "0.0%",
     "0.0%",
-    "15.4%"
+    "15.4% h"
    ]
   ],
   "Passive Drivers": [
@@ -2852,7 +2860,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -3036,7 +3044,7 @@
     null
    ],
    [
-    "Significance: 95% confidence | Sig testing within each banner group",
+    "Significance: 95% (CAPITALS) / 90% (lowercase) confidence | ** base < 30, * base < 100 | Sig testing within each banner group",
     null,
     null,
     null,
@@ -3142,7 +3150,7 @@
    [
     "The outcomes my learners can achieve with Acme",
     "29.6%",
-    "41.3%",
+    "41.3% b",
     "20.9%",
     "31.5%",
     "50.0%",
@@ -3171,7 +3179,7 @@
     "39.1%",
     "23.3%",
     "31.5%",
-    "100.0%",
+    "100.0% b",
     "0.0%",
     "0.0%",
     "30.5%",

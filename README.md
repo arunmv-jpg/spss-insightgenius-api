@@ -147,6 +147,11 @@ Column proportion z-test with letter notation (A/B/C):
 - Supports weighted (Kish effective-n) and unweighted
 - Means tested with independent T-test
 - Confidence levels: 90%, 95%, 99%
+- Two levels (Decipher style, default for auto-analyze): `"significance_levels": [0.95, 0.90]` shows
+  CAPITAL letters at 95% and lowercase at 90% only (e.g. `58.6% ACd`). JSON adds
+  `significance_letters_secondary` per cell
+- Low-base markers on the Base row: `*` base < 100, `**` base < 30 (`low_base_warn` / `low_base_flag`,
+  0 = off); the base stays numeric in Excel. `/v1/crosstab` returns `column_bases` and `low_base`
 
 ---
 

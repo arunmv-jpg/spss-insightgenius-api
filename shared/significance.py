@@ -32,6 +32,28 @@ def bonferroni_alpha(alpha: float, n_columns: int) -> float:
     return alpha / n_pairs
 
 
+def significant_at(
+    p_val: float, alpha: float | None, n_columns: int, higher: bool, apply_bonferroni: bool = True,
+) -> bool:
+    """Whether a pairwise test's p-value passes a (secondary) level, e.g. 90% after 95% failed.
+
+    Reuses the p-value from z_test_proportions / t_test_means, so the second level costs
+    no extra test. Like the primary test, only the higher of the two columns gets the letter.
+    """
+    if alpha is None or not higher:
+        return False
+    return p_val < (bonferroni_alpha(alpha, n_columns) if apply_bonferroni else alpha)
+
+
+def low_base_marker(base: float, warn: int = 100, flag: int = 30) -> str:
+    """Decipher-style low-sample marker: '**' below `flag`, '*' below `warn`, else ''."""
+    if flag and base < flag:
+        return "**"
+    if warn and base < warn:
+        return "*"
+    return ""
+
+
 def z_test_proportions(
     p1: float, n1: float, p2: float, n2: float,
     alpha: float, n_columns: int,

@@ -72,6 +72,7 @@ async def create_tabulation(
     banners: list[str] | None = None,
     stubs: list[str] | None = None,
     significance_level: float = 0.95,
+    significance_levels: list[float] | None = None,
     weight: str | None = None,
     title: str = "",
     include_means: bool = False,
@@ -104,6 +105,8 @@ async def create_tabulation(
         banners:              List of banner variables (v2, preferred).
         stubs:                List of stub variable names, or null for all.
         significance_level:   Confidence threshold (0.90, 0.95, 0.99).
+        significance_levels:  Two levels, e.g. [0.95, 0.90]: CAPITAL letters at the first,
+                              lowercase at the second (Decipher style). Overrides significance_level.
         weight:               Optional weight variable name.
         title:                Report title in the Summary sheet.
         include_means:        Add means row with T-test significance.
@@ -151,6 +154,7 @@ async def create_tabulation(
         stubs=resolved_stubs,
         weight=weight,
         significance_level=significance_level,
+        significance_levels=significance_levels,
         title=title,
         include_means=include_means,
         include_total_column=include_total_column,
@@ -210,6 +214,7 @@ async def auto_analyze(
     max_banners: int = 3,
     output_mode: str = "multi_sheet",
     significance_level: float = 0.95,
+    significance_levels: list[float] | None = None,
     include_means: bool = True,
     file_base64: str | None = None,
     filename: str = "upload.sav",
@@ -228,7 +233,9 @@ async def auto_analyze(
         api_key:            Your API key (sk_test_... or sk_live_...). REQUIRED.
         max_banners:        Maximum number of banner variables to use (default 3).
         output_mode:        Output mode — "multi_sheet" or "single_sheet".
-        significance_level: Confidence threshold (0.90, 0.95, 0.99).
+        significance_level: Confidence threshold (0.90, 0.95, 0.99). By default 90% is added as
+                            a second level (lowercase letters).
+        significance_levels: Explicit levels, e.g. [0.95] for a single level.
         include_means:      Include means with T-test (default True).
         file_id:            File session ID from spss_upload_file.
         file_base64:        Base64-encoded file content.
@@ -246,6 +253,7 @@ async def auto_analyze(
                 "max_banners": max_banners,
                 "output_mode": output_mode,
                 "significance_level": significance_level,
+                "significance_levels": significance_levels,
                 "include_means": include_means,
             },
         )

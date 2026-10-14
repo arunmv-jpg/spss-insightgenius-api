@@ -19,7 +19,7 @@ import pyreadstat
 from scipy import stats
 from statsmodels.stats.proportion import proportions_ztest
 
-from shared.significance import z_test_proportions
+from shared.significance import significant_at, z_test_proportions
 
 logger = logging.getLogger(__name__)
 
@@ -725,10 +725,13 @@ class QuantiProEngine:
         col: str,
         weight: str | None = None,
         significance_level: float = 0.95,
+        secondary_level: float | None = None,
     ) -> dict[str, Any]:
         """Crosstab with column proportion significance testing (A/B/C letter notation).
 
         Uses proportions_ztest for unweighted, effective-n z-test for weighted.
+        With `secondary_level` (e.g. 0.90), differences significant only at that lower
+        level are listed in each cell's `significance_letters_secondary`.
         """
         df = data.df
         meta = data.meta
@@ -738,8 +741,9 @@ class QuantiProEngine:
         if col not in df.columns:
             raise ValueError(f"Column variable '{col}' not found in dataset")
 
-        # Try MRX native crosstab first — validate result before using
-        if data.mrx_dataset is not None:
+        # Try MRX native crosstab first — validate result before using.
+        # MRX tests a single level, so two-level requests use the pandas path.
+        if data.mrx_dataset is not None and secondary_level is None:
             try:
                 result = _crosstab_via_mrx(data, row, col, weight, significance_level)
                 if result is not None:
@@ -768,6 +772,7 @@ class QuantiProEngine:
         col_labels_map = getattr(meta, "column_names_to_labels", {})
 
         alpha = 1 - significance_level
+        alpha2 = None if secondary_level is None else 1 - secondary_level
 
         if w is not None:
             # Weighted path
@@ -805,7 +810,7 @@ class QuantiProEngine:
                     ct = float(w_col_totals[cv])
                     pct = round((wc / ct * 100) if ct > 0 else 0, 1)
 
-                    sig_letters = []
+                    sig_letters, sig_letters2 = [], []
                     n_cols = len(col_values)
                     for j, ocv in enumerate(col_values):
                         if i == j:
@@ -830,6 +835,8 @@ class QuantiProEngine:
                                 "p_value": round(p_val, 4),
                                 "higher_column": letters[i],
                             })
+                        elif significant_at(p_val, alpha2, n_cols, p_i > p_j):
+                            sig_letters2.append(letters[j])
 
                     row_data[str(cv)] = {
                         "count": round(float(wc), 1),
@@ -837,6 +844,8 @@ class QuantiProEngine:
                         "column_letter": letters[i],
                         "significance_letters": sorted(set(sig_letters)),
                     }
+                    if alpha2 is not None:
+                        row_data[str(cv)]["significance_letters_secondary"] = sorted(set(sig_letters2))
                 table.append(row_data)
 
             col_vl_map = {str(v): col_value_labels.get(v, str(v)) for v in col_values}
@@ -848,6 +857,7 @@ class QuantiProEngine:
                 "col_labels": col_letter_map,
                 "col_value_labels": col_vl_map,
                 "significance_level": significance_level,
+                **({"significance_level_secondary": secondary_level} if alpha2 is not None else {}),
                 "significant_pairs": significant_pairs,
             }
 
@@ -874,7 +884,7 @@ class QuantiProEngine:
                 col_total = int(col_totals[cv])
                 pct = round((count / col_total * 100) if col_total > 0 else 0, 1)
 
-                sig_letters = []
+                sig_letters, sig_letters2 = [], []
                 n_cols = len(col_values)
                 for j, ocv in enumerate(col_values):
                     if i == j:
@@ -897,6 +907,8 @@ class QuantiProEngine:
                             "p_value": round(float(p_val), 4),
                             "higher_column": letters[i],
                         })
+                    elif significant_at(p_val, alpha2, n_cols, this_pct > other_pct):
+                        sig_letters2.append(letters[j])
 
                 row_data[str(cv)] = {
                     "count": count,
@@ -904,6 +916,8 @@ class QuantiProEngine:
                     "column_letter": letters[i],
                     "significance_letters": sorted(set(sig_letters)),
                 }
+                if alpha2 is not None:
+                    row_data[str(cv)]["significance_letters_secondary"] = sorted(set(sig_letters2))
             table.append(row_data)
 
         col_vl_map = {str(v): col_value_labels.get(v, str(v)) for v in col_values}
@@ -915,6 +929,7 @@ class QuantiProEngine:
             "col_labels": col_letter_map,
             "col_value_labels": col_vl_map,
             "significance_level": significance_level,
+            **({"significance_level_secondary": secondary_level} if alpha2 is not None else {}),
             "significant_pairs": significant_pairs,
         }
 

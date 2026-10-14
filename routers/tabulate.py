@@ -53,7 +53,10 @@ _MAX_FILE_SIZE = {
         '  "nets": {"Q_2": {"Top 2 Box": [5, 6], "Bottom 2 Box": [1, 2]}},\n'
         '  "title": "Customer Satisfaction Study 2026"\n'
         "}\n```\n\n"
-        "Set `stubs` to `[\"_all_\"]` to auto-select all variables with value labels."
+        "Set `stubs` to `[\"_all_\"]` to auto-select all variables with value labels.\n\n"
+        "Optional: `significance_levels: [0.95, 0.90]` shows CAPITAL letters at 95% and lowercase "
+        "at 90%; `low_base_warn` / `low_base_flag` (default 100 / 30, 0 = off) mark small bases "
+        "with `*` / `**`."
     ),
     response_class=StreamingResponse,
 )
@@ -168,28 +171,34 @@ async def tabulate(
     custom_groups = spec_dict.get("custom_groups")
     # Allow Total-only export (no banners) — include_total_column will provide the Total column
 
-    tab_spec = TabulateSpec(
-        banner=banner,
-        banners=banners,
-        custom_groups=spec_dict.get("custom_groups"),
-        stubs=spec_dict.get("stubs", ["_all_"]),
-        weight=spec_dict.get("weight"),
-        significance_level=spec_dict.get("significance_level", 0.95),
-        nets=spec_dict.get("nets"),
-        mrs_groups=spec_dict.get("mrs_groups"),
-        grid_groups=spec_dict.get("grid_groups"),
-        grid_mode=spec_dict.get("grid_mode", "individual"),
-        include_means=spec_dict.get("include_means", False),
-        include_total_column=spec_dict.get("include_total_column", True),
-        output_mode=spec_dict.get("output_mode", "multi_sheet"),
-        show_counts=spec_dict.get("show_counts", True),
-        show_percentages=spec_dict.get("show_percentages", True),
-        show_chi2=spec_dict.get("show_chi2", True),
-        include_summary=spec_dict.get("include_summary", False),
-        study_context=spec_dict.get("study_context"),
-        filters=spec_dict.get("filters"),
-        title=spec_dict.get("title", ""),
-    )
+    try:
+        tab_spec = TabulateSpec(
+            banner=banner,
+            banners=banners,
+            custom_groups=spec_dict.get("custom_groups"),
+            stubs=spec_dict.get("stubs", ["_all_"]),
+            weight=spec_dict.get("weight"),
+            significance_level=spec_dict.get("significance_level", 0.95),
+            significance_levels=spec_dict.get("significance_levels"),
+            low_base_warn=int(spec_dict.get("low_base_warn", 100)),
+            low_base_flag=int(spec_dict.get("low_base_flag", 30)),
+            nets=spec_dict.get("nets"),
+            mrs_groups=spec_dict.get("mrs_groups"),
+            grid_groups=spec_dict.get("grid_groups"),
+            grid_mode=spec_dict.get("grid_mode", "individual"),
+            include_means=spec_dict.get("include_means", False),
+            include_total_column=spec_dict.get("include_total_column", True),
+            output_mode=spec_dict.get("output_mode", "multi_sheet"),
+            show_counts=spec_dict.get("show_counts", True),
+            show_percentages=spec_dict.get("show_percentages", True),
+            show_chi2=spec_dict.get("show_chi2", True),
+            include_summary=spec_dict.get("include_summary", False),
+            study_context=spec_dict.get("study_context"),
+            filters=spec_dict.get("filters"),
+            title=spec_dict.get("title", ""),
+        )
+    except ValueError as e:
+        raise HTTPException(400, detail={"code": "VALIDATION_ERROR", "message": str(e)})
 
     # ── Load SPSS ──
     try:

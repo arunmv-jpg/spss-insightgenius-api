@@ -145,10 +145,16 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
         nets = {k: v for k, v in all_nets.items() if k in set(stubs)}
 
     # Step 6: Build spec
+    # Decipher-style default: CAPITAL letters at the main level (95%), lowercase at 90%
+    levels = options.get("significance_levels")
+    if not levels:
+        primary = float(options.get("significance_level", 0.95))
+        levels = [primary, 0.90] if primary > 0.90 else [primary]
+
     spec = TabulateSpec(
         banners=banners,
         stubs=stubs if stubs else ["_all_"],
-        significance_level=options.get("significance_level", 0.95),
+        significance_levels=levels,
         include_means=True,
         include_total_column=True,
         output_mode=options.get("output_mode", "multi_sheet"),
@@ -216,7 +222,8 @@ async def auto_analyze(
     file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
     ticket: UploadFile = File(None, description="Reporting Ticket .docx — AI parses it to override auto-detection"),
-    options: str = Form("{}", description='Optional JSON: {"max_banners": 3, "output_mode": "multi_sheet", "significance_level": 0.95}'),
+    options: str = Form("{}", description='Optional JSON: {"max_banners": 3, "output_mode": "multi_sheet", "significance_level": 0.95, '
+                                         '"significance_levels": [0.95, 0.90]}. Default: CAPITAL letters at 95%, lowercase at 90%'),
     key: KeyConfig = Depends(require_scope("process")),
     _rl: None = Depends(check_rate_limit),
 ):

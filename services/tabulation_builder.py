@@ -27,7 +27,7 @@ from openpyxl.utils import get_column_letter
 from scipy import stats
 
 from services.data_loader import is_non_substantive
-from shared.significance import t_test_means, z_test_proportions
+from shared.significance import low_base_marker, significant_at, t_test_means, z_test_proportions
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,12 @@ class TabulateSpec:
     stubs: list[str] = field(default_factory=lambda: ["_all_"])
     weight: str | None = None
     significance_level: float = 0.95
+    # Two-level testing (Decipher style): e.g. [0.95, 0.90] → CAPITAL letters at 95%,
+    # lowercase at 90%. When set, significance_level becomes the highest level.
+    significance_levels: list[float] | None = None
+    # Low-sample markers on bases: "*" below low_base_warn, "**" below low_base_flag (0 = off)
+    low_base_warn: int = 100
+    low_base_flag: int = 30
     nets: dict[str, dict[str, list[Any]]] | None = None
     mrs_groups: dict[str, list[str]] | None = None
     grid_groups: dict[str, dict[str, Any]] | None = None  # Grid/Battery summaries
@@ -128,6 +134,47 @@ class TabulateSpec:
     stub_filters: dict[str, dict[str, Any]] | None = None  # Per-stub conditional filters
     nested_banners: list[dict[str, Any]] | None = None  # Nested/cross-product banners
     title: str = ""
+
+    def __post_init__(self):
+        if self.significance_levels:
+            levels = sorted({float(level) for level in self.significance_levels}, reverse=True)
+            if not all(0 < level < 1 for level in levels):
+                raise ValueError("significance_levels must be between 0 and 1, e.g. [0.95, 0.90]")
+            self.significance_levels = levels
+            self.significance_level = levels[0]
+
+    @property
+    def secondary_level(self) -> float | None:
+        """Second (lower) confidence level, shown as lowercase letters; None when single-level."""
+        levels = self.significance_levels or []
+        return levels[1] if len(levels) > 1 else None
+
+    @property
+    def secondary_alpha(self) -> float | None:
+        return None if self.secondary_level is None else 1 - self.secondary_level
+
+    @property
+    def significance_levels_text(self) -> str:
+        if self.secondary_level is None:
+            return f"{self.significance_level:.0%}"
+        return f"{self.significance_level:.0%} (CAPITALS) / {self.secondary_level:.0%} (lowercase)"
+
+    @property
+    def low_base_text(self) -> str:
+        markers = []
+        if self.low_base_flag:
+            markers.append(f"** base < {self.low_base_flag}")
+        if self.low_base_warn:
+            markers.append(f"* base < {self.low_base_warn}")
+        return ", ".join(markers)
+
+    @property
+    def significance_note(self) -> str:
+        note = f"Significance: {self.significance_levels_text} confidence"
+        return note + (f" | {self.low_base_text}" if self.low_base_text else "")
+
+    def base_marker(self, base: float) -> str:
+        return low_base_marker(base, self.low_base_warn, self.low_base_flag)
 
     @property
     def resolved_banners(self) -> list[str]:
@@ -448,6 +495,7 @@ def build_tabulation(engine_cls: Any, data: Any, spec: TabulateSpec) -> Tabulati
                     stub_data, row=stub, col=banner_var,
                     weight=spec.weight,
                     significance_level=spec.significance_level,
+                    secondary_level=spec.secondary_level,
                 )
                 all_banner_results[banner_var] = ct
 
@@ -468,7 +516,8 @@ def build_tabulation(engine_cls: Any, data: Any, spec: TabulateSpec) -> Tabulati
         try:
             all_banner_results = {}
             for banner_var in banners:
-                ct = _mrs_crosstab(data, members, banner_var, spec.weight, spec.significance_level)
+                ct = _mrs_crosstab(data, members, banner_var, spec.weight, spec.significance_level,
+                                   spec.secondary_level)
                 all_banner_results[banner_var] = ct
             group_label = col_labels.get(group_name, group_name)
             sheet = SheetResult(
@@ -490,7 +539,8 @@ def build_tabulation(engine_cls: Any, data: Any, spec: TabulateSpec) -> Tabulati
         if grid_mode == "summary":
             # Compact summary: one sheet with T2B/B2B/Mean rows per variable
             try:
-                grid_result = _compute_grid_summary(data, gvars, banners, banner_columns, spec.weight, spec.significance_level, gshow)
+                grid_result = _compute_grid_summary(data, gvars, banners, banner_columns, spec.weight, spec.significance_level, gshow,
+                                                    spec.secondary_level)
                 sheet = SheetResult(
                     variable=grid_name, label=grid_name, status="success",
                     is_grid=True, grid_data=grid_result,
@@ -520,6 +570,7 @@ def build_tabulation(engine_cls: Any, data: Any, spec: TabulateSpec) -> Tabulati
                             data, row=gvar, col=banner_var,
                             weight=spec.weight,
                             significance_level=spec.significance_level,
+                            secondary_level=spec.secondary_level,
                         )
                         all_banner_results[banner_var] = ct
                     # Use stripped label for the variable
@@ -554,6 +605,7 @@ def build_tabulation(engine_cls: Any, data: Any, spec: TabulateSpec) -> Tabulati
 
 def _mrs_crosstab(
     data: Any, members: list[str], col: str, weight: str | None, sig_level: float,
+    secondary_level: float | None = None,
 ) -> dict[str, Any]:
     """Crosstab for a Multiple Response Set.
 
@@ -580,6 +632,7 @@ def _mrs_crosstab(
     letters = list(string.ascii_uppercase[:len(col_values)])
     col_letter_map = {str(v): letters[i] for i, v in enumerate(col_values)}
     alpha = 1 - sig_level
+    alpha2 = None if secondary_level is None else 1 - secondary_level
 
     # Strip common label prefix for MRS (e.g., "What treatments...? -Otezla" → "Otezla")
     from services.quantipy_engine import _strip_common_label_prefix
@@ -617,7 +670,7 @@ def _mrs_crosstab(
             pct = round(count / base * 100, 1) if base > 0 else 0
 
             # Sig testing vs other columns
-            sig_letters = []
+            sig_letters, sig_letters2 = [], []
             n_cols = len(col_values)
             for j, ocv in enumerate(col_values):
                 if i == j:
@@ -632,18 +685,22 @@ def _mrs_crosstab(
                 from shared.significance import z_test_proportions
                 p1 = count / base if base > 0 else 0
                 p2 = o_count / o_base if o_base > 0 else 0
-                _, is_sig = z_test_proportions(
+                p_val, is_sig = z_test_proportions(
                     p1, base, p2, o_base, alpha, n_cols,
                     variable=member, col_a=letters[i], col_b=letters[j],
                 )
                 if is_sig:
                     sig_letters.append(letters[j])
+                elif significant_at(p_val, alpha2, n_cols, p1 > p2):
+                    sig_letters2.append(letters[j])
 
             row_data[str(cv)] = {
                 "count": count, "percentage": pct,
                 "column_letter": letters[i],
                 "significance_letters": sorted(set(sig_letters)),
             }
+            if alpha2 is not None:
+                row_data[str(cv)]["significance_letters_secondary"] = sorted(set(sig_letters2))
         table.append(row_data)
 
     return {
@@ -660,11 +717,33 @@ def _mrs_crosstab(
     }
 
 
+def _crosstab_letters(local: list[str], ct: dict, bc: "BannerColumn", banner_columns: list) -> list[str]:
+    """Letters from one banner's crosstab (A, B, … for that banner) → workbook-wide letters."""
+    value_of = {letter: value for value, letter in ct.get("col_labels", {}).items()}
+    out = []
+    for letter in local:
+        value = value_of.get(letter)
+        out += [g.letter for g in banner_columns if g.banner_var == bc.banner_var and g.value == value][:1]
+    return out
+
+
+def _group_letters(local: list[str], group_cols: list) -> list[str]:
+    """Positional letters within one banner group (A = first column) → workbook-wide letters."""
+    return [group_cols[i].letter for i in (string.ascii_uppercase.find(s) for s in local)
+            if 0 <= i < len(group_cols)]
+
+
+def _sig_suffix(primary: list[str], secondary: list[str] | None = None) -> str:
+    """'AB' for the primary level plus lowercase 'c' for letters significant only at the secondary level."""
+    return "".join(primary) + "".join(letter.lower() for letter in (secondary or []))
+
+
 # ── Means computation with T-test (T1-1) ──
 
 def _compute_grid_summary(
     data: Any, variables: list[str], banners: list[str],
     banner_columns: list, weight: str | None, sig_level: float, show: list[str],
+    secondary_level: float | None = None,
 ) -> dict[str, Any]:
     """Compute T2B, B2B, Mean per variable per banner column for a grid/battery summary."""
     df = data.df
@@ -672,6 +751,7 @@ def _compute_grid_summary(
     col_labels = getattr(meta, "column_names_to_labels", {})
     value_labels_all = getattr(meta, "variable_value_labels", {})
     alpha = 1 - sig_level
+    alpha2 = None if secondary_level is None else 1 - secondary_level
 
     rows = []  # Each row: {"variable": str, "label": str, "metric": str, "columns": {letter: {value, sig_letters}}}
     w = df[weight] if weight and weight in df.columns else None
@@ -746,10 +826,10 @@ def _compute_grid_summary(
 
             # Sig testing for means (T-test between columns within same banner group)
             if metric == "mean":
-                _add_mean_sig_to_grid_row(row, df, series, banner_columns, w, alpha)
+                _add_mean_sig_to_grid_row(row, df, series, banner_columns, w, alpha, alpha2)
             elif metric in ("t2b", "b2b"):
                 target_vals = top2 if metric == "t2b" else bot2
-                _add_prop_sig_to_grid_row(row, df, series, target_vals, banner_columns, w, alpha)
+                _add_prop_sig_to_grid_row(row, df, series, target_vals, banner_columns, w, alpha, alpha2)
 
             # Total column
             if w is not None:
@@ -771,7 +851,7 @@ def _compute_grid_summary(
     return {"rows": rows}
 
 
-def _add_mean_sig_to_grid_row(row, df, series, banner_columns, w, alpha):
+def _add_mean_sig_to_grid_row(row, df, series, banner_columns, w, alpha, alpha2=None):
     """Add T-test sig letters to mean metric in grid row."""
     # Group columns by banner_index for within-group testing
     groups = {}
@@ -794,18 +874,21 @@ def _add_mean_sig_to_grid_row(row, df, series, banner_columns, w, alpha):
                 vals_j = series[mask_j & series.notna()]
                 if len(vals_i) < 2 or len(vals_j) < 2:
                     continue
-                _, is_sig = t_test_means(
+                p_val, is_sig = t_test_means(
                     float(vals_i.mean()), float(vals_i.std()), len(vals_i),
                     float(vals_j.mean()), float(vals_j.std()), len(vals_j),
                     alpha, n_cols,
                     variable=str(var_name), col_a=bc_i.letter, col_b=bc_j.letter,
                 )
+                if bc_i.letter not in row["columns"]:
+                    continue
                 if is_sig:
-                    if bc_i.letter in row["columns"]:
-                        row["columns"][bc_i.letter]["sig_letters"].append(bc_j.letter)
+                    row["columns"][bc_i.letter]["sig_letters"].append(bc_j.letter)
+                elif significant_at(p_val, alpha2, n_cols, float(vals_i.mean()) > float(vals_j.mean())):
+                    row["columns"][bc_i.letter].setdefault("sig_letters2", []).append(bc_j.letter)
 
 
-def _add_prop_sig_to_grid_row(row, df, series, target_vals, banner_columns, w, alpha):
+def _add_prop_sig_to_grid_row(row, df, series, target_vals, banner_columns, w, alpha, alpha2=None):
     """Add z-test sig letters to proportion metric (T2B/B2B) in grid row."""
     groups = {}
     for bc in banner_columns:
@@ -832,17 +915,21 @@ def _add_prop_sig_to_grid_row(row, df, series, target_vals, banner_columns, w, a
                 c_j = int(sub_j.isin(target_vals).sum())
                 p_i = c_i / n_i
                 p_j = c_j / n_j
-                _, is_sig = z_test_proportions(
+                p_val, is_sig = z_test_proportions(
                     p_i, n_i, p_j, n_j, alpha, n_cols,
                     variable=str(var_name), col_a=bc_i.letter, col_b=bc_j.letter,
                 )
+                if bc_i.letter not in row["columns"]:
+                    continue
                 if is_sig:
-                    if bc_i.letter in row["columns"]:
-                        row["columns"][bc_i.letter]["sig_letters"].append(bc_j.letter)
+                    row["columns"][bc_i.letter]["sig_letters"].append(bc_j.letter)
+                elif significant_at(p_val, alpha2, n_cols, p_i > p_j):
+                    row["columns"][bc_i.letter].setdefault("sig_letters2", []).append(bc_j.letter)
 
 
 def _compute_means_by_column(
     df: pd.DataFrame, stub: str, banner_var: str, col_values: list, weight: str | None, alpha: float,
+    alpha2: float | None = None,
 ) -> dict[str, Any]:
     """Compute mean per banner column with independent T-test significance letters."""
     results = {}
@@ -876,11 +963,11 @@ def _compute_means_by_column(
         if st["mean"] is None:
             results[cv_str] = {"mean": None, "std": None, "n": st["n"], "sig_letters": []}
             continue
-        sig_letters = []
+        sig_letters, sig_letters2 = [], []
         for ocv_str, ost in col_stats.items():
             if cv_str == ocv_str or ost["mean"] is None:
                 continue
-            _, is_sig = t_test_means(
+            p_val, is_sig = t_test_means(
                 st["mean"], st["std"], st["n"],
                 ost["mean"], ost["std"], ost["n"],
                 alpha, n_cols,
@@ -888,11 +975,14 @@ def _compute_means_by_column(
             )
             if is_sig:
                 sig_letters.append(ost["letter"])
+            elif significant_at(p_val, alpha2, n_cols, st["mean"] > ost["mean"]):
+                sig_letters2.append(ost["letter"])
         results[cv_str] = {
             "mean": round(st["mean"], 2),
             "std": round(st["std"], 2),
             "n": st["n"],
             "sig_letters": sorted(set(sig_letters)),
+            "sig_letters2": sorted(set(sig_letters2)),
         }
     return results
 
@@ -962,7 +1052,8 @@ def _write_summary_sheet(ws, result: TabulationResult, spec: TabulateSpec, data:
         ("Cases", len(data.df)),
         ("Banners", banners_str),
         ("Weight", spec.weight or "(none)"),
-        ("Significance Level", f"{spec.significance_level:.0%}"),
+        ("Significance Level", spec.significance_levels_text),
+        ("Low Base Markers", spec.low_base_text or "(off)"),
         ("Means with T-test", "Yes" if spec.include_means else "No"),
         ("Total Stubs", result.total_stubs),
         ("Successful", result.successful),
@@ -1037,7 +1128,7 @@ def _write_crosstab_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, dat
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_data_col)
 
     # Row 2: Sig note + Chi-square p-value (Story #9)
-    sig_note = f"Significance: {spec.significance_level:.0%} confidence"
+    sig_note = spec.significance_note
     if spec.weight:
         sig_note += f" | Weighted by: {spec.weight}"
     if len(banners) > 1:
@@ -1169,6 +1260,10 @@ def _write_crosstab_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, dat
         cell = ws.cell(row=row_base_w, column=2 + i, value=int(round(w_total)))
         cell.font = BASE_FONT
         cell.alignment = CENTER
+        # Low-sample marker (judged on the unweighted n); the cell stays numeric
+        marker = spec.base_marker(col_bases_uw[i] if has_dual_base else w_total)
+        if marker:
+            cell.number_format = f'0" {marker}"'
         cell.fill = TOTAL_FILL if is_total else PatternFill()
 
     # Row: Base (unweighted) — T1-4
@@ -1214,29 +1309,20 @@ def _write_crosstab_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, dat
 
             count = cell_data.get("count", 0)
             pct = cell_data.get("percentage", 0)
-            orig_sig = cell_data.get("significance_letters", [])
             row_total_count += count
 
-            # Remap sig letters from per-banner letters to global letters
-            ct_col_labels = ct.get("col_labels", {})
-            # Build reverse map: original letter -> value
-            orig_letter_to_value = {v: k for k, v in ct_col_labels.items()}
-            # Map to global letters
-            global_sig = []
-            for orig_letter in orig_sig:
-                orig_value = orig_letter_to_value.get(orig_letter)
-                if orig_value:
-                    for gbc in banner_columns:
-                        if gbc.banner_var == bc.banner_var and gbc.value == orig_value:
-                            global_sig.append(gbc.letter)
-                            break
+            # Per-banner letters → workbook letters; 2nd-level letters in lowercase
+            sig_suffix = _sig_suffix(
+                _crosstab_letters(cell_data.get("significance_letters", []), ct, bc, banner_columns),
+                _crosstab_letters(cell_data.get("significance_letters_secondary", []), ct, bc, banner_columns),
+            )
 
             col_idx = 2 + i
             is_total_col = bc.banner_var == "_total_"
             if spec.show_percentages:
                 pct_str = f"{pct:.1f}%"
-                if global_sig and not is_total_col:
-                    pct_str += " " + "".join(global_sig)
+                if sig_suffix and not is_total_col:
+                    pct_str += " " + sig_suffix
                     cell = ws.cell(row=current_row, column=col_idx, value=pct_str)
                     cell.font = SIG_FONT
                 else:
@@ -1292,7 +1378,8 @@ def _write_crosstab_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, dat
                 group_cols = [bc for bc in banner_columns if bc.banner_index == b_idx]
                 banner_var = group_cols[0].banner_var
                 col_vals = [float(bc.value) if bc.value.replace('.', '', 1).replace('-', '', 1).isdigit() else bc.value for bc in group_cols]
-                means_result = _compute_means_by_column(data.df, stub_var, banner_var, col_vals, spec.weight, alpha)
+                means_result = _compute_means_by_column(data.df, stub_var, banner_var, col_vals, spec.weight,
+                                                        alpha, spec.secondary_alpha)
 
                 # Mean row
                 ws.cell(row=current_row, column=1, value="Mean").font = MEAN_FONT
@@ -1304,23 +1391,13 @@ def _write_crosstab_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, dat
                     if m is None:
                         cell = ws.cell(row=current_row, column=2 + col_i, value="-")
                     else:
-                        sig = mr.get("sig_letters", [])
-                        # Remap to global letters
-                        global_sig = []
-                        for sl in sig:
-                            for gbc in group_cols:
-                                if gbc.letter == sl or (hasattr(gbc, '_local_letter') and gbc._local_letter == sl):
-                                    global_sig.append(gbc.letter)
-                                    break
-                            else:
-                                # Try matching by index
-                                idx = ord(sl) - ord('A')
-                                if 0 <= idx < len(group_cols):
-                                    global_sig.append(group_cols[idx].letter)
-
+                        suffix = _sig_suffix(
+                            _group_letters(mr.get("sig_letters", []), group_cols),
+                            _group_letters(mr.get("sig_letters2", []), group_cols),
+                        )
                         mean_str = f"{m:.2f}"
-                        if global_sig:
-                            mean_str += " " + "".join(global_sig)
+                        if suffix:
+                            mean_str += " " + suffix
                             cell = ws.cell(row=current_row, column=2 + col_i, value=mean_str)
                             cell.font = MEAN_SIG_FONT
                         else:
@@ -1392,7 +1469,7 @@ def _write_grid_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, banner_
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_col)
 
     # Row 2: Sig note
-    sig_note = f"Significance: {spec.significance_level:.0%} confidence"
+    sig_note = spec.significance_note
     if spec.weight:
         sig_note += f" | Weighted by: {spec.weight}"
     ws.cell(row=2, column=1, value=sig_note).font = Font(italic=True, size=9, color="6B7280")
@@ -1491,14 +1568,14 @@ def _write_grid_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, banner_
             for i, bc in enumerate(banner_columns):
                 col_data = r.get("columns", {}).get(bc.letter, {})
                 val = col_data.get("value")
-                sig = col_data.get("sig_letters", [])
+                sig = _sig_suffix(col_data.get("sig_letters", []), col_data.get("sig_letters2", []))
 
                 if val is None:
                     ws.cell(row=current_row, column=2 + i, value="-").font = COUNT_FONT
                 else:
                     display = f"{val:.1f}%" if is_pct else f"{val:.2f}"
                     if sig:
-                        display += " " + "".join(sig)
+                        display += " " + sig
                         cell = ws.cell(row=current_row, column=2 + i, value=display)
                         cell.font = SIG_FONT
                     else:
@@ -1556,7 +1633,7 @@ def _write_single_sheet(ws, result: TabulationResult, spec: TabulateSpec, data: 
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
 
     # Row 2: Sig note
-    sig_note = f"Significance: {spec.significance_level:.0%} confidence"
+    sig_note = spec.significance_note
     if spec.weight:
         sig_note += f" | Weighted by: {spec.weight}"
     ws.cell(row=2, column=1, value=sig_note).font = Font(italic=True, size=9, color="6B7280")
@@ -1674,6 +1751,15 @@ def _write_single_sheet(ws, result: TabulationResult, spec: TabulateSpec, data: 
             cell = ws.cell(row=current_row, column=2 + i, value=int(round(base)))
             cell.font = BASE_FONT
             cell.alignment = CENTER
+            if has_dual_base:
+                try:
+                    bval = float(bc.value) if bc.value.replace('.', '', 1).replace('-', '', 1).isdigit() else bc.value
+                except (ValueError, AttributeError):
+                    bval = bc.value
+                base = int((data.df[bc.banner_var] == bval).sum())
+            marker = spec.base_marker(base)  # judged on the unweighted n
+            if marker:
+                cell.number_format = f'0" {marker}"'
         current_row += 1
 
         if has_dual_base:
@@ -1717,24 +1803,15 @@ def _write_single_sheet(ws, result: TabulationResult, spec: TabulateSpec, data: 
                     continue
 
                 pct = cell_data.get("percentage", 0)
-                orig_sig = cell_data.get("significance_letters", [])
-
-                # Remap sig letters
-                ct_cl = ct.get("col_labels", {})
-                rev_map = {v: k for k, v in ct_cl.items()}
-                global_sig = []
-                for ol in orig_sig:
-                    ov = rev_map.get(ol)
-                    if ov:
-                        for gbc in banner_columns:
-                            if gbc.banner_var == bc.banner_var and gbc.value == ov:
-                                global_sig.append(gbc.letter)
-                                break
+                sig_suffix = _sig_suffix(
+                    _crosstab_letters(cell_data.get("significance_letters", []), ct, bc, banner_columns),
+                    _crosstab_letters(cell_data.get("significance_letters_secondary", []), ct, bc, banner_columns),
+                )
 
                 is_total_col = bc.banner_var == "_total_"
                 pct_str = f"{pct:.1f}%"
-                if global_sig and not is_total_col:
-                    pct_str += " " + "".join(global_sig)
+                if sig_suffix and not is_total_col:
+                    pct_str += " " + sig_suffix
                     cell = ws.cell(row=current_row, column=2 + i, value=pct_str)
                     cell.font = SIG_FONT
                 else:
@@ -1828,13 +1905,13 @@ def _write_grid_block_in_single_sheet(ws, sheet_result, spec, banner_columns, st
             for i, bc in enumerate(banner_columns):
                 col_data = r.get("columns", {}).get(bc.letter, {})
                 val = col_data.get("value")
-                sig = col_data.get("sig_letters", [])
+                sig = _sig_suffix(col_data.get("sig_letters", []), col_data.get("sig_letters2", []))
                 if val is None:
                     ws.cell(row=start_row, column=2 + i, value="-").font = COUNT_FONT
                 else:
                     display = f"{val:.1f}%" if is_pct else f"{val:.2f}"
                     if sig:
-                        display += " " + "".join(sig)
+                        display += " " + sig
                         ws.cell(row=start_row, column=2 + i, value=display).font = SIG_FONT
                     else:
                         ws.cell(row=start_row, column=2 + i, value=display).font = PCT_FONT
