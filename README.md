@@ -18,6 +18,11 @@
    - Enable Top 2 Box / Means
 4. Click **Generate Excel** → download your tabulation
 
+### Review how a file was read
+
+Open `/review`, drop any SPSS / Excel / CSV file and see the codebook — how every column was coded, with
+counts and reasons — next to a live crosstab and chart. Approve to run the full analysis.
+
 ### Option 2: Auto-Analyze (zero config)
 
 ```bash

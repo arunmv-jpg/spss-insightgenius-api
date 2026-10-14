@@ -262,6 +262,10 @@ def create_application() -> FastAPI:
         async def upload_page():
             return FileResponse(public_dir / "upload.html")
 
+        @app.get("/review", include_in_schema=False)
+        async def review_page():
+            return FileResponse(public_dir / "review.html")
+
         @app.get("/app/dashboard", include_in_schema=False)
         async def dashboard_page():
             return FileResponse(public_dir / "dashboard.html")

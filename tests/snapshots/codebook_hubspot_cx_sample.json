@@ -831,8 +831,8 @@
    "source": "text",
    "tags": [],
    "inferred": {
-    "rule": "scale:known",
-    "reason": "Matches a known 2-point rating scale; coded in scale order",
+    "rule": "yes_no",
+    "reason": "Yes/No question",
     "confidence": 0.95
    },
    "status": "ok",

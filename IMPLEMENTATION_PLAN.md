@@ -130,6 +130,12 @@ unchanged; `load_data()` output byte-identical to pre-refactor for the fixtures 
 
 ## M3: Review UI v1 (M)
 
+> **Status:** v1 done on `feat/m3-review-ui`: `public/review.html` at `/review` (codebook panel with
+> filters/search/counts/reasons, live crosstab table + Chart.js chart with two-level letters and low-base
+> markers, download codebook, approve → auto-analyze). Uses `POST /v1/codebook` + `/v1/crosstab` directly,
+> so a separate `/review` payload endpoint (M3.1) wasn't needed. Linked from `/app`; wiring into the
+> wizard/express flows (M3.3) and the editable structure bar (M3.4) move to M4/M6.
+
 | PR | Task | Files |
 |---|---|---|
 | M3.1 | Review payload endpoint: `GET /v1/files/{id}/review` = structure + codebook + per-variable distribution (counts per code, base, missing) + suggested banners. One call renders the page | `routers/codebook.py` |

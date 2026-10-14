@@ -155,3 +155,11 @@ def test_mcp_get_codebook():
     finally:
         loop.close()
     assert "codebook" in json.dumps(result)
+
+
+def test_review_page_served(client):
+    response = client.get("/review")
+    assert response.status_code == 200
+    html = response.text
+    assert "/v1/codebook" in html and "/v1/crosstab" in html
+    assert "innerHTML" not in html  # file-derived labels are only ever set as text

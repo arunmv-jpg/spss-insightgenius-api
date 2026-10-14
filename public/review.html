@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review data — SPSS InsightGenius</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .ambient { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06); }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .role-single { background: #dbeafe; color: #1e40af; }
+    .role-multi { background: #f3e8ff; color: #6b21a8; }
+    .role-numeric { background: #dcfce7; color: #166534; }
+    .role-text, .role-date { background: #f1f5f9; color: #475569; }
+    .role-ignore { background: #f8fafc; color: #94a3b8; }
+    .role-derived { background: #fef3c7; color: #92400e; }
+    .bar { height: 6px; border-radius: 3px; background: #2563eb; min-width: 2px; }
+    .bar.missing { background: #cbd5e1; }
+    .var-card { cursor: pointer; transition: background 0.15s, box-shadow 0.15s; }
+    .var-card:hover { background: #f8fafc; }
+    .var-card.active { box-shadow: inset 3px 0 0 #2563eb; background: #eff6ff; }
+    .filter.active { background: #1e293b; color: #fff; }
+    .sig { color: #b91c1c; font-weight: 600; }
+    .spinner { border: 3px solid #e5e7eb; border-top: 3px solid #2563eb; border-radius: 50%; width: 18px; height: 18px; animation: spin 0.8s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #xtab tbody tr:nth-child(even) { background: #f8fafc; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-900">
+
+  <header class="bg-white ring-1 ring-gray-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="text-lg font-bold">Review your data</h1>
+        <p class="text-sm text-gray-500 truncate">See how each column was read, preview crosstabs, then continue.</p>
+      </div>
+      <a href="/app" class="text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">&larr; Back to app</a>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+    <!-- Upload -->
+    <section id="upload" class="bg-white rounded-xl ambient p-6">
+      <div id="drop" class="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-blue-400 transition-colors">
+        <p class="text-base font-medium">Drop a data file here, or click to choose</p>
+        <p class="text-sm text-gray-500 mt-1">SPSS (.sav), Excel (.xlsx, .xls) or CSV / TSV — including survey platform exports</p>
+        <input type="file" id="file-input" accept=".sav,.zsav,.por,.xlsx,.xls,.csv,.tsv" class="hidden">
+      </div>
+      <p id="upload-status" class="text-sm text-gray-600 mt-3 hidden"></p>
+    </section>
+
+    <!-- Summary bar -->
+    <section id="summary" class="hidden bg-white rounded-xl ambient px-5 py-4">
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div class="min-w-0">
+          <p id="file-name" class="font-semibold truncate"></p>
+          <p id="file-facts" class="text-sm text-gray-500"></p>
+        </div>
+        <div id="role-chips" class="flex flex-wrap gap-2"></div>
+        <div id="unmatched-note" class="hidden text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-1.5"></div>
+        <div class="ml-auto flex flex-wrap gap-2">
+          <button id="download-codebook" class="text-sm font-medium px-3 py-2 rounded-lg ring-1 ring-gray-300 hover:bg-gray-50">Download codebook</button>
+          <button id="approve" class="text-sm font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+            <span>Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
+          </button>
+        </div>
+      </div>
+      <p id="approve-status" class="text-sm text-gray-600 mt-2 hidden"></p>
+    </section>
+
+    <!-- Workspace -->
+    <section id="workspace" class="hidden grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+      <!-- Codebook -->
+      <div class="lg:col-span-2 bg-white rounded-xl ambient flex flex-col min-h-0">
+        <div class="px-4 pt-4 pb-3 space-y-3 ring-1 ring-gray-100 rounded-t-xl">
+          <div class="flex items-center justify-between">
+            <h2 class="font-semibold">Codebook</h2>
+            <span id="var-count" class="text-xs text-gray-500"></span>
+          </div>
+          <input id="search" type="search" placeholder="Search columns or answers…"
+                 class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
+          <div id="filters" class="flex flex-wrap gap-1.5 text-xs"></div>
+        </div>
+        <div id="var-list" class="overflow-y-auto divide-y divide-gray-100" style="max-height: 70vh"></div>
+      </div>
+
+      <!-- Preview -->
+      <div class="lg:col-span-3 space-y-5">
+        <div class="bg-white rounded-xl ambient p-5 space-y-4 lg:sticky lg:top-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <label class="text-sm flex-1 min-w-[180px]">
+              <span class="block text-gray-500 mb-1">Row (question)</span>
+              <select id="row-select" class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 bg-white"></select>
+            </label>
+            <label class="text-sm flex-1 min-w-[180px]">
+              <span class="block text-gray-500 mb-1">Banner (break down by)</span>
+              <select id="col-select" class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 bg-white"></select>
+            </label>
+            <div class="flex rounded-lg ring-1 ring-gray-300 overflow-hidden text-sm">
+              <button data-view="table" class="view-btn px-3 py-2 bg-gray-900 text-white">Table</button>
+              <button data-view="chart" class="view-btn px-3 py-2">Chart</button>
+            </div>
+          </div>
+          <div id="xtab-status" class="text-sm text-gray-500"></div>
+          <div id="xtab-wrap" class="overflow-x-auto"><table id="xtab" class="w-full text-sm"></table></div>
+          <div id="chart-wrap" class="hidden" style="height: 340px"><canvas id="chart"></canvas></div>
+          <p class="text-xs text-gray-500">
+            Column %. <span class="sig">A</span> = significantly higher than column A at 95%,
+            <span class="sig">a</span> = at 90%. Bases: ** under 30, * under 100.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script src="/static/config.js"></script>
+<script>
+const API_KEY = window.__INSIGHTGENIUS_DEMO_KEY__ || 'demo';
+const SIG_LEVELS = [0.95, 0.90];
+const ROLE_NAMES = { single: 'Coded', multi: 'Multi-select', numeric: 'Number', text: 'Text', date: 'Date', ignore: 'Ignored' };
+
+const state = { file: null, fileId: null, codebook: null, summary: null, filter: 'all', view: 'table', chart: null };
+const $ = (id) => document.getElementById(id);
+
+// ── DOM helpers (every file-derived string goes through textContent) ──
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') node.className = v;
+    else if (k === 'style') node.style.cssText = v;
+    else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) if (c != null) node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return node;
+}
+
+function fileForm(extra = {}) {
+  const form = new FormData();
+  if (state.fileId) form.append('file_id', state.fileId);
+  else form.append('file', state.file, state.file.name);
+  for (const [k, v] of Object.entries(extra)) form.append(k, v);
+  return form;
+}
+
+async function api(path, form) {
+  const res = await fetch(path, { method: 'POST', headers: { Authorization: `Bearer ${API_KEY}` }, body: form });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = body.error || body.detail || {};
+    throw new Error(err.message || err.error || `Request failed (${res.status})`);
+  }
+  return body.data ?? body;
+}
+
+// ── Upload ──
+const drop = $('drop'), input = $('file-input');
+drop.addEventListener('click', () => input.click());
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('border-blue-500', 'bg-blue-50'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('border-blue-500', 'bg-blue-50'));
+drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('border-blue-500', 'bg-blue-50'); if (e.dataTransfer.files[0]) start(e.dataTransfer.files[0]); });
+input.addEventListener('change', () => input.files[0] && start(input.files[0]));
+
+async function start(file) {
+  state.file = file; state.fileId = null;
+  const status = $('upload-status');
+  status.classList.remove('hidden');
+  status.replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), `Reading ${file.name}…`);
+  // Use a file session when the server has one (Redis); otherwise send the file each time
+  try {
+    const form = new FormData(); form.append('file', file, file.name);
+    const res = await fetch('/v1/files/upload', { method: 'POST', headers: { Authorization: `Bearer ${API_KEY}` }, body: form });
+    if (res.ok) state.fileId = (await res.json()).file_id || null;
+  } catch (_) { /* fall back to direct upload */ }
+  try {
+    const data = await api('/v1/codebook', fileForm());
+    state.codebook = data.codebook; state.summary = data.summary;
+    status.classList.add('hidden');
+    $('upload').classList.add('hidden');
+    render();
+  } catch (e) {
+    status.replaceChildren(el('span', { class: 'text-red-600' }, `Couldn't read the file: ${e.message}`));
+  }
+}
+
+// ── Codebook model helpers ──
+function isTabulable(v) { return v.name && (v.role === 'single' || v.role === 'numeric') && v.codes.length > 0; }
+function derivedFor(v) {
+  const after = v.role === 'multi' ? v.options.at(-1)?.name : v.name;
+  return state.codebook.derived.filter(d => d.after === after);
+}
+function rowCandidates() {
+  const out = [];
+  for (const v of state.codebook.variables) {
+    if (isTabulable(v)) out.push({ name: v.name, label: v.label });
+    if (v.role === 'multi') v.options.forEach(o => out.push({ name: o.name, label: `${v.label}: ${o.label}` }));
+    derivedFor(v).forEach(d => out.push({ name: d.name, label: d.label }));
+  }
+  return out;
+}
+function bannerCandidates() {
+  const out = [];
+  for (const v of state.codebook.variables) {
+    if (isTabulable(v) && v.codes.length >= 2 && v.codes.length <= 12) out.push({ name: v.name, label: v.label });
+    derivedFor(v).forEach(d => out.push({ name: d.name, label: d.label }));
+  }
+  return out;
+}
+
+// ── Render ──
+function render() {
+  const cb = state.codebook, s = state.summary;
+  $('summary').classList.remove('hidden');
+  $('workspace').classList.remove('hidden');
+  $('file-name').textContent = state.file.name;
+  $('file-facts').textContent = `${cb.source.rows.toLocaleString()} respondents · ${s.columns} columns → ${s.output_variables} variables` +
+    (s.derived ? ` · ${s.derived} derived` : '');
+
+  $('role-chips').replaceChildren(...Object.entries(s.by_role).map(([role, n]) =>
+    el('span', { class: `chip role-${role}` }, `${n} ${ROLE_NAMES[role] || role}`)));
+
+  const unmatched = Object.entries(s.unmatched_answers || {});
+  $('unmatched-note').classList.toggle('hidden', !unmatched.length);
+  if (unmatched.length) $('unmatched-note').textContent =
+    `${unmatched.length} question(s) have answers the codebook doesn't cover (coded as missing)`;
+
+  const filters = [['all', 'All'], ['single', 'Coded'], ['multi', 'Multi-select'], ['numeric', 'Numbers'],
+                   ['text', 'Text'], ['ignore', 'Ignored'], ['derived', 'Derived']];
+  $('filters').replaceChildren(...filters.map(([key, label]) =>
+    el('button', { class: `filter px-2.5 py-1 rounded-full ring-1 ring-gray-200 ${state.filter === key ? 'active' : ''}`,
+                   onclick: () => { state.filter = key; render(); } }, label)));
+
+  const firstRender = !$('row-select').options.length;
+  fillSelect($('row-select'), rowCandidates());
+  fillSelect($('col-select'), bannerCandidates());
+  if (firstRender) pickDefaults();
+  renderList();
+  preview();
+}
+
+function fillSelect(select, items) {
+  const keep = select.value;
+  select.replaceChildren(...items.map(i => el('option', { value: i.name }, i.label)));
+  if (items.some(i => i.name === keep)) select.value = keep;
+}
+
+function pickDefaults() {
+  // Banner: a derived group (NPS group, …) or a short coded question — not a 0-10 scale
+  const vars = state.codebook.variables;
+  const banner = state.codebook.derived[0]?.name
+    || vars.find(v => isTabulable(v) && v.codes.length >= 2 && v.codes.length <= 6)?.name;
+  // Row: the coded question most people answered (that isn't the banner)
+  const byBase = (a, b) => (b.base || 0) - (a.base || 0);
+  const row = vars.filter(v => v.role === 'single' && v.codes.length && v.name !== banner).sort(byBase)[0]?.name
+    || vars.filter(v => isTabulable(v) && v.name !== banner).sort(byBase)[0]?.name;
+  if (banner) $('col-select').value = banner;
+  if (row) $('row-select').value = row;
+}
+
+function matchesFilter(v) {
+  if (state.filter === 'all') return true;
+  if (state.filter === 'derived') return derivedFor(v).length > 0;
+  if (state.filter === 'text') return v.role === 'text' || v.role === 'date';
+  return v.role === state.filter;
+}
+
+function matchesSearch(v, q) {
+  if (!q) return true;
+  const hay = [v.column, v.label, v.name || '', ...v.codes.map(c => c.label), ...v.options.map(o => o.label)].join(' ').toLowerCase();
+  return hay.includes(q);
+}
+
+function renderList() {
+  const q = $('search').value.trim().toLowerCase();
+  const vars = state.codebook.variables.filter(v => matchesFilter(v) && matchesSearch(v, q));
+  $('var-count').textContent = `${vars.length} of ${state.codebook.variables.length}`;
+  $('var-list').replaceChildren(...vars.map(card));
+  if (!vars.length) $('var-list').append(el('p', { class: 'p-4 text-sm text-gray-500' }, 'No columns match.'));
+}
+
+function bars(items, base, isMissing = false) {
+  return items.map(item => {
+    const pct = base ? Math.round(100 * (item.count || 0) / base) : 0;
+    return el('div', { class: 'grid grid-cols-12 items-center gap-2 text-xs' },
+      el('span', { class: `col-span-1 text-right tabular-nums ${isMissing ? 'text-gray-400' : 'text-gray-500'}` }, item.code != null ? fmtCode(item.code) : ''),
+      el('span', { class: `col-span-5 truncate ${isMissing ? 'text-gray-400 italic' : ''}`, title: (item.match || []).join(' | ') || item.label }, item.label),
+      el('div', { class: 'col-span-3' }, el('div', { class: `bar ${isMissing ? 'missing' : ''}`, style: `width:${Math.min(pct, 100)}%` })),
+      el('span', { class: 'col-span-3 text-right tabular-nums text-gray-500 whitespace-nowrap' }, item.count == null ? '' : `${item.count}${isMissing ? '' : ` · ${pct}%`}`));
+  });
+}
+
+function fmtCode(c) { return Number.isInteger(c) ? String(c) : String(+c.toFixed(2)); }
+
+function card(v) {
+  const reason = v.inferred?.reason || '';
+  const rowName = v.role === 'multi' ? v.options[0]?.name : v.name;
+  const node = el('div', { class: `var-card px-4 py-3 space-y-2 ${$('row-select').value === rowName ? 'active' : ''}`,
+                           onclick: () => { if (rowName && [...$('row-select').options].some(o => o.value === rowName)) { $('row-select').value = rowName; preview(); renderList(); } } },
+    el('div', { class: 'flex items-start justify-between gap-2' },
+      el('div', { class: 'min-w-0' },
+        el('p', { class: 'text-sm font-medium truncate', title: v.column }, v.label),
+        el('p', { class: 'text-xs text-gray-500 truncate' }, v.name ? `${v.name}${v.base != null ? ` · base ${v.base}` : ''}` : (v.base != null ? `base ${v.base}` : ''))),
+      el('span', { class: `chip role-${v.role}` }, ROLE_NAMES[v.role] || v.role)),
+    reason ? el('p', { class: 'text-xs text-gray-600' }, reason) : null);
+
+  if (v.codes.length) node.append(el('div', { class: 'space-y-1' }, bars(v.codes, v.base)));
+  if (v.missing.length) node.append(el('div', { class: 'space-y-1' },
+    el('p', { class: 'text-[11px] uppercase tracking-wide text-gray-400' }, 'Excluded from bases'), bars(v.missing, v.base, true)));
+  if (v.options.length) node.append(el('div', { class: 'space-y-1' }, bars(v.options, v.base)));
+  for (const d of derivedFor(v)) {
+    const base = d.codes.reduce((s, c) => s + (c.count || 0), 0);
+    node.append(el('div', { class: 'space-y-1 pt-1' },
+      el('p', { class: 'text-xs' }, el('span', { class: 'chip role-derived mr-1' }, 'Derived'), d.label, d.inferred ? ` — ${d.inferred.reason}` : ''),
+      bars(d.codes, base)));
+  }
+  return node;
+}
+
+$('search').addEventListener('input', renderList);
+
+// ── Crosstab preview ──
+let previewSeq = 0;
+$('row-select').addEventListener('change', () => { preview(); renderList(); });
+$('col-select').addEventListener('change', preview);
+document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => {
+  state.view = b.dataset.view;
+  document.querySelectorAll('.view-btn').forEach(x => x.classList.toggle('bg-gray-900', x === b));
+  document.querySelectorAll('.view-btn').forEach(x => x.classList.toggle('text-white', x === b));
+  $('xtab-wrap').classList.toggle('hidden', state.view !== 'table');
+  $('chart-wrap').classList.toggle('hidden', state.view !== 'chart');
+}));
+
+async function preview() {
+  const row = $('row-select').value, col = $('col-select').value;
+  if (!row || !col) { $('xtab-status').textContent = 'Nothing to tabulate yet.'; return; }
+  if (row === col) { $('xtab-status').textContent = 'Pick a different banner from the row.'; $('xtab').replaceChildren(); return; }
+  const seq = ++previewSeq;
+  $('xtab-status').replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), 'Calculating…');
+  try {
+    const spec = JSON.stringify({ row, col, significance_levels: SIG_LEVELS });
+    const ct = await api('/v1/crosstab', fileForm({ spec }));
+    if (seq !== previewSeq) return;
+    $('xtab-status').textContent = `${ct.total_responses.toLocaleString()} respondents answered both`;
+    drawTable(ct); drawChart(ct);
+  } catch (e) {
+    if (seq === previewSeq) $('xtab-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message));
+  }
+}
+
+function columns(ct) {
+  return Object.keys(ct.col_labels).map(value => ({
+    value, letter: ct.col_labels[value], label: ct.col_value_labels?.[value] ?? value,
+    base: ct.column_bases?.[value] ?? 0, marker: ct.low_base?.[value] || '',
+  }));
+}
+
+function drawTable(ct) {
+  const cols = columns(ct);
+  const total = ct.table.reduce((s, r) => s + cols.reduce((t, c) => t + (r[c.value]?.count || 0), 0), 0);
+  const th = (text, cls = '') => el('th', { class: `px-2 py-2 font-medium text-right ${cls}` }, text);
+  const head = el('thead', {},
+    el('tr', { class: 'text-xs text-gray-500' }, th('', 'text-left'), th('Total'), ...cols.map(c => th(c.label))),
+    el('tr', { class: 'text-xs text-gray-400' }, th(''), th(''), ...cols.map(c => th(c.letter))),
+    el('tr', { class: 'text-xs' }, th('Base', 'text-left text-gray-500'), th(total.toLocaleString()),
+       ...cols.map(c => th(`${c.base.toLocaleString()}${c.marker ? ' ' + c.marker : ''}`, c.marker ? 'text-amber-700' : ''))));
+  const body = el('tbody', {}, ...ct.table.map(r => {
+    const rowTotal = cols.reduce((t, c) => t + (r[c.value]?.count || 0), 0);
+    return el('tr', {},
+      el('td', { class: 'px-2 py-1.5 text-left' }, r.row_label),
+      el('td', { class: 'px-2 py-1.5 text-right tabular-nums text-gray-500' }, total ? `${(100 * rowTotal / total).toFixed(1)}%` : '-'),
+      ...cols.map(c => {
+        const cell = r[c.value] || {};
+        const letters = (cell.significance_letters || []).join('') + (cell.significance_letters_secondary || []).join('').toLowerCase();
+        return el('td', { class: 'px-2 py-1.5 text-right tabular-nums whitespace-nowrap' },
+          cell.percentage == null ? '-' : `${cell.percentage.toFixed(1)}%`, letters ? el('span', { class: 'sig ml-1' }, letters) : null);
+      }));
+  }));
+  $('xtab').replaceChildren(head, body);
+}
+
+const PALETTE = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#475569', '#0d9488', '#9333ea'];
+function drawChart(ct) {
+  const cols = columns(ct);
+  const datasets = ct.table.map((r, i) => ({
+    label: r.row_label, backgroundColor: PALETTE[i % PALETTE.length],
+    data: cols.map(c => r[c.value]?.percentage ?? 0),
+  }));
+  if (state.chart) state.chart.destroy();
+  state.chart = new Chart($('chart'), {
+    type: 'bar',
+    data: { labels: cols.map(c => `${c.label}${c.marker ? ' ' + c.marker : ''}`), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      scales: { x: { stacked: true, max: 100, ticks: { callback: v => v + '%' } }, y: { stacked: true } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                 tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.x.toFixed(1)}%` } } },
+    },
+  });
+}
+
+// ── Actions ──
+$('download-codebook').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state.codebook, null, 2)], { type: 'application/json' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: `${state.file.name.replace(/\.[^.]+$/, '')}_codebook.json` });
+  a.click(); URL.revokeObjectURL(a.href);
+});
+
+$('approve').addEventListener('click', async () => {
+  const status = $('approve-status');
+  $('approve-spin').classList.remove('hidden'); $('approve').disabled = true;
+  status.classList.remove('hidden'); status.textContent = 'Running the full analysis…';
+  try {
+    const res = await fetch('/v1/auto-analyze', { method: 'POST', headers: { Authorization: `Bearer ${API_KEY}` }, body: fileForm() });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.detail?.message || `Request failed (${res.status})`);
+    const blob = await res.blob();
+    const name = (res.headers.get('Content-Disposition') || '').match(/filename="?([^"]+)"?/)?.[1] || 'analysis.xlsx';
+    const a = el('a', { href: URL.createObjectURL(blob), download: name }); a.click(); URL.revokeObjectURL(a.href);
+    status.textContent = `Done: ${name} downloaded.`;
+  } catch (e) {
+    status.replaceChildren(el('span', { class: 'text-red-600' }, `Analysis failed: ${e.message}`));
+  } finally {
+    $('approve-spin').classList.add('hidden'); $('approve').disabled = false;
+  }
+});
+</script>
+</body>
+</html>

@@ -152,8 +152,10 @@ def _single_variable(column, header, label, series, used) -> Variable:
     if len(substantive) >= 2 and _prefix_codes(substantive):
         inferred = Inferred(rule="scale:numeric_prefix", reason="Answers start with their code (e.g. '10 - …')")
     elif len(substantive) >= 2 and _scale_codes(substantive):
-        inferred = Inferred(rule="scale:known", confidence=0.95,
-                            reason=f"Matches a known {len(codes)}-point rating scale; coded in scale order")
+        is_yes_no = {c.label.casefold() for c in codes} == {"yes", "no"}
+        inferred = Inferred(rule="yes_no" if is_yes_no else "scale:known", confidence=0.95,
+                            reason="Yes/No question" if is_yes_no else
+                            f"Matches a known {len(codes)}-point rating scale; coded in scale order")
     else:
         inferred = Inferred(rule="nominal", confidence=0.8,
                             reason=f"{len(codes)} categories, coded alphabetically ('Other' last)")
