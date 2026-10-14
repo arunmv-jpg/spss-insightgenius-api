@@ -14,7 +14,7 @@ async def spss_get_server_info() -> dict[str, Any]:
     """
     settings = get_settings()
     all_tools = [
-        "spss_upload_file", "spss_get_metadata", "spss_describe_variable",
+        "spss_upload_file", "spss_get_metadata", "spss_get_codebook", "spss_describe_variable",
         "spss_get_server_info", "spss_analyze_frequencies", "spss_analyze_crosstab",
         "spss_analyze_correlation", "spss_analyze_anova", "spss_analyze_gap",
         "spss_summarize_satisfaction", "spss_auto_analyze", "spss_create_tabulation",

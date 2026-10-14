@@ -59,6 +59,11 @@ base markers at 29/30/99/100 boundaries; the example3 golden is unchanged with t
 
 ## M2: Split the pipeline + codebook model (M)
 
+> **Status:** done on `feat/m2-codebook-pipeline`, except M2.6's Redis cache of the coded .sav
+> (deferred: loading isn't a bottleneck yet; revisit with the review UI's repeated previews in M3).
+> Old vs new loader verified identical (data, labels, value labels, missing ranges, measures) on the
+> synthetic fixture and three real client exports.
+
 Goal: `ingest → infer → apply` as separate modules; codebook visible via the API (read-only).
 **No output change**: proven by the golden tests.
 

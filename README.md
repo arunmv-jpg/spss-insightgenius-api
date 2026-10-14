@@ -79,6 +79,7 @@ Connect to `https://spss.insightgenius.io/mcp/sse` and use any of the 12 tools. 
 | **POST** | `/v1/auto-analyze` | **Zero-config** — upload .sav, get complete Excel (AI-detected banners, MRS, grids, nets) |
 | **POST** | `/v1/tabulate` | **Full tabulation → Excel** with sig letters, nets, means, MRS, grids, custom groups. Accepts optional .docx Reporting Ticket. |
 | POST | `/v1/metadata` | Variable metadata + suggested banners + detected groups + preset nets |
+| POST | `/v1/codebook` | How each column is coded: codes + raw answers + counts, missing codes, multi-selects, derived variables, reasons (also `GET /v1/files/{file_id}/codebook`) |
 | POST | `/v1/frequency` | Frequency table (counts, %, mean, std, median) |
 | POST | `/v1/crosstab` | Single crosstab with sig letters (A/B/C) + chi-square p-value |
 | POST | `/v1/correlation` | Correlation matrix (Pearson/Spearman/Kendall) with p-values |

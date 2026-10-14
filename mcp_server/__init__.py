@@ -50,7 +50,7 @@ from services.quantipy_engine import QUANTIPYMRX_AVAILABLE
 
 # Import tool functions
 from mcp_server.tools.system import spss_get_server_info, spss_get_started
-from mcp_server.tools.metadata import spss_upload_file, get_spss_metadata, get_variable_info
+from mcp_server.tools.metadata import spss_upload_file, get_spss_metadata, get_codebook, get_variable_info
 from mcp_server.tools.analysis import analyze_frequencies, analyze_crosstabs
 from mcp_server.tools.advanced import analyze_correlation, analyze_anova, analyze_gap, summarize_satisfaction
 from mcp_server.tools.tabulation import create_tabulation, auto_analyze
@@ -131,6 +131,7 @@ async def list_files(api_key: str = "") -> dict:
         "available_tools": [
             {"name": "spss_upload_file", "description": "Upload a file and get a reusable file_id"},
             {"name": "spss_get_metadata", "description": "Extract variable metadata, banners, groups, nets"},
+            {"name": "spss_get_codebook", "description": "How each column is coded (codes, missing, multi-selects, reasons)"},
             {"name": "spss_describe_variable", "description": "Get detailed profile for specific variables"},
             {"name": "spss_analyze_frequencies", "description": "Frequency tables (batch up to 50 variables)"},
             {"name": "spss_analyze_crosstab", "description": "Crosstab with significance letters (A/B/C)"},
@@ -155,6 +156,7 @@ _ALWAYS_TOOLS = [
     ("spss_get_started", spss_get_started),
     ("spss_upload_file", spss_upload_file),
     ("spss_get_metadata", get_spss_metadata),
+    ("spss_get_codebook", get_codebook),
     ("spss_get_server_info", spss_get_server_info),
     ("spss_describe_variable", get_variable_info),
     ("spss_analyze_frequencies", analyze_frequencies),
@@ -170,6 +172,7 @@ _ANNOTATIONS = {
     "spss_upload_file":           {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
     "spss_get_server_info":       {"readOnlyHint": True,  "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
     "spss_get_metadata":          {"readOnlyHint": True,  "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+    "spss_get_codebook":          {"readOnlyHint": True,  "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
     "spss_describe_variable":     {"readOnlyHint": True,  "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
     "spss_analyze_frequencies":   {"readOnlyHint": True,  "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
     "spss_analyze_crosstab":      {"readOnlyHint": True,  "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
@@ -196,13 +199,14 @@ for _name, _fn in _ALWAYS_TOOLS:
 if QUANTIPYMRX_AVAILABLE:
     for _name, _fn in _CONDITIONAL_TOOLS:
         mcp.tool(name=_name, annotations=_ANNOTATIONS.get(_name, {}))(_fn)
-    logger.info("MCP: Registered all 14 tools with annotations (QuantipyMRX available)")
+    logger.info("MCP: Registered all %d tools with annotations (QuantipyMRX available)", len(_ALWAYS_TOOLS) + len(_CONDITIONAL_TOOLS))
 else:
     for _name, _fn in _CONDITIONAL_TOOLS:
         logger.warning(
             "MCP: Tool '%s' NOT registered — QuantipyMRX not available", _name
         )
-    logger.info("MCP: Registered 10 of 14 tools with annotations (QuantipyMRX not available)")
+    logger.info("MCP: Registered %d of %d tools with annotations (QuantipyMRX not available)",
+                len(_ALWAYS_TOOLS), len(_ALWAYS_TOOLS) + len(_CONDITIONAL_TOOLS))
 
 
 # ── Public API (re-exports) ─────────────────────────────────────────────────
