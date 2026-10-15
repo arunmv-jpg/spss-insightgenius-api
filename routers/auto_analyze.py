@@ -144,6 +144,8 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
         nets = ticket_nets
     else:
         all_nets = meta.get("preset_nets") or {}
+        if options.get("_codebook") is not None:  # nets set in the codebook replace the guessed ones
+            all_nets = {**all_nets, **options["_codebook"].table_nets()}
         nets = {k: v for k, v in all_nets.items() if k in set(stubs)}
 
     # Step 6: Build spec

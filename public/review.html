@@ -592,6 +592,10 @@ function details(item) {
   if (v.inferred?.reason) box.append(el('p', { class: 'text-xs text-gray-500' }, el('span', { class: 'font-medium text-gray-600' }, 'Read as: '), v.inferred.reason));
   if (state.editable && v.role !== 'date') box.append(toolbar(v));
   if (v.codes.length) box.append(el('div', { class: 'space-y-1.5' }, bars(v.codes, v.base, { v })));
+  if (v.nets?.length) box.append(el('div', { class: 'space-y-1.5' },
+    el('p', { class: 'text-[11px] uppercase tracking-wide text-gray-400 pt-1' }, 'Nets (table rows)'),
+    bars(v.nets.map(n => ({ label: `${n.label} = ${n.codes.map(c => v.codes.find(x => x.code === c)?.label ?? c).join(' + ')}`,
+                            count: v.codes.filter(c => n.codes.includes(c.code)).reduce((t, c) => t + (c.count || 0), 0) })), v.base)));
   if (v.missing.length) box.append(el('div', { class: 'space-y-1.5' },
     el('p', { class: 'text-[11px] uppercase tracking-wide text-gray-400 pt-1' }, 'Left out of bases'), bars(v.missing, v.base, { isMissing: true, v })));
   if (v.options.length) box.append(el('div', { class: 'space-y-1.5' }, bars(v.options, v.base)));
@@ -698,6 +702,18 @@ function drawTable(ct) {
           cell.percentage == null ? '-' : `${cell.percentage.toFixed(1)}%`, letters ? el('span', { class: 'sig ml-1' }, letters) : null);
       }));
   }));
+  const v = !ct.is_mrs && findVar($('row-select').value);
+  for (const n of v?.nets || []) {
+    const inNet = ct.table.filter(r => n.codes.includes(Number(r.row_value)));
+    const netTotal = inNet.reduce((s, r) => s + cols.reduce((t, c) => t + (r[c.value]?.count || 0), 0), 0);
+    body.append(el('tr', { class: 'bg-green-50/60 font-medium text-green-900' },
+      el('td', { class: 'px-2 py-1.5 text-left' }, n.label),
+      el('td', { class: 'px-2 py-1.5 text-right tabular-nums' }, total ? `${(100 * netTotal / total).toFixed(1)}%` : '-'),
+      ...cols.map(c => {
+        const count = inNet.reduce((t, r) => t + (r[c.value]?.count || 0), 0);
+        return el('td', { class: 'px-2 py-1.5 text-right tabular-nums' }, c.base ? `${(100 * count / c.base).toFixed(1)}%` : '-');
+      })));
+  }
   $('xtab').replaceChildren(head, body);
 }
 
@@ -859,6 +875,8 @@ function openRecoder(v, tab = 'edit', editing = null) {
   const row = (c, missing) => ({ orig: c.code, value: c.code, label: c.label, origLabel: c.label, count: c.count || 0,
                                  missing, origMissing: missing, sel: false });
   rc.rows = [...v.codes.map(c => row(c, false)), ...v.missing.map(c => row(c, true))];
+  rc.nets = (v.nets || []).map(n => ({ label: n.label, codes: new Set(n.codes) }));
+  rc.origNets = JSON.stringify(v.nets || []);
   nw.forVar = null;  // a fresh builder each time the drawer opens
   if (editing) { nwReset(v); nwLoad(editing, v); nw.forVar = v.column; }
   $('rc-title').textContent = editing ? editing.label : v.label;
@@ -869,8 +887,10 @@ function openRecoder(v, tab = 'edit', editing = null) {
 
 function rcSort() { rc.rows.sort((a, b) => (a.missing - b.missing) || (a.value - b.value)); }
 function rcValid() { return rc.rows.filter(r => !r.missing); }
+function rcNets() { return rc.nets.filter(n => n.codes.size).map(n => ({ label: n.label.trim(), codes: [...n.codes] })); }
 function rcDirty() {
-  return rc.merges.length || rc.rows.some(r => r.value !== r.orig || r.label !== r.origLabel || r.missing !== r.origMissing);
+  return rc.merges.length || JSON.stringify(rcNets()) !== rc.origNets
+    || rc.rows.some(r => r.value !== r.orig || r.label !== r.origLabel || r.missing !== r.origMissing);
 }
 
 function renderRecoder() {
@@ -905,7 +925,7 @@ function renderRecodeEdit() {
   body.replaceChildren(
     el('p', { class: 'text-sm text-gray-600' }, 'Change how the answers are coded. Drag to reorder, tick answers to merge them, ',
        'or exclude "Don\'t know"-type answers from bases.'),
-    tools, table,
+    tools, table, rcNetsSection(base),
     el('p', { class: 'text-xs text-gray-400' }, 'Value is the number behind each answer: averages use it and tables list answers in value order. ',
        'Answers keep their wording; only what you change here changes.'));
 }
@@ -933,6 +953,35 @@ function rcRow(r, i, base) {
   return tr;
 }
 
+// Nets: extra table rows adding answers up (Top 2 Box …); the question itself doesn't change
+function rcNetsSection(base) {
+  const valid = rcValid();
+  const byValue = [...valid].sort((a, b) => a.value - b.value);
+  const quick = (label, rows) => el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', disabled: rows.length ? null : '',
+    onclick: () => { rc.nets.push({ label, codes: new Set(rows.map(r => r.orig)) }); renderRecodeEdit(); } }, `+ ${label}`);
+  const card = (n, i) => {
+    const people = valid.filter(r => n.codes.has(r.orig)).reduce((t, r) => t + r.count, 0);
+    return el('div', { class: 'rounded-lg ring-1 ring-gray-200 p-2 space-y-1.5' },
+      el('div', { class: 'flex items-center gap-1.5' },
+        el('input', { class: 'rc-input', value: n.label, placeholder: 'Net name, e.g. Agree (T2B)', 'aria-label': 'Net name',
+                      oninput: (e) => { n.label = e.target.value; } }),
+        el('span', { class: 'text-xs tabular-nums text-gray-500 whitespace-nowrap' },
+          `${people.toLocaleString()}${base ? ` · ${Math.round(100 * people / base)}%` : ''}`),
+        smallBtn('✕', 'Remove net', () => { rc.nets.splice(i, 1); renderRecodeEdit(); })),
+      chips(valid.map(r => ({ value: r.orig, label: r.label })), [...n.codes], (value, on) => {
+        on ? n.codes.add(value) : n.codes.delete(value); renderRecodeEdit(); }));
+  };
+  return el('div', { class: 'space-y-2 pt-2' },
+    el('p', { class: 'text-sm font-medium text-gray-700' }, 'Nets ',
+      el('span', { class: 'font-normal text-gray-500' }, '— extra table rows that add answers up, e.g. Top 2 Box')),
+    ...rc.nets.map(card),
+    el('div', { class: 'flex flex-wrap gap-2' },
+      quick('Top 2 Box', valid.length >= 4 ? byValue.slice(-2) : []),
+      quick('Bottom 2 Box', valid.length >= 4 ? byValue.slice(0, 2) : []),
+      el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+        rc.nets.push({ label: '', codes: new Set() }); renderRecodeEdit(); } }, '+ Net')));
+}
+
 // Answers follow their position: the existing values are handed out again in the new order
 function rcReassign(ordered) {
   const values = ordered.map(r => r.value).sort((a, b) => a - b);
@@ -953,6 +1002,9 @@ function rcMerge() {
   if (picked.length < 2) return;
   const [target, ...rest] = picked;
   rc.merges.push({ into: target.orig, codes: rest.map(r => r.orig) });
+  for (const n of rc.nets) {
+    if (rest.some(r => n.codes.has(r.orig))) { rest.forEach(r => n.codes.delete(r.orig)); n.codes.add(target.orig); }
+  }
   target.count += rest.reduce((s, r) => s + r.count, 0);
   rc.rows = rc.rows.filter(r => !rest.includes(r));
   rc.rows.forEach(r => { r.sel = false; });
@@ -964,7 +1016,13 @@ function rcOps() {
   const ref_ = ref(rc.v);
   const values = rc.rows.map(r => r.value);
   if (new Set(values).size !== values.length) throw new Error('Two answers have the same value: give each a different number.');
-  const ops = rc.merges.map(m => ({ op: 'merge_codes', var: ref_, codes: m.codes, into: m.into }));
+  const ops = [];
+  const nets = rcNets();
+  if (JSON.stringify(nets) !== rc.origNets) {
+    if (nets.some(n => !n.label)) throw new Error('Give each net a name.');
+    ops.push({ op: 'set_nets', var: ref_, nets });
+  }
+  ops.push(...rc.merges.map(m => ({ op: 'merge_codes', var: ref_, codes: m.codes, into: m.into })));
   for (const r of rc.rows) {
     if (r.label !== r.origLabel) ops.push({ op: 'relabel_code', var: ref_, code: r.orig, label: r.label });
     if (r.missing !== r.origMissing) ops.push({ op: 'set_missing', var: ref_, code: r.orig, missing: r.missing });

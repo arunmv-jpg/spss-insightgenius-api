@@ -12,6 +12,9 @@ multi-select's / ignored column's header):
   {"op": "merge_codes",    "var": v, "codes": [4, 5], "into": 4}
   {"op": "reorder_codes",  "var": v, "order": [codes or labels]}        # renumbers 1..n
   {"op": "set_codes",      "var": v, "map": [[old, new], …]}             # new values (reverse, mid-points)
+  {"op": "set_nets",       "var": v, "nets": [{"label": "Top 2 Box", "codes": [4, 5]}, …]}  # table rows
+  {"op": "add_net",        "var": v, "label": "Top 2 Box", "codes": [4, 5]}
+  {"op": "remove_net",     "var": v, "label": "Top 2 Box"}
   {"op": "add_derived",    "derived": {name?, label, rule, params, codes?, after?}}
   {"op": "update_derived", "name": n, "derived": {…}}
   {"op": "remove_derived", "name": n}
@@ -23,7 +26,7 @@ import pandas as pd
 
 from services.codebook.apply import apply_codebook, clean_text
 from services.codebook.heuristics import MAX_CATEGORIES, _merge_case_variants, _natural_key, _spss_name
-from services.codebook.model import Code, Codebook, Derived, Inferred, Option, Variable
+from services.codebook.model import Code, Codebook, Derived, Inferred, Net, Option, Variable
 from services.codebook.rules import Context, RuleError, multi_output_labels
 
 
@@ -93,6 +96,14 @@ def _holds(codes: list[Code], code: Code) -> bool:
     return any(c is code for c in codes)
 
 
+def _remap_nets(var: Variable, mapping: dict[float, float | None]) -> None:
+    """Keep nets pointing at the same answers after codes change (None = answer left the base)."""
+    for net in var.nets:
+        codes = [mapping.get(c, c) for c in net.codes]
+        net.codes = list(dict.fromkeys(c for c in codes if c is not None))
+    var.nets = [n for n in var.nets if n.codes]
+
+
 def _needs_codes(var: Variable):
     if var.role not in ("single", "numeric") or not (var.codes or var.missing):
         raise EditError(f"'{var.name or var.column}' has no codes to edit")
@@ -116,6 +127,7 @@ def _set_role(cb, op, df):
         raise EditError("role must be single, text, numeric or ignore")
     if role == var.role:
         return
+    var.nets = []
     if role == "ignore":
         var.role = "ignore"
         return
@@ -177,6 +189,7 @@ def _set_missing(cb, op, df):
     if make_missing and _holds(var.codes, code):
         var.codes = [c for c in var.codes if c is not code]
         var.missing.append(code)
+        _remap_nets(var, {code.code: None})  # out of the base, so out of its nets
     elif not make_missing and _holds(var.missing, code):
         var.missing = [c for c in var.missing if c is not code]
         var.codes.append(code)
@@ -195,6 +208,7 @@ def _merge_codes(cb, op, df):
             continue
         _pin(var, code)
         target.match = sorted({*target.match, *code.match})
+        _remap_nets(var, {code.code: target.code})
         var.codes = [c for c in var.codes if c is not code]
         var.missing = [c for c in var.missing if c is not code]
 
@@ -206,12 +220,15 @@ def _reorder_codes(cb, op, df):
     if {id(c) for c in ordered} != {id(c) for c in var.codes}:
         raise EditError("order must list every (non-missing) code exactly once")
     used = {m.code for m in var.missing}
+    mapping = {}
     for i, code in enumerate(ordered):
         _pin(var, code)
         new = float(i + 1)
         if new in used:
             raise EditError(f"code {new:g} is already used by a missing code")
+        mapping[code.code] = new
         code.code = new
+    _remap_nets(var, mapping)
     var.codes = ordered
 
 
@@ -235,6 +252,7 @@ def _set_codes(cb, op, df):
     dupes = sorted({v for v in values if values.count(v) > 1})
     if dupes:
         raise EditError(f"two answers would share the value {', '.join(f'{d:g}' for d in dupes)}")
+    _remap_nets(var, {code.code: new for code, new in pairs})
     for code, new in pairs:
         _pin(var, code)
         if var.value_labels is not None:
@@ -243,6 +261,50 @@ def _set_codes(cb, op, df):
         code.code = new
     var.codes.sort(key=lambda c: c.code)
     var.missing.sort(key=lambda c: c.code)
+
+
+def _net(var: Variable, spec: dict) -> Net:
+    label = str(spec.get("label") or "").strip()
+    if not label:
+        raise EditError("a net needs a label")
+    codes = []
+    for value in spec.get("codes") or []:
+        code = _code(var, value)
+        if not _holds(var.codes, code):
+            raise EditError(f"'{code.label}' is excluded from the base, so it can't be in a net")
+        codes.append(code.code)
+    if not codes:
+        raise EditError(f"net '{label}' needs at least one answer")
+    return Net(label=label, codes=list(dict.fromkeys(codes)))
+
+
+def _check_net_labels(var: Variable) -> None:
+    labels = [n.label.casefold() for n in var.nets]
+    dupes = sorted({n.label for n in var.nets if labels.count(n.label.casefold()) > 1})
+    if dupes:
+        raise EditError(f"two nets are called {', '.join(dupes)}")
+
+
+def _set_nets(cb, op, df):
+    var = _var(cb, op["var"])
+    _needs_codes(var)
+    var.nets = [_net(var, n) for n in op["nets"]]
+    _check_net_labels(var)
+
+
+def _add_net(cb, op, df):
+    var = _var(cb, op["var"])
+    _needs_codes(var)
+    var.nets.append(_net(var, op))
+    _check_net_labels(var)
+
+
+def _remove_net(cb, op, df):
+    var = _var(cb, op["var"])
+    label = str(op["label"]).casefold()
+    if not any(n.label.casefold() == label for n in var.nets):
+        raise EditError(f"no net '{op['label']}' on '{var.name or var.column}'")
+    var.nets = [n for n in var.nets if n.label.casefold() != label]
 
 
 def _build_derived(cb: Codebook, spec: dict, df: pd.DataFrame, name: str | None = None) -> Derived:
@@ -316,6 +378,7 @@ def _remove_derived(cb, op, df):
 _OPS = {
     "set_label": _set_label, "set_role": _set_role, "set_measure": _set_measure,
     "relabel_code": _relabel_code, "set_missing": _set_missing, "merge_codes": _merge_codes,
-    "reorder_codes": _reorder_codes, "set_codes": _set_codes, "add_derived": _add_derived, "update_derived": _update_derived,
+    "reorder_codes": _reorder_codes, "set_codes": _set_codes, "set_nets": _set_nets, "add_net": _add_net,
+    "remove_net": _remove_net, "add_derived": _add_derived, "update_derived": _update_derived,
     "remove_derived": _remove_derived,
 }

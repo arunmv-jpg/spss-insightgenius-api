@@ -27,6 +27,12 @@ class Code(BaseModel):
     count: int | None = Field(None, description="Respondents with this code (filled for review)")
 
 
+class Net(BaseModel):
+    """A table row adding up several answers, e.g. Top 2 Box = 4 + 5 (no new variable)."""
+    label: str
+    codes: list[float]
+
+
 class Option(BaseModel):
     """One option of a multi-select question, stored as a 0/1 variable."""
     label: str
@@ -44,6 +50,7 @@ class Variable(BaseModel):
     missing: list[Code] = Field(default_factory=list, description="User-missing codes (excluded from bases)")
     value_labels: dict[str, str] | None = Field(
         None, description="Explicit value labels overriding `codes` (e.g. from a Value Labels sheet)")
+    nets: list[Net] = Field(default_factory=list, description="Net rows shown in tables (e.g. Top 2 Box)")
     delimiter: str | None = None              # multi
     options: list[Option] = Field(default_factory=list)  # multi
     source: Literal["number", "text", "bool", "datetime"] | None = None
@@ -113,6 +120,12 @@ class Codebook(BaseModel):
             if var.name == ref or (var.role == "multi" and ref in (var.column, var.column.strip(), var.label)):
                 return var
         return None
+
+    def table_nets(self, explicit: dict | None = None) -> dict[str, dict[str, list]]:
+        """Nets for TabulateSpec.nets: {variable: {net label: [codes]}}; `explicit` (a request's own) wins."""
+        nets = {v.name: {n.label: [int(c) if float(c).is_integer() else c for c in n.codes] for n in v.nets}
+                for v in self.variables if v.name and v.nets}
+        return {**nets, **(explicit or {})}
 
     def find_derived(self, name: str) -> "Derived | None":
         return next((d for d in self.derived if d.name == name), None)

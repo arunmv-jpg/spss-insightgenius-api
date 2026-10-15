@@ -105,6 +105,8 @@ async def tabulate(
         async def _do_tabulate():
             data = await run_in_executor(load_data, _file_bytes, _filename, cb)
             spec_dict = json.loads(_spec)
+            if cb is not None:
+                spec_dict["nets"] = cb.table_nets(spec_dict.get("nets"))
             spec_obj = TabulateSpec(**spec_dict)
             result = await run_in_executor(build_tabulation, QuantiProEngine, data, spec_obj)
             excel_bytes = await run_in_executor(_build_excel, result, spec_obj, data)
@@ -186,7 +188,7 @@ async def tabulate(
             significance_levels=spec_dict.get("significance_levels"),
             low_base_warn=int(spec_dict.get("low_base_warn", 100)),
             low_base_flag=int(spec_dict.get("low_base_flag", 30)),
-            nets=spec_dict.get("nets"),
+            nets=cb.table_nets(spec_dict.get("nets")) if cb is not None else spec_dict.get("nets"),
             mrs_groups=spec_dict.get("mrs_groups"),
             grid_groups=spec_dict.get("grid_groups"),
             grid_mode=spec_dict.get("grid_mode", "individual"),
