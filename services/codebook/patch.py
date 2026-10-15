@@ -11,6 +11,7 @@ multi-select's / ignored column's header):
   {"op": "set_missing",    "var": v, "code": 98, "missing": true}      # exclude from bases or not
   {"op": "merge_codes",    "var": v, "codes": [4, 5], "into": 4}
   {"op": "reorder_codes",  "var": v, "order": [codes or labels]}        # renumbers 1..n
+  {"op": "set_codes",      "var": v, "map": [[old, new], …]}             # new values (reverse, mid-points)
   {"op": "add_derived",    "derived": {name?, label, rule, params, codes?, after?}}
   {"op": "update_derived", "name": n, "derived": {…}}
   {"op": "remove_derived", "name": n}
@@ -80,6 +81,12 @@ def _code(var: Variable, value: Any) -> Code:
         if (isinstance(value, (int, float)) and c.code == float(value)) or str(value).casefold() == c.label.casefold():
             return c
     raise EditError(f"'{value}' is not a code of '{var.name or var.column}'")
+
+
+def _pin(var: Variable, code: Code) -> None:
+    """Remember which raw answer a code stands for before its label or value changes."""
+    if not code.match:
+        code.match = [f"{code.code:g}"] if var.source in ("number", "bool") else [code.label]
 
 
 def _holds(codes: list[Code], code: Code) -> bool:
@@ -156,8 +163,7 @@ def _relabel_code(cb, op, df):
     var = _var(cb, op["var"])
     _needs_codes(var)
     code = _code(var, op["code"])
-    if not code.match:
-        code.match = [code.label]  # keep matching the raw answer after renaming the label
+    _pin(var, code)  # keep matching the raw answer after renaming the label
     code.label = str(op["label"]).strip() or code.label
     if var.value_labels is not None:
         var.value_labels[repr(code.code)] = code.label
@@ -182,11 +188,13 @@ def _merge_codes(cb, op, df):
     var = _var(cb, op["var"])
     _needs_codes(var)
     target = _code(var, op["into"])
+    _pin(var, target)
     for value in op["codes"]:
         code = _code(var, value)
         if code is target:
             continue
-        target.match = sorted({*(target.match or [target.label]), *(code.match or [code.label])})
+        _pin(var, code)
+        target.match = sorted({*target.match, *code.match})
         var.codes = [c for c in var.codes if c is not code]
         var.missing = [c for c in var.missing if c is not code]
 
@@ -199,13 +207,42 @@ def _reorder_codes(cb, op, df):
         raise EditError("order must list every (non-missing) code exactly once")
     used = {m.code for m in var.missing}
     for i, code in enumerate(ordered):
-        if not code.match:
-            code.match = [code.label]
+        _pin(var, code)
         new = float(i + 1)
         if new in used:
             raise EditError(f"code {new:g} is already used by a missing code")
         code.code = new
     var.codes = ordered
+
+
+def _set_codes(cb, op, df):
+    """Give answers new values (codes): reverse a scale, mid-points for averages, a custom order."""
+    var = _var(cb, op["var"])
+    _needs_codes(var)
+    pairs = []
+    for old, new in op["map"]:
+        try:
+            new = float(new)
+        except (TypeError, ValueError):
+            raise EditError(f"'{new}' is not a number") from None
+        if not new == new or new in (float("inf"), float("-inf")):
+            raise EditError(f"'{new}' is not a valid value")
+        pairs.append((_code(var, old), new))
+    final = {id(c): c.code for c in [*var.codes, *var.missing]}
+    for code, new in pairs:
+        final[id(code)] = new
+    values = list(final.values())
+    dupes = sorted({v for v in values if values.count(v) > 1})
+    if dupes:
+        raise EditError(f"two answers would share the value {', '.join(f'{d:g}' for d in dupes)}")
+    for code, new in pairs:
+        _pin(var, code)
+        if var.value_labels is not None:
+            var.value_labels.pop(repr(code.code), None)
+            var.value_labels[repr(new)] = code.label
+        code.code = new
+    var.codes.sort(key=lambda c: c.code)
+    var.missing.sort(key=lambda c: c.code)
 
 
 def _build_derived(cb: Codebook, spec: dict, df: pd.DataFrame, name: str | None = None) -> Derived:
@@ -275,6 +312,6 @@ def _remove_derived(cb, op, df):
 _OPS = {
     "set_label": _set_label, "set_role": _set_role, "set_measure": _set_measure,
     "relabel_code": _relabel_code, "set_missing": _set_missing, "merge_codes": _merge_codes,
-    "reorder_codes": _reorder_codes, "add_derived": _add_derived, "update_derived": _update_derived,
+    "reorder_codes": _reorder_codes, "set_codes": _set_codes, "add_derived": _add_derived, "update_derived": _update_derived,
     "remove_derived": _remove_derived,
 }

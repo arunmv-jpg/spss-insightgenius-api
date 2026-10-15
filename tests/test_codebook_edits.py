@@ -246,7 +246,8 @@ def test_metadata_and_frequency_use_edited_codebook(client, auth_headers):
 
 def test_review_page_has_editing():
     html = (Path(__file__).parent.parent / "public" / "review.html").read_text(encoding="utf-8")
-    assert "add_derived" in html and "set_role" in html and "innerHTML" not in html
+    assert "add_derived" in html and "set_role" in html and "set_codes" in html and "innerHTML" not in html
+    assert "openRecoder" in html and "Exclude from base" in html
 
 
 def test_review_page_frameable_only_by_same_origin(client):
@@ -279,3 +280,36 @@ def test_crosstab_multi_select_rows(client, auth_headers, cb):
 def test_pages_are_revalidated(client):
     for path in ("/app", "/review"):
         assert client.get(path).headers.get("cache-control") == "no-cache", path
+
+
+# ── R1: values (set_codes) and recoding questions that were numbers in the file ──
+
+def test_set_codes_reverses_a_scale(raw, cb):
+    reverse = [[1, 5], [2, 4], [4, 2], [5, 1]]
+    edited, cols = coded(raw, cb, [{"op": "set_codes", "var": EXAM, "map": reverse}])
+    assert [(c.code, c.label) for c in edited.variable(EXAM).codes][:2] == [(1.0, "Strongly Agree"), (2.0, "Agree")]
+    answers = raw.df["Exam Results Alternative"]
+    assert (cols[EXAM] == 1.0).sum() == (answers == "Strongly Agree").sum()
+    assert (cols[EXAM] == 5.0).sum() == (answers == "Strongly Disagree").sum()
+
+
+def test_set_codes_midpoints_and_duplicates_rejected(raw, cb):
+    edited, cols = coded(raw, cb, [{"op": "set_codes", "var": EXAM, "map": [[1, 0.5], [5, 9.5]]}])
+    assert {0.5, 9.5} <= set(cols[EXAM].dropna())
+    with pytest.raises(EditError, match="share the value"):
+        apply_ops(cb, [{"op": "set_codes", "var": EXAM, "map": [[1, 2]]}], raw.df)
+    with pytest.raises(EditError, match="not a number"):
+        apply_ops(cb, [{"op": "set_codes", "var": EXAM, "map": [[1, "high"]]}], raw.df)
+
+
+def test_recoding_a_numeric_rating_changes_the_data(raw, cb):
+    """Ratings stored as numbers (1-5) used to pass through unchanged after a merge or new values."""
+    ease = "CX_Principle_Ease"
+    edited, cols = coded(raw, cb, [{"op": "merge_codes", "var": ease, "codes": [5], "into": 4},
+                                   {"op": "relabel_code", "var": ease, "code": 4, "label": "4-5 (agree)"},
+                                   {"op": "set_codes", "var": ease, "map": [[1, 10], [2, 20]]}])
+    raw_ease = raw.df["CX Principle - Ease"]
+    assert 5.0 not in set(cols[ease]) and (cols[ease] == 4.0).sum() == raw_ease.isin([4, 5]).sum()
+    assert (cols[ease] == 10.0).sum() == (raw_ease == 1).sum()
+    # labels are the answers; only their values changed (rows sort by value)
+    assert [(c.code, c.label) for c in edited.variable(ease).codes] == [(3.0, "3"), (4.0, "4-5 (agree)"), (10.0, "1"), (20.0, "2")]

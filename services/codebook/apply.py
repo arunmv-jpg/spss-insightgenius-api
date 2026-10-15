@@ -48,7 +48,16 @@ def clean_text(series: pd.Series) -> pd.Series:
 def encode_variable(series: pd.Series, var: Variable, unmatched: list[str] | None = None) -> pd.Series:
     """One column → its coded form, exactly as the codebook says."""
     if var.source == "bool" or var.source == "number":
-        return series.astype(float)
+        values = series.astype(float)
+        # Recoded numbers (merged / re-valued answers) carry their original values in `match`
+        lookup = {}
+        for c in [*var.codes, *var.missing]:
+            for m in c.match:
+                try:
+                    lookup[float(m)] = c.code
+                except ValueError:
+                    pass
+        return values.map(lambda x: lookup.get(x, x)) if lookup else values
     if var.source == "datetime" or var.role == "date":
         if getattr(series.dt, "tz", None) is not None:
             series = series.dt.tz_localize(None)

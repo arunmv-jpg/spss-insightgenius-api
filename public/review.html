@@ -45,6 +45,16 @@
     .btn-primary:hover { background: #1d4ed8; }
     .section-head { position: sticky; top: 0; z-index: 1; background: #fff; }
     dialog::backdrop { background: rgba(15, 23, 42, 0.35); }
+    .drawer { margin: 0 0 0 auto; height: 100vh; max-height: 100vh; width: min(600px, 100vw); border-radius: 0; }
+    .rc-tab[aria-selected="true"] { background: #1e293b; color: #fff; }
+    .rc-tab[aria-selected="false"] { color: #475569; }
+    .rc-tab[aria-selected="false"]:hover { background: #f1f5f9; }
+    .rc-table td, .rc-table th { padding: 4px 6px; }
+    .rc-table tr.dragging { opacity: 0.4; }
+    .rc-table tr.drop-target td { box-shadow: inset 0 2px 0 #2563eb; }
+    .rc-input { width: 100%; font-size: 13px; padding: 4px 6px; border-radius: 6px; box-shadow: 0 0 0 1px #e2e8f0; background: #fff; }
+    .rc-input:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
+    .rc-handle { cursor: grab; color: #94a3b8; user-select: none; }
     /* Embedded as a step of /app: no page chrome, fixed-height panels */
     /* min-height must not follow the frame's height, or auto-sizing grows it forever */
     .embed { background: transparent; min-height: 0 !important; }
@@ -141,6 +151,31 @@
     </section>
   </main>
 
+  <!-- Recode drawer -->
+  <dialog id="recoder" class="drawer p-0 ambient" aria-labelledby="rc-title">
+    <div class="h-full flex flex-col">
+      <div class="px-5 pt-4 pb-3 ring-1 ring-gray-100 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Recode</p>
+            <h3 id="rc-title" class="font-semibold truncate"></h3>
+          </div>
+          <button id="rc-close" class="icon-btn" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="flex gap-1 text-sm" role="tablist">
+          <button data-rc-tab="edit" class="rc-tab px-3 py-1.5 rounded-lg" role="tab">Edit this question</button>
+          <button data-rc-tab="new" class="rc-tab px-3 py-1.5 rounded-lg" role="tab">Create new variable</button>
+        </div>
+      </div>
+      <div id="rc-body" class="flex-1 overflow-y-auto px-5 py-4 space-y-3"></div>
+      <div class="px-5 py-3 ring-1 ring-gray-100 flex items-center gap-2">
+        <p id="rc-status" class="text-xs text-gray-500 flex-1 min-w-0"></p>
+        <button id="rc-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="rc-apply" class="btn btn-primary">Apply changes</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Derived variable builder -->
   <dialog id="builder" class="rounded-xl ambient p-0 w-[min(640px,calc(100vw-32px))]">
     <form method="dialog" class="p-5 space-y-4">
@@ -211,6 +246,7 @@ function el(tag, attrs = {}, ...children) {
     if (k === 'class') node.className = v;
     else if (k === 'style') node.style.cssText = v;
     else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+    else if (v == null || v === false) continue;  // absent attribute (e.g. not disabled)
     else node.setAttribute(k, v);
   }
   for (const c of children.flat()) if (c != null) node.append(c instanceof Node ? c : document.createTextNode(String(c)));
@@ -497,6 +533,8 @@ function row(item) {
       el('p', { class: 'text-sm font-medium truncate', title: label }, item.child ? '↳ ' : '', label),
       el('p', { class: 'text-xs text-gray-500 truncate' }, meta(item))),
     excluded ? el('span', { class: 'chip bg-gray-100 text-gray-500', title: '"Don\'t know"-type answers left out of bases' }, `${excluded} excluded`) : null,
+    item.kind === 'var' && recodesOf(item.v).length
+      ? el('span', { class: 'chip role-derived', title: 'Variables built from this question' }, plural(recodesOf(item.v).length, 'recode')) : null,
     el('span', { class: `chip role-${t}` }, t === 'derived' ? 'Added' : TYPE_NAMES[t]));
   const node = el('div', { class: `item ${selected ? 'selected' : ''}`, onclick: () => select(item) }, head);
   if (selected) node.append(details(item));
@@ -535,8 +573,6 @@ function details(item) {
   if (v.missing.length) box.append(el('div', { class: 'space-y-1.5' },
     el('p', { class: 'text-[11px] uppercase tracking-wide text-gray-400 pt-1' }, 'Left out of bases'), bars(v.missing, v.base, { isMissing: true, v })));
   if (v.options.length) box.append(el('div', { class: 'space-y-1.5' }, bars(v.options, v.base)));
-  if (state.editable && (v.codes.length || v.missing.length) && (v.role === 'single' || v.role === 'numeric'))
-    box.append(el('p', { class: 'text-[11px] text-gray-400' }, 'Hover an answer to rename, reorder, merge it, or leave it out of bases.'));
   return box;
 }
 
@@ -547,6 +583,7 @@ function toolbar(v) {
     onchange: (e) => edit([{ op: 'set_role', var: ref(v), role: e.target.value }]) },
     ...Object.entries(roles).map(([value, label]) => { const o = el('option', { value }, label); if (value === current) o.selected = true; return o; }));
   return el('div', { class: 'flex flex-wrap items-center gap-2' },
+    isTabulable(v) ? el('button', { class: 'btn btn-primary', onclick: () => openRecoder(v) }, 'Recode…') : null,
     el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
       const label = prompt('Question label', v.label);
       if (label && label.trim() && label !== v.label) edit([{ op: 'set_label', var: ref(v), label: label.trim() }]);
@@ -554,29 +591,13 @@ function toolbar(v) {
     el('label', { class: 'text-sm text-gray-500 flex items-center gap-1.5' }, 'Treat as', select));
 }
 
-function answerTools(v, item, isMissing) {
-  if (!state.editable || item.code == null || !(v.role === 'single' || v.role === 'numeric')) return null;
-  const valid = v.codes;
-  const i = valid.indexOf(item);
-  const move = (delta) => {
-    const order = valid.map(c => c.code);
-    [order[i], order[i + delta]] = [order[i + delta], order[i]];
-    edit([{ op: 'reorder_codes', var: ref(v), order }]);
-  };
-  const merge = el('select', { class: 'text-[11px] max-w-[6.5rem] bg-transparent text-gray-600 rounded px-1 hover:bg-gray-100', title: 'Merge into another answer',
-    onchange: (e) => e.target.value && edit([{ op: 'merge_codes', var: ref(v), codes: [item.code], into: +e.target.value }]) },
-    el('option', { value: '' }, 'Merge…'),
-    ...[...v.codes, ...v.missing].filter(c => c !== item).map(c => el('option', { value: c.code }, `into ${c.label}`)));
-  return el('span', { class: 'answer-tools inline-flex items-center' },
-    !isMissing && i > 0 ? el('button', { class: 'icon-btn', title: 'Move up', onclick: stop(() => move(-1)) }, '↑') : null,
-    !isMissing && i < valid.length - 1 ? el('button', { class: 'icon-btn', title: 'Move down', onclick: stop(() => move(1)) }, '↓') : null,
-    el('button', { class: 'icon-btn', title: 'Rename answer', onclick: stop(() => {
-      const label = prompt('Answer label', item.label);
-      if (label && label.trim() && label !== item.label) edit([{ op: 'relabel_code', var: ref(v), code: item.code, label: label.trim() }]);
-    }) }, '✎'),
-    el('button', { class: 'icon-btn', title: isMissing ? 'Count in bases again' : 'Leave out of bases (like "Don\'t know")',
-      onclick: stop(() => edit([{ op: 'set_missing', var: ref(v), code: item.code, missing: !isMissing }])) }, isMissing ? '↺' : '⊘'),
-    merge);
+// Derived variables built from a question (shown as a badge, like Forsta's "(2R)")
+function recodesOf(v) {
+  const names = new Set([v.name, v.column, v.column.trim(), v.label].filter(Boolean));
+  const refs = (x, key = '') => typeof x === 'string' ? (['var', 'from', 'base', 'answered'].includes(key) ? [x] : [])
+    : Array.isArray(x) ? x.flatMap(y => refs(y, key))
+    : x && typeof x === 'object' ? Object.entries(x).flatMap(([k, y]) => refs(y, k)) : [];
+  return state.codebook.derived.filter(d => [d.source, ...refs(d.params)].some(r => names.has(r)));
 }
 
 function bars(items, base, { isMissing = false, v = null } = {}) {
@@ -585,7 +606,6 @@ function bars(items, base, { isMissing = false, v = null } = {}) {
     return el('div', { class: 'answer flex items-center gap-2 text-xs min-h-[24px]' },
       el('span', { class: `w-6 shrink-0 text-right tabular-nums ${isMissing ? 'text-gray-300' : 'text-gray-400'}` }, item.code != null ? fmtCode(item.code) : ''),
       el('span', { class: `flex-1 min-w-0 truncate ${isMissing ? 'text-gray-400 italic' : 'text-gray-800'}`, title: (item.match || []).join(' | ') || item.label }, item.label),
-      v ? answerTools(v, item, isMissing) : null,
       el('div', { class: 'bar-track w-20 shrink-0' }, el('div', { class: `bar ${isMissing ? 'missing' : ''}`, style: `width:${Math.min(pct, 100)}%` })),
       el('span', { class: 'w-20 shrink-0 text-right tabular-nums text-gray-500' }, item.count == null ? '' : `${item.count.toLocaleString()}${isMissing ? '' : ` · ${pct}%`}`));
   });
@@ -704,6 +724,155 @@ $('approve').addEventListener('click', async () => {
     $('approve-spin').classList.add('hidden'); $('approve').disabled = false;
   }
 });
+// ── Recode drawer ──
+// Changes are staged here and sent as one batch of edits on Apply (one Undo step).
+const rc = { v: null, tab: 'edit', rows: [], merges: [], dragFrom: null };
+
+function openRecoder(v, tab = 'edit') {
+  rc.v = v; rc.tab = tab; rc.merges = [];
+  const row = (c, missing) => ({ orig: c.code, value: c.code, label: c.label, origLabel: c.label, count: c.count || 0,
+                                 missing, origMissing: missing, sel: false });
+  rc.rows = [...v.codes.map(c => row(c, false)), ...v.missing.map(c => row(c, true))];
+  $('rc-title').textContent = v.label;
+  renderRecoder();
+  if (!$('recoder').open) $('recoder').showModal();
+}
+
+function rcSort() { rc.rows.sort((a, b) => (a.missing - b.missing) || (a.value - b.value)); }
+function rcValid() { return rc.rows.filter(r => !r.missing); }
+function rcDirty() {
+  return rc.merges.length || rc.rows.some(r => r.value !== r.orig || r.label !== r.origLabel || r.missing !== r.origMissing);
+}
+
+function renderRecoder() {
+  document.querySelectorAll('.rc-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.rcTab === rc.tab)));
+  $('rc-apply').classList.toggle('hidden', rc.tab !== 'edit');
+  $('rc-status').textContent = '';
+  rc.tab === 'edit' ? renderRecodeEdit() : renderRecodeNew();
+}
+
+function renderRecodeEdit() {
+  const body = $('rc-body');
+  const base = rcValid().reduce((s, r) => s + r.count, 0);
+  const selected = rc.rows.filter(r => r.sel);
+  const tools = el('div', { class: 'flex flex-wrap items-center gap-2' },
+    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', disabled: selected.length < 2 ? '' : null,
+      title: 'Combine the ticked answers into the first of them', onclick: rcMerge }, `Merge selected${selected.length > 1 ? ` (${selected.length})` : ''}`),
+    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', title: 'Highest value becomes lowest (e.g. 1-5 → 5-1)', onclick: rcReverse }, '⇅ Reverse values'),
+    el('button', { class: 'btn btn-ghost', title: 'Undo the changes made here', onclick: () => openRecoder(rc.v, 'edit') }, 'Reset'));
+
+  const th = (t, cls = '') => el('th', { class: `text-left text-xs font-medium text-gray-500 ${cls}` }, t);
+  const table = el('table', { class: 'rc-table w-full text-sm' },
+    el('thead', {}, el('tr', {}, th(''), th(''), th('Value', 'w-20'), th('Answer'), th('People', 'text-right w-24'),
+                        th('Exclude from base', 'text-center w-20'))),
+    el('tbody', {}, ...rc.rows.map((r, i) => rcRow(r, i, base))));
+  body.replaceChildren(
+    el('p', { class: 'text-sm text-gray-600' }, 'Change how the answers are coded. Drag to reorder, tick answers to merge them, ',
+       'or exclude "Don\'t know"-type answers from bases.'),
+    tools, table,
+    el('p', { class: 'text-xs text-gray-400' }, 'Value is the number behind each answer: averages use it and tables list answers in value order. ',
+       'Answers keep their wording; only what you change here changes.'));
+}
+
+function rcRow(r, i, base) {
+  const pct = !r.missing && base ? ` · ${Math.round(100 * r.count / base)}%` : '';
+  const tr = el('tr', { class: r.missing ? 'bg-gray-50' : '', draggable: r.missing ? 'false' : 'true' },
+    el('td', { class: 'rc-handle text-center', title: r.missing ? '' : 'Drag to reorder' }, r.missing ? '' : '⠿'),
+    el('td', {}, el('input', { type: 'checkbox', 'aria-label': `Select ${r.label}`, ...(r.sel ? { checked: '' } : {}),
+      onchange: (e) => { r.sel = e.target.checked; renderRecodeEdit(); } })),
+    el('td', {}, el('input', { class: 'rc-input tabular-nums', type: 'number', step: 'any', value: fmtCode(r.value), 'aria-label': `Value of ${r.label}`,
+      onchange: (e) => { const n = parseFloat(e.target.value); if (Number.isFinite(n)) { r.value = n; rcSort(); } renderRecodeEdit(); } })),
+    el('td', {}, el('input', { class: `rc-input ${r.missing ? 'italic text-gray-500' : ''}`, value: r.label, 'aria-label': 'Answer label',
+      onchange: (e) => { r.label = e.target.value.trim() || r.origLabel; renderRecodeEdit(); } })),
+    el('td', { class: 'text-right tabular-nums text-gray-500 whitespace-nowrap' }, `${r.count.toLocaleString()}${pct}`),
+    el('td', { class: 'text-center' }, el('input', { type: 'checkbox', 'aria-label': `Exclude ${r.label} from base`, ...(r.missing ? { checked: '' } : {}),
+      onchange: (e) => { r.missing = e.target.checked; rcSort(); renderRecodeEdit(); } })));
+  if (!r.missing) {
+    tr.addEventListener('dragstart', (e) => { rc.dragFrom = i; tr.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    tr.addEventListener('dragend', () => tr.classList.remove('dragging'));
+    tr.addEventListener('dragover', (e) => { e.preventDefault(); tr.classList.add('drop-target'); });
+    tr.addEventListener('dragleave', () => tr.classList.remove('drop-target'));
+    tr.addEventListener('drop', (e) => { e.preventDefault(); rcMove(rc.dragFrom, i); });
+  }
+  return tr;
+}
+
+// Answers follow their position: the existing values are handed out again in the new order
+function rcReassign(ordered) {
+  const values = ordered.map(r => r.value).sort((a, b) => a - b);
+  ordered.forEach((r, i) => { r.value = values[i]; });
+  rcSort();
+}
+function rcMove(from, to) {
+  if (from == null || from === to) return renderRecodeEdit();
+  const valid = rcValid();
+  const [moved] = valid.splice(from, 1);
+  valid.splice(to, 0, moved);
+  rcReassign(valid);
+  renderRecodeEdit();
+}
+function rcReverse() { rcReassign(rcValid().reverse()); renderRecodeEdit(); }
+function rcMerge() {
+  const picked = rc.rows.filter(r => r.sel);
+  if (picked.length < 2) return;
+  const [target, ...rest] = picked;
+  rc.merges.push({ into: target.orig, codes: rest.map(r => r.orig) });
+  target.count += rest.reduce((s, r) => s + r.count, 0);
+  rc.rows = rc.rows.filter(r => !rest.includes(r));
+  rc.rows.forEach(r => { r.sel = false; });
+  $('rc-status').textContent = `Merged ${plural(rest.length, 'answer')} into "${target.label}"`;
+  renderRecodeEdit();
+}
+
+function rcOps() {
+  const ref_ = ref(rc.v);
+  const values = rc.rows.map(r => r.value);
+  if (new Set(values).size !== values.length) throw new Error('Two answers have the same value: give each a different number.');
+  const ops = rc.merges.map(m => ({ op: 'merge_codes', var: ref_, codes: m.codes, into: m.into }));
+  for (const r of rc.rows) {
+    if (r.label !== r.origLabel) ops.push({ op: 'relabel_code', var: ref_, code: r.orig, label: r.label });
+    if (r.missing !== r.origMissing) ops.push({ op: 'set_missing', var: ref_, code: r.orig, missing: r.missing });
+  }
+  const moved = rc.rows.filter(r => r.value !== r.orig).map(r => [r.orig, r.value]);
+  if (moved.length) ops.push({ op: 'set_codes', var: ref_, map: moved });
+  return ops;
+}
+
+$('rc-apply').addEventListener('click', async () => {
+  let ops;
+  try { ops = rcOps(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  if (!ops.length) { $('recoder').close(); return; }
+  $('rc-apply').disabled = true;
+  const ok = await edit(ops);
+  $('rc-apply').disabled = false;
+  if (ok) { $('recoder').close(); toast(`Recoded "${rc.v.label}"`); }
+});
+const rcClose = () => {
+  if (rc.tab === 'edit' && rcDirty() && !confirm('Discard the changes you made here?')) return;
+  $('recoder').close();
+};
+$('rc-cancel').addEventListener('click', rcClose);
+$('rc-close').addEventListener('click', rcClose);
+$('recoder').addEventListener('cancel', (e) => { if (rc.tab === 'edit' && rcDirty() && !confirm('Discard the changes you made here?')) e.preventDefault(); });
+document.querySelectorAll('.rc-tab').forEach(b => b.addEventListener('click', () => { rc.tab = b.dataset.rcTab; renderRecoder(); }));
+
+// "Create new variable" — R1: opens the builder pre-filled for this question (R2 brings it into the drawer)
+function renderRecodeNew() {
+  const v = rc.v;
+  const choice = (title, text, rule) => el('button', { class: 'w-full text-left p-3 rounded-lg ring-1 ring-gray-200 hover:bg-gray-50',
+    onclick: () => {
+      if (rcDirty() && !confirm('Discard the changes on "Edit this question"?')) return;
+      $('recoder').close(); openBuilder(rule, v);
+    } },
+    el('p', { class: 'text-sm font-medium' }, title), el('p', { class: 'text-xs text-gray-500' }, text));
+  $('rc-body').replaceChildren(
+    el('p', { class: 'text-sm text-gray-600' }, 'Build a new variable from this question. The question itself stays as it is.'),
+    choice('Group answers', 'Combine answers into new categories, e.g. Top 2 Box or Agree / Neutral / Disagree', 'recode'),
+    v.codes.every(c => typeof c.code === 'number')
+      ? choice('Number bands', 'Ranges of values, e.g. NPS 0-6 / 7-8 / 9-10', 'bands') : null,
+    choice('One column per answer', 'A 0/1 column for each answer (like the 1-5 score columns)', 'flags'));
+}
+
 // ── Derived variable builder ──
 const builder = $('builder');
 const field = (label, input) => el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, label), input);
@@ -845,10 +1014,17 @@ async function builderRun(commit) {
   }
 }
 
-$('add-derived').addEventListener('click', () => {
-  $('b-label').value = ''; $('b-rule').value = 'bands';
-  renderBuilderForm(); builder.showModal();
-});
+function openBuilder(rule = 'bands', source = null) {
+  $('b-label').value = source ? `${source.label} (recoded)` : '';
+  $('b-rule').value = rule;
+  renderBuilderForm();
+  if (source && $('b-src') && [...$('b-src').options].some(o => o.value === ref(source))) {
+    $('b-src').value = ref(source);
+    fillSourceDetails();
+  }
+  builder.showModal();
+}
+$('add-derived').addEventListener('click', () => openBuilder());
 $('b-rule').addEventListener('change', () => renderBuilderForm());
 $('b-form').addEventListener('change', (e) => { if (e.target.id === 'b-src') fillSourceDetails(); });
 $('b-test').addEventListener('click', () => builderRun(false));
