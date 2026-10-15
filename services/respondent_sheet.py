@@ -32,8 +32,14 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from services.data_loader import (
-    MULTI_SELECT_DELIMITER, _JOB_ROLE_HEADER, _NPS_HEADER, _job_role_group, _normalize,
+    MULTI_SELECT_DELIMITER, _NPS_HEADER, _normalize,
 )
+
+# The coded variable comes from the HubSpot CX setup (presets/); this copy only feeds the
+# (##) role flag columns of the data sheets until the data workbook (R6) builds them.
+# "Job role" is multi-select, but analysts report on one role per respondent,
+# assigned by priority. Applied when the options include "Exams Officer".
+_JOB_ROLE_HEADER = re.compile(r"\bjob roles?\b", re.IGNORECASE)
 
 ROLE_FLAGS = {
     1.0: "(##) Exams officer (regardless of other roles)",
@@ -170,6 +176,36 @@ def write_sheet(ws, columns: list[Column]) -> None:
             if total == "SUM":
                 cell.fill = FLAG_FILL
     ws.freeze_panes = "C4"
+
+
+def _job_role_group(header: str, options: list[tuple[str, pd.Series]]) -> pd.Series | None:
+    """One role per respondent from a multi-select job role question, by priority:
+
+    1 Exams Officer — ticked Exams Officer, whatever else they ticked
+    2 Leader        — School (Group/District) Leader, or Head of Department who isn't a Teacher
+    3 Teacher       — ticked Teacher
+    4 Other         — anything else (only "Other", unknown roles)
+    """
+    flags = {_normalize(option): selected for option, selected in options}
+    if not _JOB_ROLE_HEADER.search(header) or "exams officer" not in flags:
+        return None
+    answered = options[0][1].notna()
+    none = pd.Series(False, index=answered.index)
+
+    def ticked(*roles: str) -> pd.Series:
+        result = none
+        for role in roles:
+            result = result | flags.get(role, none).eq(1)
+        return result
+
+    hod, teacher = ticked("head of department"), ticked("teacher")
+    group = pd.Series(4.0, index=answered.index)
+    # Assign lowest priority first so higher-priority roles overwrite it
+    group[teacher] = 3.0
+    group[hod & ~teacher] = 2.0
+    group[ticked("school leader", "school group/school district leader")] = 2.0
+    group[ticked("exams officer")] = 1.0
+    return group.where(answered)
 
 
 def _selections(series: pd.Series) -> pd.Series:

@@ -39,13 +39,10 @@ from services.quantipy_engine import QuantiProEngine, SPSSData
 
 # Re-exported for existing importers (routers, MCP, respondent_sheet, tests)
 from services.codebook.heuristics import (  # noqa: F401
-    JOB_ROLE_GROUP_LABELS,
     MAX_CATEGORIES,
     MULTI_SELECT_DELIMITER,
     RATING_SCALES,
-    _JOB_ROLE_HEADER,
     _NPS_HEADER,
-    _job_role_group,
     _normalize,
     _spss_name,
     _split_multi_select,

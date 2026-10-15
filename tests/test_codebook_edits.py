@@ -11,7 +11,7 @@ from services.codebook.infer import infer_codebook
 from services.codebook.patch import EditError, apply_ops
 from services.data_loader import load_data
 from services.ingest.readers import read_raw
-from services.respondent_sheet import build_columns
+from services.respondent_sheet import ROLE_FLAGS, build_columns
 
 FIXTURE = Path(__file__).parent / "fixtures" / "exports" / "hubspot_cx_sample.xlsx"
 CLIENT_RULES = Path(__file__).parent / "fixtures" / "codebooks" / "cx_client_rules.json"
@@ -190,9 +190,12 @@ def client_coded(raw, cb):
     return edited, apply_codebook(raw.df, edited).columns
 
 
-def test_client_role_rule_matches_legacy_code(client_coded):
+def test_client_role_rule_matches_analyst_sheet(raw, client_coded):
     _, cols = client_coded
-    pd.testing.assert_series_equal(cols["Role_group"], cols["Job_role_group"], check_names=False)
+    sheet = {h: pd.to_numeric(pd.Series(v), errors="coerce").fillna(0).reset_index(drop=True)
+             for h, v, _ in build_columns(raw.df) if isinstance(h, str)}
+    for code, column in ROLE_FLAGS.items():
+        assert ((cols["Role_group"] == code).astype(float) == sheet[column]).all(), column
 
 
 def test_client_product_and_driver_rules_match_analyst_sheet(raw, client_coded):
@@ -211,7 +214,7 @@ def test_client_product_and_driver_rules_match_analyst_sheet(raw, client_coded):
 def test_client_rules_place_role_group_after_job_role(client_coded):
     edited, _ = client_coded
     names = edited.output_names()
-    assert names.index("Role_group") == names.index("Job_role_Other") + 2  # after the legacy group too
+    assert names.index("Role_group") == names.index("Job_role_Other") + 1
 
 
 # ── API ──────────────────────────────────────────────────────────────────────

@@ -299,16 +299,9 @@ def _flags(d: Derived, ctx: Context) -> list[Output]:
     return outputs
 
 
-def _legacy_job_role_group(d: Derived, ctx: Context) -> list[Output]:
-    from services.codebook.heuristics import _job_role_group
-    options = ctx.options(d.source)
-    return _single(d, _job_role_group(d.source.strip(), list(options.items())))
-
-
 _RULES = {
     "recode": _recode, "bands": _bands, "priority": _priority, "count": _count,
     "combination": _combination, "coalesce": _coalesce, "flags": _flags,
-    "legacy_job_role_group": _legacy_job_role_group,
 }
 
 

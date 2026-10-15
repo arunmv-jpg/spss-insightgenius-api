@@ -103,12 +103,24 @@
         </div>
         <div class="flex items-center gap-1">
           <button id="undo" class="edit-only btn btn-ghost" disabled title="Undo the last change">&#8630; Undo</button>
+          <details id="setup-menu" class="edit-only relative">
+            <summary class="btn btn-ghost list-none cursor-pointer" title="Reuse recodes on the next wave">Setup &#9662;</summary>
+            <div class="absolute right-0 z-20 mt-1 w-64 rounded-lg bg-white ambient ring-1 ring-gray-200 p-1 text-sm">
+              <button id="setup-save" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50">
+                Save my changes as a setup&hellip;<span class="block text-xs text-gray-400">A file you can apply to the next wave</span></button>
+              <button id="setup-load" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50">
+                Apply a setup file&hellip;<span class="block text-xs text-gray-400">Recodes saved from an earlier wave</span></button>
+              <div id="setup-builtins"></div>
+            </div>
+          </details>
+          <input id="setup-file" type="file" accept=".json,application/json" class="hidden">
           <button id="download-codebook" class="btn btn-ghost" title="Download how each column is coded (JSON)">Export codebook</button>
           <button id="approve" class="btn btn-primary ml-2">
             <span id="approve-label">Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
           </button>
         </div>
       </div>
+      <div id="setup-banner" class="hidden mt-3 text-sm rounded-lg px-3 py-2"></div>
       <p id="unmatched-note" class="hidden mt-3 text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2"></p>
       <p id="approve-status" class="text-sm text-gray-600 mt-2 hidden"></p>
     </section>
@@ -219,7 +231,7 @@ const TYPE_NAMES = { single: 'Coded', multi: 'Multi-select', numeric: 'Number', 
 const ROLE_CHOICES = { single: 'Coded answers', numeric: 'Number', text: 'Open text', ignore: 'Not used' };
 
 const state = { file: null, fileId: null, codebook: null, summary: null, view: 'table', chart: null,
-                editable: false, edited: false, history: [], selected: null,
+                editable: false, edited: false, history: [], selected: null, ops: [], setup: null, suggest: null,
                 open: { questions: true, added: true, numbers: false, text: false, ignore: false } };
 
 // Embedded in /app as the "Review data" step: the app hands us the file (start(file)) and
@@ -282,7 +294,8 @@ drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove
 input.addEventListener('change', () => input.files[0] && start(input.files[0]));
 
 async function start(file) {
-  state.file = file; state.fileId = null;
+  // A new file starts from its own inferred coding (never the previous file's edits)
+  state.file = file; state.fileId = null; state.codebook = null; state.edited = false; state.load = (state.load || 0) + 1;
   const status = $('upload-status');
   status.classList.remove('hidden');
   status.replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), `Reading ${file.name}…`);
@@ -296,7 +309,7 @@ async function start(file) {
     const data = await api('/v1/codebook', fileForm());
     state.codebook = data.codebook; state.summary = data.summary;
     state.editable = !['sav', 'zsav', 'por'].includes(data.codebook.source.format);
-    state.edited = false; state.history = []; state.selected = null;
+    state.edited = false; state.history = []; state.selected = null; state.ops = []; state.setup = null; state.suggest = null;
     state.open = { questions: true, added: true, numbers: false, text: false, ignore: false };
     $('search').value = '';
     $('row-select').replaceChildren();
@@ -304,8 +317,11 @@ async function start(file) {
     $('upload').classList.add('hidden');
     render();
     notifyParent('review-loaded');
+    if (state.editable) checkSetups();
   } catch (e) {
     status.replaceChildren(el('span', { class: 'text-red-600' }, `Couldn't read the file: ${e.message}`));
+    $('summary').classList.add('hidden'); $('workspace').classList.add('hidden');  // not the previous file's data
+    $('upload').classList.remove('hidden');
     if (EMBED) { $('upload').classList.remove('page-chrome'); notifyParent('review-error'); }
   }
 }
@@ -360,8 +376,9 @@ function previewName(item) {
 async function edit(ops) {
   try {
     const data = await api('/v1/codebook', fileForm({ edits: JSON.stringify(ops) }, true));
-    state.history.push({ codebook: state.codebook, summary: state.summary });
+    state.history.push({ codebook: state.codebook, summary: state.summary, ops: state.ops, setup: state.setup });
     state.codebook = data.codebook; state.summary = data.summary; state.edited = true;
+    state.ops = [...state.ops, ...ops];  // the edit log, for "Save my changes as a setup"
     render();
     notifyParent('review-updated');
     return true;
@@ -376,6 +393,7 @@ $('undo').addEventListener('click', () => {
   const prev = state.history.pop();
   if (!prev) return;
   state.codebook = prev.codebook; state.summary = prev.summary; state.edited = state.history.length > 0;
+  state.ops = prev.ops; state.setup = prev.setup;
   render();
   notifyParent('review-updated');
 });
@@ -428,6 +446,8 @@ function render() {
   if (count('text')) parts.push(`${count('text')} open text`);
   if (count('ignore')) parts.push(`${count('ignore')} not used`);
   $('summary-line').textContent = parts.join('  ·  ') + (state.editable ? '' : '  ·  SPSS file (view only)');
+
+  renderSetupBanner();
 
   const unmatched = Object.entries(s.unmatched_answers || {});
   $('unmatched-note').classList.toggle('hidden', !unmatched.length);
@@ -700,6 +720,109 @@ function drawChart(ct) {
     },
   });
 }
+
+// ── Setups: recodes saved for a kind of export, applied again on the next wave (RECODING_PLAN.md §6) ──
+// A setup whose columns are all in the file is applied straight away (as the built-in client rules
+// used to be); a partial match is offered. Applying is one Undo step.
+async function checkSetups() {
+  const load = state.load;
+  try {
+    const { matches } = await api('/v1/setups/match', fileForm({}, true));
+    const best = matches[0];
+    if (!best || load !== state.load) return;  // another file was opened meanwhile
+    if (best.complete) await applySetup({ setup_id: best.id }, { auto: true });
+    else { state.suggest = best; renderSetupBanner(); }
+  } catch (_) { /* setups are optional: the page works without them */ }
+}
+
+async function applySetup(extra, { auto = false } = {}) {
+  $('setup-menu').open = false;
+  const load = state.load;
+  try {
+    const data = await api('/v1/setups/apply', fileForm(extra, true));
+    if (load !== state.load) return;
+    state.history.push({ codebook: state.codebook, summary: state.summary, ops: state.ops, setup: state.setup });
+    state.codebook = data.codebook; state.summary = data.summary; state.edited = true;
+    state.ops = [...state.ops, ...data.setup.edits];
+    state.setup = data.setup; state.suggest = null;
+    render();
+    notifyParent(auto ? 'review-setup' : 'review-updated');
+  } catch (e) {
+    toast(`Couldn't apply the setup: ${e.message}`, true);
+  }
+}
+
+function renderSetupBanner() {
+  const box = $('setup-banner');
+  const hide = (fn) => el('button', { class: 'icon-btn shrink-0', 'aria-label': 'Hide', onclick: fn }, '✕');
+  if (state.setup) {
+    const r = state.setup;
+    box.className = 'mt-3 text-sm rounded-lg px-3 py-2 bg-violet-50 text-violet-900 space-y-1';
+    box.replaceChildren(
+      el('div', { class: 'flex items-start gap-2' },
+        el('p', { class: 'flex-1' }, el('span', { class: 'font-medium' }, `Applied the "${r.name}" setup`),
+          r.applied.length ? `: ${r.applied.join(', ')}. ` : ': nothing in it fits this file. ',
+          r.applied.length ? 'New variables are under Added variables, where you can edit them. Undo takes the setup off.' : ''),
+        hide(() => { state.setup = null; renderSetupBanner(); })),
+      ...r.skipped.map(x => el('p', { class: 'text-amber-800' }, `Not applied: ${x.edit} (${x.reason})`)),
+      ...r.notes.map(n => el('p', { class: 'text-xs text-violet-700' }, n)));
+  } else if (state.suggest) {
+    const m = state.suggest;
+    box.className = 'mt-3 text-sm rounded-lg px-3 py-2 bg-blue-50 text-blue-900 flex flex-wrap items-center gap-2';
+    box.replaceChildren(
+      el('p', { class: 'flex-1 min-w-[12rem]' }, `This looks like a ${m.name} export (missing: ${m.missing_columns.join(', ')}). `,
+        'Apply its recodes?'),
+      el('button', { class: 'btn btn-primary', onclick: () => applySetup({ setup_id: m.id }) }, 'Apply setup'),
+      el('button', { class: 'btn btn-ghost', onclick: () => { state.suggest = null; renderSetupBanner(); } }, 'Not now'));
+  } else {
+    box.className = 'hidden';
+    box.replaceChildren();
+  }
+}
+
+// The columns a setup's edits refer to, so it can be matched to the next wave's file
+function setupColumns(ops) {
+  const refs = new Set();
+  const scan = (x, key = '') => {
+    if (typeof x === 'string') { if (['var', 'from', 'base', 'answered', 'source'].includes(key)) refs.add(x); return; }
+    if (Array.isArray(x)) return x.forEach(y => scan(y, key));
+    if (x && typeof x === 'object') Object.entries(x).forEach(([k, y]) => scan(y, k));
+  };
+  scan(ops);
+  return [...new Set([...refs].map(findVar).filter(Boolean).map(v => v.column.trim()))];
+}
+
+$('setup-save').addEventListener('click', () => {
+  $('setup-menu').open = false;
+  if (!state.ops.length) { toast('Make some changes first: a setup saves your recodes and edits.', true); return; }
+  const stem = state.file.name.replace(/\.[^.]+$/, '');
+  const name = prompt('Name this setup', `${stem} setup`);
+  if (!name || !name.trim()) return;
+  const setup = { name: name.trim(), description: `Saved from ${state.file.name}`,
+                  match: { columns: setupColumns(state.ops) }, edits: state.ops };
+  const blob = new Blob([JSON.stringify(setup, null, 2)], { type: 'application/json' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: `${name.trim().replace(/[^\w-]+/g, '_')}.setup.json` });
+  a.click(); URL.revokeObjectURL(a.href);
+  toast(`Saved "${name.trim()}" (${plural(state.ops.length, 'change')})`);
+});
+$('setup-load').addEventListener('click', () => { $('setup-menu').open = false; $('setup-file').click(); });
+$('setup-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) applySetup({ setup: await file.text() });
+});
+document.addEventListener('click', (e) => { if ($('setup-menu').open && !$('setup-menu').contains(e.target)) $('setup-menu').open = false; });
+// Built-in setups, for files the automatic match didn't recognise
+$('setup-menu').addEventListener('toggle', async () => {
+  if (!$('setup-menu').open || $('setup-builtins').childElementCount) return;
+  try {
+    const res = await fetch('/v1/setups', { headers: { Authorization: `Bearer ${API_KEY}` } });
+    const { setups } = (await res.json()).data;
+    $('setup-builtins').replaceChildren(el('p', { class: 'px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-400' }, 'Built-in'),
+      ...setups.map(x => el('button', { class: 'w-full text-left px-3 py-2 rounded-md hover:bg-gray-50', title: x.description,
+                                        onclick: () => applySetup({ setup_id: x.id }) }, `Apply ${x.name}`)));
+  } catch (_) { /* optional */ }
+});
 
 // ── Actions ──
 $('download-codebook').addEventListener('click', () => {
@@ -1313,7 +1436,6 @@ function nwLoad(d, v) {
 
 // The question a derived variable is built from, so it can be edited in the drawer
 function derivedSourceVar(d) {
-  if (d.rule === 'legacy_job_role_group') return null;
   const p = d.params || {};
   const from = Array.isArray(p.from) ? p.from[0] : p.from;
   const refs = [from, p.base, d.source].filter(Boolean);

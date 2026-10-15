@@ -58,6 +58,7 @@ User identity = `key.name`. NEVER accept user_id from client input.
 | AI | POST /v1/smart-spec, /v1/parse-ticket, /v1/chat, /v1/chat-stream |
 | Weighting | POST /v1/weight/preview, /v1/weight/compute |
 | Wave | POST /v1/wave-compare |
+| Setups | GET /v1/setups, POST /v1/setups/match, POST /v1/setups/apply (client rules as data, `presets/`) |
 | Jobs | GET /v1/jobs/{job_id} |
 | Keys | POST/GET/DELETE /v1/keys |
 | MCP | 13 tools at /mcp/sse |

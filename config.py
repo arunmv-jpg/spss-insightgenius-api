@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     # are still validated normally. /v1/keys always requires a real key.
     auth_disabled: bool = False
 
-    # Client-specific survey rules (client CX survey on HubSpot job-role group, analyst
-    # data sheets). Temporary: these move into saved codebooks (IMPLEMENTATION_PLAN.md M4)
-    # and this flag is then removed.
+    # The analysts' data sheets for the client CX survey (respondent_sheet.py) on auto-analyze.
+    # The coding rules themselves are setups (presets/); the sheets move to the codebook-driven
+    # data workbook (RECODING_PLAN.md R6) and this flag is then removed.
     client_rules_legacy: bool = True
 
     # Claude AI (Haiku for ticket parsing + smart labeling)

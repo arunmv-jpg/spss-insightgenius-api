@@ -1,5 +1,5 @@
-"""Generic inference heuristics for coding survey answers (no client-specific rules,
-except the LEGACY job-role group gated by settings.client_rules_legacy).
+"""Generic inference heuristics for coding survey answers (no client-specific rules: those are
+setups, see services.setups).
 
 Used by services.codebook.infer to draft a codebook; every function here is pure.
 """
@@ -69,13 +69,6 @@ _CODE_PREFIX = re.compile(r"^(\d{1,2})\s*(?:[-–—.:)]\s*(?=\D)|$)")
 
 _NPS_HEADER = re.compile(r"\bnps\b|recommend", re.IGNORECASE)
 
-# LEGACY client rule (client CX survey on HubSpot), gated by settings.client_rules_legacy and
-# removed in IMPLEMENTATION_PLAN.md M4 when it becomes a codebook rule.
-# "Job role" is multi-select, but analysts report on one role per respondent,
-# assigned by priority. Applied when the options include "Exams Officer".
-_JOB_ROLE_HEADER = re.compile(r"\bjob roles?\b", re.IGNORECASE)
-JOB_ROLE_GROUP_LABELS = {1.0: "Exams Officer", 2.0: "Leader", 3.0: "Teacher", 4.0: "Other"}
-
 _SPSS_RESERVED = {"ALL", "AND", "BY", "EQ", "GE", "GT", "LE", "LT", "NE", "NOT", "OR", "TO", "WITH"}
 _SPSS_NAME_MAX_BYTES = 64
 _SPSS_VALUE_LABEL_MAX_BYTES = 120
@@ -111,36 +104,6 @@ def _split_multi_select(series: pd.Series) -> list[tuple[str, pd.Series]] | None
         flags.loc[selections.index] = selections.map(lambda s, o=option: 1.0 if o in s else 0.0)
         result.append((option, flags))
     return result
-
-
-def _job_role_group(header: str, options: list[tuple[str, pd.Series]]) -> pd.Series | None:
-    """One role per respondent from a multi-select job role question, by priority:
-
-    1 Exams Officer — ticked Exams Officer, whatever else they ticked
-    2 Leader        — School (Group/District) Leader, or Head of Department who isn't a Teacher
-    3 Teacher       — ticked Teacher
-    4 Other         — anything else (only "Other", unknown roles)
-    """
-    flags = {_normalize(option): selected for option, selected in options}
-    if not _JOB_ROLE_HEADER.search(header) or "exams officer" not in flags:
-        return None
-    answered = options[0][1].notna()
-    none = pd.Series(False, index=answered.index)
-
-    def ticked(*roles: str) -> pd.Series:
-        result = none
-        for role in roles:
-            result = result | flags.get(role, none).eq(1)
-        return result
-
-    hod, teacher = ticked("head of department"), ticked("teacher")
-    group = pd.Series(4.0, index=answered.index)
-    # Assign lowest priority first so higher-priority roles overwrite it
-    group[teacher] = 3.0
-    group[hod & ~teacher] = 2.0
-    group[ticked("school leader", "school group/school district leader")] = 2.0
-    group[ticked("exams officer")] = 1.0
-    return group.where(answered)
 
 
 def _merge_case_variants(text: pd.Series) -> pd.Series:

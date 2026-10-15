@@ -1,4 +1,5 @@
-"""CLIENT_RULES_LEGACY gates the client CX rules (removed in IMPLEMENTATION_PLAN.md M4/M7)."""
+"""Client rules are a setup, not inference; CLIENT_RULES_LEGACY now only gates the analyst-style
+data sheets (respondent_sheet.py), until the data workbook replaces them (RECODING_PLAN.md R6)."""
 
 import io
 
@@ -33,13 +34,9 @@ def legacy_off(monkeypatch):
     monkeypatch.setattr(get_settings(), "client_rules_legacy", False)
 
 
-def test_role_group_created_by_default():
-    assert "Job_role_group" in load_data(_survey_xlsx(), "s.xlsx").df.columns
-
-
-def test_role_group_off_without_legacy_rules(legacy_off):
+def test_inference_has_no_client_rules():
     data = load_data(_survey_xlsx(), "s.xlsx")
-    assert "Job_role_group" not in data.df.columns
+    assert "Job_role_group" not in data.df.columns  # comes from the HubSpot CX setup instead
     assert "Job_role_Teacher" in data.df.columns  # generic multi-select split still happens
 
 

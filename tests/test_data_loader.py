@@ -258,10 +258,18 @@ def test_mean_row_aligns_with_total_column():
 
 
 def test_job_role_group_assigns_one_role_by_priority():
-    """HubSpot CX job role (multi-select) → single role group, as analysts report it."""
+    """HubSpot CX job role (multi-select) → single role group, from the HubSpot CX setup."""
+    from services.codebook.infer import infer_codebook
+    from services.data_loader import read_raw
+    from services.setups import apply_setup, get_setup
+
     roles = ["Teacher; Exams Officer", "School Leader; Teacher", "Head of Department",
              "Head of Department; Teacher", "Teacher", "Other", "Other; Head of Department", None]
-    data = load_data(_xlsx({"Data": pd.DataFrame({"ID": range(8), "Job role": roles})}), "roles.xlsx")
+    file_bytes = _xlsx({"Data": pd.DataFrame({"ID": range(8), "Job role": roles})})
+    raw = read_raw(file_bytes, "roles.xlsx")
+    codebook, applied, skipped = apply_setup(infer_codebook(raw), get_setup("hubspot_cx_pulse"), raw.df)
+    assert applied == ["Job role group"]  # this file has no Customer type / drivers: those are skipped
+    data = load_data(file_bytes, "roles.xlsx", codebook)
 
     assert data.meta.variable_value_labels["Job_role_group"] == {
         1.0: "Exams Officer", 2.0: "Leader", 3.0: "Teacher", 4.0: "Other"}

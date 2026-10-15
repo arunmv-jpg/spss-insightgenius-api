@@ -211,8 +211,16 @@ Survey exports (Excel/CSV) are covered by a golden test on a **synthetic** HubSp
 data, this repo is public). After an intended output change, regenerate and review the snapshot:
 `UPDATE_GOLDEN=1 python -m pytest tests/test_cx_pulse_golden.py`.
 
-`CLIENT_RULES_LEGACY` (default `true`) enables the client CX rules (job-role group, analyst data
-sheets). They are temporary and move into codebooks, see [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+Client rules are **setups**, not code: named lists of codebook edits in `presets/` (e.g. the
+HubSpot CX job-role priority groups, Single / Dual / Triple product, product mix, DRIVERS).
+`GET /v1/setups`, `POST /v1/setups/match` and `POST /v1/setups/apply` (built-in `setup_id`, or an
+exported `setup` JSON); edits that don't fit a file are skipped and reported. The review page applies
+a setup whose columns are all present automatically, offers partial matches, and can save the user's
+own changes as a setup file for the next wave. See [RECODING_PLAN.md](RECODING_PLAN.md) §6.
+
+`CLIENT_RULES_LEGACY` (default `true`) now only adds the analysts' data sheets (FULL DATA + category
+tabs, `services/respondent_sheet.py`) to auto-analyze; they move to the codebook-driven data workbook
+in RECODING_PLAN.md R6, and the flag goes with them.
 
 ## Stack
 

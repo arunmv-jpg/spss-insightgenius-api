@@ -493,6 +493,11 @@ window.addEventListener('message', async (e) => {
   if (msg.type === 'review-height') reviewFrame.style.height = `${Math.max(320, msg.height + 32)}px`;
   if (msg.type === 'review-loaded') status.textContent = 'Inferred coding';
   if (msg.type === 'review-error') status.textContent = '';
+  if (msg.type === 'review-setup') {  // a saved setup (e.g. HubSpot CX) was applied on load: use it without waiting
+    reviewedCodebook = msg.codebook;
+    status.textContent = 'Setup applied';
+    await loadMetadata();
+  }
   if (msg.type === 'review-updated') {
     status.textContent = msg.edited ? 'Edited: click "Use this coding" to apply it to the next steps' : 'Inferred coding';
   }
@@ -542,14 +547,18 @@ setupDropZone('quest-drop', 'quest-input', 'quest-label', 'quest-icon', async (f
 });
 
 // ── Load metadata ──
+let metadataSeq = 0;  // the newest request wins (a setup applied in Review data reloads it)
 async function loadMetadata() {
+  const seq = ++metadataSeq;
   const info = document.getElementById('file-info'), infoText = document.getElementById('file-info-text');
   info.classList.remove('hidden'); infoText.textContent = 'Loading metadata...';
   const form = new FormData(); appendData(form);
   try {
     const resp = await fetch(`${API_BASE}/v1/metadata`, { method: 'POST', headers: {'Authorization': `Bearer ${API_KEY}`}, body: form });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    metadata = (await resp.json()).data;
+    const data = (await resp.json()).data;
+    if (seq !== metadataSeq) return;
+    metadata = data;
     infoText.textContent = `${metadata.file_name} \u2014 ${metadata.n_cases.toLocaleString()} cases \u00d7 ${metadata.n_variables} variables`;
     // Reset ALL state from previous file
     selectedBanners = []; mrsGroups = {}; gridGroups = {}; customGroups = [];

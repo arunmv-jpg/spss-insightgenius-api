@@ -1,20 +1,17 @@
 """Draft a codebook from a raw table (step ③ of the pipeline).
 
 Every decision gets an `Inferred(rule, reason, confidence)` so the review UI can
-explain it. Generic heuristics only; the one client rule (job-role group) is gated
-by settings.client_rules_legacy and removed in IMPLEMENTATION_PLAN.md M4.
+explain it. Generic heuristics only: client rules (e.g. the HubSpot job-role group)
+are setups applied on top (services.setups, presets/).
 """
 
 import pandas as pd
 
-from config import get_settings
 from services.codebook.apply import clean_text, encode_variable
 from services.codebook.heuristics import (
-    JOB_ROLE_GROUP_LABELS,
     MAX_CATEGORIES,
     MULTI_SELECT_DELIMITER,
     _code_frame,
-    _job_role_group,
     _looks_like_free_text,
     _merge_case_variants,
     _natural_key,
@@ -57,16 +54,6 @@ def infer_codebook(raw: RawTable) -> Codebook:
         if options is not None:
             var = _multi_variable(column, header, label, series, options, used)
             variables.append(var)
-            if get_settings().client_rules_legacy:
-                group = _job_role_group(header, options)
-                if group is not None:
-                    derived.append(Derived(
-                        name=_spss_name(f"{header}_group", used), label=f"{label} group",
-                        rule="legacy_job_role_group", source=column, after=var.options[-1].name,
-                        codes=[Code(code=k, label=v) for k, v in JOB_ROLE_GROUP_LABELS.items()],
-                        inferred=Inferred(rule="legacy:job_role_group",
-                                          reason="Client rule: one role per respondent by priority"),
-                    ))
             continue
 
         var = _single_variable(column, header, label, series, used)

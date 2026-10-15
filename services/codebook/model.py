@@ -59,8 +59,7 @@ class Variable(BaseModel):
         return self.options[-1].name if self.role == "multi" and self.options else self.name
 
 
-DerivedRule = Literal["recode", "bands", "priority", "count", "combination", "coalesce", "flags",
-                      "legacy_job_role_group"]
+DerivedRule = Literal["recode", "bands", "priority", "count", "combination", "coalesce", "flags"]
 
 
 class Derived(BaseModel):

@@ -1202,47 +1202,6 @@
  ],
  "derived": [
   {
-   "name": "Job_role_group",
-   "label": "Job role group",
-   "rule": "legacy_job_role_group",
-   "source": "Job role",
-   "after": "Job_role_Other",
-   "params": {},
-   "codes": [
-    {
-     "code": 1.0,
-     "label": "Exams Officer",
-     "match": [],
-     "count": null
-    },
-    {
-     "code": 2.0,
-     "label": "Leader",
-     "match": [],
-     "count": null
-    },
-    {
-     "code": 3.0,
-     "label": "Teacher",
-     "match": [],
-     "count": null
-    },
-    {
-     "code": 4.0,
-     "label": "Other",
-     "match": [],
-     "count": null
-    }
-   ],
-   "outputs": [],
-   "measure": "nominal",
-   "inferred": {
-    "rule": "legacy:job_role_group",
-    "reason": "Client rule: one role per respondent by priority",
-    "confidence": 1.0
-   }
-  },
-  {
    "name": "CX_Pulse_Overall_NPS_group",
    "label": "CX Pulse Overall NPS: NPS group",
    "rule": "bands",

@@ -194,6 +194,15 @@ Implementation = IMPLEMENTATION_PLAN.md **M7** (generic `data_workbook.py` drive
 | **R7** | Saved setups in Supabase (M5) | Versions, per-org sharing, auto-apply on next wave | October wave: upload → “apply setup?” → identical coding, new options reported |
 
 Suggested order: **R1 → R2 → R3 → R4** (makes the HubSpot rules configurable), then R5, R6, R7.
+
+**Status (Oct 2026):** R1–R4 done. R4 notes: the job-role group, product count / mix and DRIVERS are
+setups (`presets/hubspot_cx_pulse.json`, `presets/hubspot_cx_exam_stage.json`) and inference has no
+client rules; the golden output with the setup equals the old output plus three new tables (Number
+of products, Product mix, Drivers), and the real W3 Pulse / Exam Stage files give identical groups.
+A setup whose columns are all present is applied automatically (keeps the old "it just works"
+behaviour; Undo takes it off); partial matches are offered. Answers a wave doesn't have are left
+out of a setup's rules with a note instead of skipping the recode. Still client-specific until R6:
+`respondent_sheet.py` (FULL DATA + tabs) and `CLIENT_RULES_LEGACY`, which now only gates it.
 R1–R3 are front-end heavy on top of the existing rule engine; R4 is mostly moving data out of code.
 
 ## 10. Testing

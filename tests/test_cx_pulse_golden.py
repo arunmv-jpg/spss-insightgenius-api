@@ -21,7 +21,9 @@ import pytest
 from openpyxl import load_workbook
 
 from routers.auto_analyze import _run_auto_analyze, _with_respondent_sheet
-from services.data_loader import load_data
+from services.codebook.infer import infer_codebook
+from services.data_loader import load_data, read_raw
+from services.setups import apply_setup, get_setup
 
 FIXTURE = Path(__file__).parent / "fixtures" / "exports" / "hubspot_cx_sample.xlsx"
 GOLDEN = Path(__file__).parent / "snapshots" / "hubspot_cx_sample_golden.json"
@@ -37,9 +39,17 @@ def _cell(value) -> str | None:
     return str(value)
 
 
+def _codebook(file_bytes: bytes):
+    """Inferred coding + the HubSpot CX Pulse setup (the client rules live there, not in code)."""
+    raw = read_raw(file_bytes, FIXTURE.name)
+    codebook, applied, skipped = apply_setup(infer_codebook(raw), get_setup("hubspot_cx_pulse"), raw.df)
+    assert not skipped, skipped
+    return codebook
+
+
 def _variables(file_bytes: bytes) -> dict:
     """Coded variables: label, value labels and the distribution of codes."""
-    data = load_data(file_bytes, FIXTURE.name)
+    data = load_data(file_bytes, FIXTURE.name, _codebook(file_bytes))
     labels = data.meta.column_names_to_labels
     value_labels = data.meta.variable_value_labels
     out = {}
@@ -54,7 +64,7 @@ def _variables(file_bytes: bytes) -> dict:
 
 
 def _workbook(file_bytes: bytes) -> dict:
-    result = _run_auto_analyze(file_bytes, FIXTURE.name, {})
+    result = _run_auto_analyze(file_bytes, FIXTURE.name, {"_codebook": _codebook(file_bytes)})
     excel = _with_respondent_sheet(result["excel_bytes"], file_bytes, FIXTURE.name)
     wb = load_workbook(io.BytesIO(excel))
 
