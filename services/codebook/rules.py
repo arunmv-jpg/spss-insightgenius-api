@@ -2,7 +2,8 @@
 
 Seven rule types cover what analysts build by hand in Excel:
 
-  recode       merge categories        {"from": var, "groups": [{"code", "label", "values": [codes|labels]}]}
+  recode       merge categories        {"from": var, "groups": [{"code", "label", "values": [codes|labels]}],
+                                         "else": {"code", "label"} (optional: everything else answered)}
   bands        numeric ranges          {"from": var, "bands": [{"code", "label", "min", "max"}]}
   priority     first match wins        {"groups": [{"code", "label", "when": Cond}], "else": {"code", "label"}|null,
                                          "base": var}
@@ -187,6 +188,11 @@ def _recode(d: Derived, ctx: Context) -> list[Output]:
     out = pd.Series(float("nan"), index=src.index)
     for group in d.params.get("groups", []):
         out[src.isin(ctx.codes(ref, group.get("values", [])))] = float(group["code"])
+    fallback = d.params.get("else")
+    if fallback:  # answers not put in any group → e.g. "Other" (else they stay missing)
+        var = ctx.codebook.find(ref)
+        excluded = {m.code for m in var.missing} if var else set()  # "Don't know" etc. stay out unless grouped
+        out[src.notna() & ~src.isin(excluded) & out.isna()] = float(fallback["code"])
     return _single(d, out)
 
 

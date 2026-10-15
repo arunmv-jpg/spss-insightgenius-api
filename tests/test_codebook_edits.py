@@ -313,3 +313,13 @@ def test_recoding_a_numeric_rating_changes_the_data(raw, cb):
     assert (cols[ease] == 10.0).sum() == (raw_ease == 1).sum()
     # labels are the answers; only their values changed (rows sort by value)
     assert [(c.code, c.label) for c in edited.variable(ease).codes] == [(3.0, "3"), (4.0, "4-5 (agree)"), (10.0, "1"), (20.0, "2")]
+
+
+def test_recode_else_collects_unassigned_answers(raw, cb):
+    edited, cols = coded(raw, cb, [{"op": "add_derived", "derived": {"label": "Agree vs rest", "rule": "recode", "params": {
+        "from": EXAM, "groups": [{"code": 1, "label": "Agree", "values": ["Agree", "Strongly Agree"]}],
+        "else": {"code": 2, "label": "Everyone else"}}}}])
+    answers = raw.df["Exam Results Alternative"]
+    assert (cols["Agree_vs_rest"] == 2.0).sum() == answers.isin(["Strongly Disagree", "Disagree", "Neither agree or disagree"]).sum()
+    assert cols["Agree_vs_rest"].isna().sum() == answers.isin(["I do not know", "Not applicable - No results received"]).sum()
+    assert [c.label for c in edited.find_derived("Agree_vs_rest").codes] == ["Agree", "Everyone else"]

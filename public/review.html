@@ -583,7 +583,7 @@ function toolbar(v) {
     onchange: (e) => edit([{ op: 'set_role', var: ref(v), role: e.target.value }]) },
     ...Object.entries(roles).map(([value, label]) => { const o = el('option', { value }, label); if (value === current) o.selected = true; return o; }));
   return el('div', { class: 'flex flex-wrap items-center gap-2' },
-    isTabulable(v) ? el('button', { class: 'btn btn-primary', onclick: () => openRecoder(v) }, 'Recode…') : null,
+    isTabulable(v) || v.role === 'multi' ? el('button', { class: 'btn btn-primary', onclick: () => openRecoder(v) }, 'Recode…') : null,
     el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
       const label = prompt('Question label', v.label);
       if (label && label.trim() && label !== v.label) edit([{ op: 'set_label', var: ref(v), label: label.trim() }]);
@@ -729,7 +729,7 @@ $('approve').addEventListener('click', async () => {
 const rc = { v: null, tab: 'edit', rows: [], merges: [], dragFrom: null };
 
 function openRecoder(v, tab = 'edit') {
-  rc.v = v; rc.tab = tab; rc.merges = [];
+  rc.v = v; rc.tab = v.role === 'multi' ? 'new' : tab; rc.merges = [];
   const row = (c, missing) => ({ orig: c.code, value: c.code, label: c.label, origLabel: c.label, count: c.count || 0,
                                  missing, origMissing: missing, sel: false });
   rc.rows = [...v.codes.map(c => row(c, false)), ...v.missing.map(c => row(c, true))];
@@ -746,13 +746,20 @@ function rcDirty() {
 
 function renderRecoder() {
   document.querySelectorAll('.rc-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.rcTab === rc.tab)));
-  $('rc-apply').classList.toggle('hidden', rc.tab !== 'edit');
+  const multiEdit = rc.tab === 'edit' && rc.v.role === 'multi';
+  $('rc-apply').classList.toggle('hidden', multiEdit);
+  $('rc-apply').textContent = rc.tab === 'edit' ? 'Apply changes' : 'Create variable';
   $('rc-status').textContent = '';
   rc.tab === 'edit' ? renderRecodeEdit() : renderRecodeNew();
 }
 
 function renderRecodeEdit() {
   const body = $('rc-body');
+  if (rc.v.role === 'multi') {
+    body.replaceChildren(el('p', { class: 'text-sm text-gray-600' },
+      'The options of a select-all-that-apply question are kept as they are. Use "Create new variable" to count, group or combine them.'));
+    return;
+  }
   const base = rcValid().reduce((s, r) => s + r.count, 0);
   const selected = rc.rows.filter(r => r.sel);
   const tools = el('div', { class: 'flex flex-wrap items-center gap-2' },
@@ -839,6 +846,7 @@ function rcOps() {
 }
 
 $('rc-apply').addEventListener('click', async () => {
+  if (rc.tab === 'new') return nwCreate();
   let ops;
   try { ops = rcOps(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
   if (!ops.length) { $('recoder').close(); return; }
@@ -856,21 +864,281 @@ $('rc-close').addEventListener('click', rcClose);
 $('recoder').addEventListener('cancel', (e) => { if (rc.tab === 'edit' && rcDirty() && !confirm('Discard the changes you made here?')) e.preventDefault(); });
 document.querySelectorAll('.rc-tab').forEach(b => b.addEventListener('click', () => { rc.tab = b.dataset.rcTab; renderRecoder(); }));
 
-// "Create new variable" — R1: opens the builder pre-filled for this question (R2 brings it into the drawer)
+// "Create new variable" — build a variable from this question; the question itself stays as it is
+const nw = { mode: null, name: '', cats: [], picked: new Set(), elseMode: 'missing', elseLabel: 'Other',
+             ranges: [], countExclude: new Set(), countBands: [], combine: new Set(), previewTimer: null, seq: 0 };
+
+function nwModes(v) {
+  if (v.role === 'multi') return [['count', 'Count options ticked'], ['combine', 'Combine with other multi-selects']];
+  const modes = [['group', 'Group answers']];
+  if (v.codes.length && v.codes.every(c => Number.isFinite(c.code))) modes.push(['ranges', 'Number ranges']);
+  modes.push(['flags', 'One column per answer']);
+  return modes;
+}
+
+function nwReset(v) {
+  const modes = nwModes(v);
+  Object.assign(nw, { mode: modes[0][0], name: nwDefaultName(v, modes[0][0]), cats: [], picked: new Set(), elseMode: 'missing',
+                      elseLabel: 'Other', countExclude: new Set(), combine: new Set([v.column]) });
+  const values = v.codes.map(c => c.code);
+  const lo = Math.min(...values), hi = Math.max(...values);
+  nw.ranges = values.length ? nwEqualRanges(lo, hi, Math.min(3, values.length)) : [];
+  nw.countBands = [{ label: 'Single', min: 1, max: 1 }, { label: 'Dual', min: 2, max: 2 }, { label: 'Triple or more', min: 3, max: null }];
+}
+
+// A name that says what the variable is; replaced when the mode changes unless the user typed their own
+function nwDefaultName(v, mode) {
+  return `${v.label}: ` + { group: 'groups', ranges: 'bands', flags: 'one column per answer',
+                            count: 'number ticked', combine: 'combined' }[mode];
+}
+
+function nwEqualRanges(lo, hi, n) {
+  const width = (hi - lo + 1) / n, whole = Number.isInteger(lo) && Number.isInteger(hi);
+  return Array.from({ length: n }, (_, i) => {
+    const min = lo + i * width, max = i === n - 1 ? hi : lo + (i + 1) * width - (whole ? 1 : 0);
+    const a = whole ? Math.round(min) : +min.toFixed(2), b = whole ? Math.round(max) : +max.toFixed(2);
+    return { label: a === b ? `${a}` : `${a}-${b}`, min: a, max: b, mask: false };
+  });
+}
+
+// The answers a category can be built from (excluded "Don't know" answers too, so they can be grouped)
+function nwAnswers(v) { return [...v.codes, ...v.missing.map(c => ({ ...c, excluded: true }))]; }
+
 function renderRecodeNew() {
   const v = rc.v;
-  const choice = (title, text, rule) => el('button', { class: 'w-full text-left p-3 rounded-lg ring-1 ring-gray-200 hover:bg-gray-50',
-    onclick: () => {
-      if (rcDirty() && !confirm('Discard the changes on "Edit this question"?')) return;
-      $('recoder').close(); openBuilder(rule, v);
-    } },
-    el('p', { class: 'text-sm font-medium' }, title), el('p', { class: 'text-xs text-gray-500' }, text));
-  $('rc-body').replaceChildren(
+  if (nw.forVar !== v.column) { nwReset(v); nw.forVar = v.column; }
+  const modes = nwModes(v);
+  const body = $('rc-body');
+  body.replaceChildren(
     el('p', { class: 'text-sm text-gray-600' }, 'Build a new variable from this question. The question itself stays as it is.'),
-    choice('Group answers', 'Combine answers into new categories, e.g. Top 2 Box or Agree / Neutral / Disagree', 'recode'),
-    v.codes.every(c => typeof c.code === 'number')
-      ? choice('Number bands', 'Ranges of values, e.g. NPS 0-6 / 7-8 / 9-10', 'bands') : null,
-    choice('One column per answer', 'A 0/1 column for each answer (like the 1-5 score columns)', 'flags'));
+    el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, 'Name of the new variable'),
+      el('input', { class: 'rc-input', value: nw.name, oninput: (e) => { nw.name = e.target.value; } })),
+    el('div', { class: 'flex flex-wrap gap-1 text-sm', role: 'tablist' }, ...modes.map(([key, label]) =>
+      el('button', { class: 'rc-tab px-3 py-1.5 rounded-lg ring-1 ring-gray-200', 'aria-selected': String(nw.mode === key),
+                     onclick: () => {
+                       if (nw.name === nwDefaultName(v, nw.mode)) nw.name = nwDefaultName(v, key);
+                       nw.mode = key; renderRecodeNew();
+                     } }, label))),
+    el('div', { id: 'nw-form', class: 'space-y-3' }),
+    el('div', { id: 'nw-preview', class: 'space-y-1.5 text-sm' }));
+  ({ group: nwGroupForm, ranges: nwRangesForm, flags: nwFlagsForm, count: nwCountForm, combine: nwCombineForm })[nw.mode](v);
+  nwSchedulePreview();
+}
+
+// ── Group answers (Forsta's category builder) ──
+function nwGroupForm(v) {
+  const answers = nwAnswers(v);
+  const catOf = code => nw.cats.findIndex(c => c.values.has(code));
+  const left = el('div', { class: 'rounded-lg ring-1 ring-gray-200 divide-y divide-gray-100' },
+    el('p', { class: 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500' }, 'Answers'),
+    ...answers.map(a => {
+      const ci = catOf(a.code);
+      return el('label', { class: 'flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-50' },
+        el('input', { type: 'checkbox', ...(nw.picked.has(a.code) ? { checked: '' } : {}),
+          onchange: (e) => { e.target.checked ? nw.picked.add(a.code) : nw.picked.delete(a.code); nwGroupForm(v); } }),
+        el('span', { class: `flex-1 min-w-0 truncate ${a.excluded ? 'italic text-gray-400' : ''}` }, a.label),
+        ci >= 0 ? el('span', { class: 'chip role-derived' }, `→ ${nw.cats[ci].label || ci + 1}`) : null,
+        el('span', { class: 'text-xs tabular-nums text-gray-400' }, (a.count ?? '').toLocaleString()));
+    }));
+
+  const right = el('div', { class: 'space-y-2' },
+    el('p', { class: 'text-xs font-semibold uppercase tracking-wide text-gray-500' }, 'New categories'),
+    ...nw.cats.map((cat, i) => el('div', { class: 'rounded-lg ring-1 ring-gray-200 p-2 space-y-1.5' },
+      el('div', { class: 'flex items-center gap-1.5' },
+        el('span', { class: 'text-xs text-gray-400 w-4 text-right' }, i + 1),
+        el('input', { class: 'rc-input', value: cat.label, placeholder: 'Category name',
+                      oninput: (e) => { cat.label = e.target.value; nwSchedulePreview(); } }),
+        el('button', { class: 'btn btn-ghost ring-1 ring-gray-200 whitespace-nowrap', title: 'Put the ticked answers in this category',
+                       disabled: nw.picked.size ? null : '', onclick: () => nwAssign(i, v) }, '» Add'),
+        el('button', { class: 'icon-btn', title: 'Remove category', onclick: () => { nw.cats.splice(i, 1); nwGroupForm(v); } }, '✕')),
+      el('div', { class: 'flex flex-wrap gap-1 pl-5' }, ...[...cat.values].map(code => {
+        const a = answers.find(x => x.code === code);
+        return el('span', { class: 'chip bg-gray-100 text-gray-700' }, a?.label ?? code,
+          el('button', { class: 'ml-0.5 text-gray-400 hover:text-gray-700', title: 'Take out of this category',
+                         onclick: () => { cat.values.delete(code); nwGroupForm(v); } }, '×'));
+      }), cat.values.size ? null : el('span', { class: 'text-xs text-gray-400' }, 'Tick answers on the left, then » Add')))),
+    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      nw.cats.push({ label: '', values: new Set() });
+      if (nw.picked.size) nwAssign(nw.cats.length - 1, v); else nwGroupForm(v);
+    } }, '+ Category'));
+
+  const scale = v.codes.length >= 4;
+  const quick = scale ? el('div', { class: 'flex flex-wrap items-center gap-2 text-sm' },
+    el('span', { class: 'text-gray-500' }, 'Quick:'),
+    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => nwTemplate(v, 'top2') }, 'Top 2 / rest'),
+    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => nwTemplate(v, 'tmb') }, 'Top / Middle / Bottom')) : null;
+
+  const elseRow = el('div', { class: 'text-sm space-y-1' },
+    el('p', { class: 'text-gray-500' }, 'Answers not in any category:'),
+    el('label', { class: 'flex items-center gap-2' }, el('input', { type: 'radio', name: 'nw-else', ...(nw.elseMode === 'missing' ? { checked: '' } : {}),
+      onchange: () => { nw.elseMode = 'missing'; nwSchedulePreview(); } }), 'leave them out (missing)'),
+    el('label', { class: 'flex items-center gap-2' }, el('input', { type: 'radio', name: 'nw-else', ...(nw.elseMode === 'other' ? { checked: '' } : {}),
+      onchange: () => { nw.elseMode = 'other'; nwSchedulePreview(); } }), 'put them in',
+      el('input', { class: 'rc-input w-40', value: nw.elseLabel, oninput: (e) => { nw.elseLabel = e.target.value; nwSchedulePreview(); } })),
+    el('p', { class: 'text-xs text-gray-400' }, '"Don\'t know"-type answers stay out of bases unless you put them in a category.'));
+
+  $('nw-form').replaceChildren(quick, el('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-3' }, left, right), elseRow);
+  nwSchedulePreview();
+}
+
+function nwAssign(i, v) {
+  for (const cat of nw.cats) for (const code of nw.picked) cat.values.delete(code);  // one category per answer
+  for (const code of nw.picked) nw.cats[i].values.add(code);
+  if (!nw.cats[i].label) {
+    const labels = [...nw.picked].map(code => nwAnswers(v).find(a => a.code === code)?.label).filter(Boolean);
+    nw.cats[i].label = labels.length === 1 ? labels[0] : `${labels[0]} …`;
+  }
+  nw.picked.clear();
+  nwGroupForm(v);
+}
+
+function nwTemplate(v, kind) {
+  const codes = [...v.codes].sort((a, b) => a.code - b.code).map(c => c.code);
+  const n = codes.length;
+  if (kind === 'top2') {
+    nw.cats = [{ label: 'Top 2 Box', values: new Set(codes.slice(-2)) }, { label: 'Rest', values: new Set(codes.slice(0, -2)) }];
+    nw.name = `${v.label}: Top 2 Box`;
+  } else {
+    nw.cats = [{ label: 'Bottom 2', values: new Set(codes.slice(0, 2)) }, { label: 'Middle', values: new Set(codes.slice(2, n - 2)) },
+               { label: 'Top 2', values: new Set(codes.slice(n - 2)) }].filter(c => c.values.size);
+    nw.name = `${v.label}: Top / Middle / Bottom`;
+  }
+  renderRecodeNew();
+}
+
+// ── Number ranges (Forsta's From / To + "N equal groups") ──
+function nwRangesForm(v) {
+  const values = v.codes.map(c => c.code);
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const n = el('input', { class: 'rc-input w-16', type: 'number', min: '2', max: '20', value: String(nw.ranges.length || 3) });
+  const rows = nw.ranges.map((r, i) => el('tr', { class: r.mask ? 'opacity-50' : '' },
+    el('td', {}, el('input', { class: 'rc-input', value: r.label, oninput: (e) => { r.label = e.target.value; nwSchedulePreview(); } })),
+    el('td', {}, el('input', { class: 'rc-input w-20', type: 'number', step: 'any', value: r.min ?? '',
+      onchange: (e) => { r.min = e.target.value === '' ? null : +e.target.value; nwSchedulePreview(); } })),
+    el('td', {}, el('input', { class: 'rc-input w-20', type: 'number', step: 'any', value: r.max ?? '',
+      onchange: (e) => { r.max = e.target.value === '' ? null : +e.target.value; nwSchedulePreview(); } })),
+    el('td', { class: 'text-center' }, el('input', { type: 'checkbox', title: 'Mask: leave this range out', ...(r.mask ? { checked: '' } : {}),
+      onchange: (e) => { r.mask = e.target.checked; nwRangesForm(v); } })),
+    el('td', {}, el('button', { class: 'icon-btn', title: 'Remove', onclick: () => { nw.ranges.splice(i, 1); nwRangesForm(v); } }, '✕'))));
+  const th = t => el('th', { class: 'text-left text-xs font-medium text-gray-500' }, t);
+  $('nw-form').replaceChildren(
+    el('div', { class: 'flex flex-wrap items-center gap-2 text-sm' },
+      el('span', { class: 'text-gray-500' }, `Values run from ${fmtCode(lo)} to ${fmtCode(hi)}. Split into`), n,
+      el('span', { class: 'text-gray-500' }, 'equal groups'),
+      el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+        nw.ranges = nwEqualRanges(lo, hi, Math.max(2, Math.min(20, +n.value || 3))); nwRangesForm(v); } }, 'Go'),
+      lo >= 0 && hi <= 10 && hi >= 9 ? el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+        nw.ranges = [{ label: 'Detractors (0-6)', min: 0, max: 6 }, { label: 'Passives (7-8)', min: 7, max: 8 },
+                     { label: 'Promoters (9-10)', min: 9, max: 10 }];
+        nw.name = `${v.label}: NPS group`; renderRecodeNew(); } }, 'NPS groups') : null),
+    el('table', { class: 'rc-table w-full text-sm' },
+      el('thead', {}, el('tr', {}, th('Label'), th('From'), th('To'), el('th', { class: 'text-xs font-medium text-gray-500' }, 'Mask'), th(''))),
+      el('tbody', {}, ...rows)),
+    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      nw.ranges.push({ label: '', min: null, max: null, mask: false }); nwRangesForm(v); } }, '+ Range'),
+    el('p', { class: 'text-xs text-gray-400' }, 'From and To are included. Masked ranges and values outside every range are left out (missing). Blank = no limit.'));
+  nwSchedulePreview();
+}
+
+// ── Multi-select: count options ticked ──
+function nwCountForm(v) {
+  const bands = nw.countBands.map((b, i) => el('div', { class: 'grid grid-cols-12 gap-2' },
+    el('input', { class: 'rc-input col-span-6', value: b.label, oninput: (e) => { b.label = e.target.value; nwSchedulePreview(); } }),
+    el('input', { class: 'rc-input col-span-2', type: 'number', value: b.min ?? '', placeholder: 'from',
+      onchange: (e) => { b.min = e.target.value === '' ? null : +e.target.value; nwSchedulePreview(); } }),
+    el('input', { class: 'rc-input col-span-3', type: 'number', value: b.max ?? '', placeholder: 'to (blank = more)',
+      onchange: (e) => { b.max = e.target.value === '' ? null : +e.target.value; nwSchedulePreview(); } }),
+    el('button', { class: 'icon-btn col-span-1', onclick: () => { nw.countBands.splice(i, 1); nwCountForm(v); } }, '✕')));
+  $('nw-form').replaceChildren(
+    el('p', { class: 'text-sm text-gray-600' }, 'Counts how many options each person ticked, e.g. Single / Dual / Triple product.'),
+    el('div', { class: 'text-sm space-y-1' }, el('p', { class: 'text-gray-500' }, "Don't count these options:"),
+      el('div', { class: 'flex flex-wrap gap-x-4 gap-y-1' }, ...v.options.map(o => el('label', { class: 'flex items-center gap-1.5' },
+        el('input', { type: 'checkbox', ...(nw.countExclude.has(o.label) ? { checked: '' } : {}),
+          onchange: (e) => { e.target.checked ? nw.countExclude.add(o.label) : nw.countExclude.delete(o.label); nwSchedulePreview(); } }), o.label)))),
+    el('div', { class: 'space-y-2' }, el('p', { class: 'text-sm text-gray-500' }, 'Groups (blank “to” = or more):'), ...bands,
+      el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+        nw.countBands.push({ label: '', min: null, max: null }); nwCountForm(v); } }, '+ Group')));
+  nwSchedulePreview();
+}
+
+// ── Multi-select: combine several into one set ──
+function nwCombineForm(v) {
+  $('nw-form').replaceChildren(
+    el('p', { class: 'text-sm text-gray-600' }, 'One set of options from several multi-select questions. Each person gets the answers of the first question they answered (e.g. detractor / passive / promoter drivers).'),
+    el('div', { class: 'space-y-1 text-sm' }, ...multiVars().map(m => el('label', { class: 'flex items-center gap-2' },
+      el('input', { type: 'checkbox', ...(nw.combine.has(m.column) ? { checked: '' } : {}),
+        onchange: (e) => { e.target.checked ? nw.combine.add(m.column) : nw.combine.delete(m.column); nwSchedulePreview(); } }),
+      m.label, el('span', { class: 'text-xs text-gray-400' }, `${(m.base ?? 0).toLocaleString()} answered`)))));
+  nwSchedulePreview();
+}
+
+function nwFlagsForm(v) {
+  $('nw-form').replaceChildren(el('p', { class: 'text-sm text-gray-600' },
+    `Creates ${plural(v.codes.length, 'column')} — one per answer, 1 if the person gave that answer, 0 if not (like the analysts' 1-5 score columns).`));
+  nwSchedulePreview();
+}
+
+// ── Spec, preview, create ──
+function nwSpec() {
+  const v = rc.v, label = nw.name.trim();
+  if (!label) throw new Error('Give the new variable a name.');
+  if (nw.mode === 'group') {
+    const groups = nw.cats.filter(c => c.values.size).map((c, i) => ({ code: i + 1, label: c.label.trim() || `Category ${i + 1}`, values: [...c.values] }));
+    if (!groups.length) throw new Error('Put at least one answer in a category.');
+    const params = { from: ref(v), groups };
+    if (nw.elseMode === 'other') params.else = { code: groups.length + 1, label: nw.elseLabel.trim() || 'Other' };
+    return { label, rule: 'recode', params };
+  }
+  if (nw.mode === 'ranges') {
+    const bands = nw.ranges.filter(r => !r.mask).map((r, i) => ({ code: i + 1, label: r.label.trim() || `Range ${i + 1}`, min: r.min, max: r.max }));
+    if (!bands.length) throw new Error('Add at least one range.');
+    return { label, rule: 'bands', params: { from: ref(v), bands } };
+  }
+  if (nw.mode === 'count') {
+    const bands = nw.countBands.filter(b => b.label.trim()).map((b, i) => ({ code: i + 1, label: b.label.trim(), min: b.min, max: b.max }));
+    return { label, rule: 'count', params: { from: v.column, exclude: [...nw.countExclude], ...(bands.length ? { bands } : {}) } };
+  }
+  if (nw.mode === 'combine') {
+    if (nw.combine.size < 2) throw new Error('Pick at least two multi-select questions to combine.');
+    return { label, rule: 'coalesce', params: { from: multiVars().filter(m => nw.combine.has(m.column)).map(m => m.column) } };
+  }
+  return { label, rule: 'flags', params: { from: ref(v) } };
+}
+
+function nwSchedulePreview() {
+  clearTimeout(nw.previewTimer);
+  nw.previewTimer = setTimeout(nwPreview, 450);
+}
+
+async function nwPreview() {
+  const box = $('nw-preview');
+  if (!box) return;
+  let spec;
+  try { spec = nwSpec(); } catch (e) { box.replaceChildren(el('p', { class: 'text-gray-400' }, e.message)); return; }
+  const seq = ++nw.seq;
+  box.replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), 'Counting…');
+  try {
+    const data = await api('/v1/codebook', fileForm({ edits: JSON.stringify([{ op: 'add_derived', derived: spec }]) }, true));
+    if (seq !== nw.seq) return;
+    const d = data.codebook.derived.at(-1);
+    const items = d.outputs.length ? d.outputs : d.codes;
+    const base = d.outputs.length ? data.codebook.source.rows : d.codes.reduce((s, c) => s + (c.count || 0), 0);
+    box.replaceChildren(el('p', { class: 'text-xs uppercase tracking-wide text-gray-400' },
+      d.outputs.length ? `Preview · ${plural(d.outputs.length, 'new column')}` : `Preview · ${base.toLocaleString()} respondents get a group`),
+      ...bars(items, base));
+  } catch (e) {
+    if (seq === nw.seq) box.replaceChildren(el('p', { class: 'text-red-600' }, e.message));
+  }
+}
+
+async function nwCreate() {
+  let spec;
+  try { spec = nwSpec(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  if (await edit([{ op: 'add_derived', derived: spec }])) {
+    nw.forVar = null;
+    $('recoder').close();
+    toast(`Created "${spec.label}"`);
+  }
 }
 
 // ── Derived variable builder ──
