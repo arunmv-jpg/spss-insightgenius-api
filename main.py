@@ -170,6 +170,7 @@ def create_application() -> FastAPI:
     from routers.library import router as library_router
     from routers.codebook import router as codebook_router
     from routers.setups import router as setups_router
+    from routers.exports import router as exports_router
 
     app.include_router(health_router)
     app.include_router(metadata_router)
@@ -195,6 +196,7 @@ def create_application() -> FastAPI:
     app.include_router(library_router)
     app.include_router(codebook_router)
     app.include_router(setups_router)
+    app.include_router(exports_router)
 
     from routers.jobs import router as jobs_router
     app.include_router(jobs_router)

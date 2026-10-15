@@ -15,6 +15,7 @@ multi-select's / ignored column's header):
   {"op": "set_nets",       "var": v, "nets": [{"label": "Top 2 Box", "codes": [4, 5]}, …]}  # table rows
   {"op": "add_net",        "var": v, "label": "Top 2 Box", "codes": [4, 5]}
   {"op": "remove_net",     "var": v, "label": "Top 2 Box"}
+  {"op": "set_data_workbook", "settings": {title, drop_columns, groups, score_flags, tabs} | null}
   {"op": "add_derived",    "derived": {name?, label, rule, params, codes?, after?}}
   {"op": "update_derived", "name": n, "derived": {…}}
   {"op": "remove_derived", "name": n}
@@ -26,7 +27,7 @@ import pandas as pd
 
 from services.codebook.apply import apply_codebook, clean_text
 from services.codebook.heuristics import MAX_CATEGORIES, _merge_case_variants, _natural_key, _spss_name
-from services.codebook.model import Code, Codebook, Derived, Inferred, Net, Option, Variable
+from services.codebook.model import Code, Codebook, DataWorkbook, Derived, Inferred, Net, Option, Variable
 from services.codebook.rules import Context, RuleError, multi_output_labels
 
 
@@ -299,6 +300,21 @@ def _add_net(cb, op, df):
     _check_net_labels(var)
 
 
+def _set_data_workbook(cb, op, df):
+    """The respondent-level data sheets (services.data_workbook); null switches them off."""
+    settings = op.get("settings")
+    if settings is None:
+        cb.data_workbook = None
+        return
+    try:
+        cb.data_workbook = DataWorkbook.model_validate(settings)
+    except Exception as e:
+        raise EditError(f"invalid data workbook settings: {e}") from None
+    for tab in cb.data_workbook.tabs:
+        if tab.when is None and (tab.var is None or tab.code is None):
+            raise EditError(f"tab '{tab.title}' needs a variable and a category (or a condition)")
+
+
 def _remove_net(cb, op, df):
     var = _var(cb, op["var"])
     label = str(op["label"]).casefold()
@@ -379,6 +395,6 @@ _OPS = {
     "set_label": _set_label, "set_role": _set_role, "set_measure": _set_measure,
     "relabel_code": _relabel_code, "set_missing": _set_missing, "merge_codes": _merge_codes,
     "reorder_codes": _reorder_codes, "set_codes": _set_codes, "set_nets": _set_nets, "add_net": _add_net,
-    "remove_net": _remove_net, "add_derived": _add_derived, "update_derived": _update_derived,
+    "remove_net": _remove_net, "set_data_workbook": _set_data_workbook, "add_derived": _add_derived, "update_derived": _update_derived,
     "remove_derived": _remove_derived,
 }

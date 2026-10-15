@@ -56,7 +56,8 @@ def test_no_match_for_an_unrelated_file():
 def test_apply_creates_the_client_recodes(raw):
     cb, applied, skipped = apply_setup(infer_codebook(raw), get_setup("hubspot_cx_pulse"), raw.df)
     assert not skipped
-    assert applied == ["Job role group", "Number of products", "Product mix", "Programmes AND/OR exams", "Drivers"]
+    assert applied == ["Job role group", "Number of products", "Product mix", "Programmes AND/OR exams", "Drivers",
+                       "Data sheets"]
     role = cb.find_derived("Job_role_group")
     assert [c.label for c in role.codes] == ["Exams Officer", "Leader", "Teacher", "Other"]
     assert role.after == "Job_role_Other"
@@ -66,7 +67,7 @@ def test_applying_twice_skips_with_a_reason(raw):
     setup = get_setup("hubspot_cx_pulse")
     cb, _, _ = apply_setup(infer_codebook(raw), setup, raw.df)
     _, applied, skipped = apply_setup(cb, setup, raw.df)
-    assert not applied and len(skipped) == len(setup.edits)
+    assert applied == ["Data sheets"] and len(skipped) == len(setup.edits) - 1  # the sheet setting is just set again
     assert "already used" in skipped[0]["reason"]
 
 
@@ -77,7 +78,7 @@ def test_new_wave_without_an_option_still_gets_the_role_group():
     raw = read_raw(_xlsx(pd.DataFrame({"Job role": roles})), "wave.xlsx")
     notes: list[str] = []
     cb, applied, skipped = apply_setup(infer_codebook(raw), get_setup("hubspot_cx_pulse"), raw.df, notes)
-    assert applied == ["Job role group"]
+    assert applied == ["Job role group", "Data sheets"]  # sheet columns that don't fit are left out when built
     assert {s["edit"] for s in skipped} == {"Number of products", "Product mix", "Programmes AND/OR exams", "Drivers"}
     assert any("School Group/School District Leader" in n for n in notes)
 

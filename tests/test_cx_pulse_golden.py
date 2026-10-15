@@ -20,14 +20,15 @@ import pandas as pd
 import pytest
 from openpyxl import load_workbook
 
-from routers.auto_analyze import _run_auto_analyze, _with_respondent_sheet
+from routers.auto_analyze import _run_auto_analyze
 from services.codebook.infer import infer_codebook
 from services.data_loader import load_data, read_raw
+from services.data_workbook import append_data_workbook
 from services.setups import apply_setup, get_setup
 
 FIXTURE = Path(__file__).parent / "fixtures" / "exports" / "hubspot_cx_sample.xlsx"
 GOLDEN = Path(__file__).parent / "snapshots" / "hubspot_cx_sample_golden.json"
-DATA_SHEETS = {"FULL DATA", "Detractors", "Promoters", "Single", "Dual", "Triple",
+DATA_SHEETS = {"FULL DATA PULSE", "Detractors", "Promoters", "Single", "Dual", "Triple",
                "Exam officers", "Teachers", "Leaders"}
 
 
@@ -64,8 +65,9 @@ def _variables(file_bytes: bytes) -> dict:
 
 
 def _workbook(file_bytes: bytes) -> dict:
-    result = _run_auto_analyze(file_bytes, FIXTURE.name, {"_codebook": _codebook(file_bytes)})
-    excel = _with_respondent_sheet(result["excel_bytes"], file_bytes, FIXTURE.name)
+    codebook = _codebook(file_bytes)
+    result = _run_auto_analyze(file_bytes, FIXTURE.name, {"_codebook": codebook})
+    excel = append_data_workbook(result["excel_bytes"], file_bytes, FIXTURE.name, codebook)
     wb = load_workbook(io.BytesIO(excel))
 
     tables, data_sheets = {}, {}

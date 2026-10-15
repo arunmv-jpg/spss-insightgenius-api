@@ -218,9 +218,11 @@ exported `setup` JSON); edits that don't fit a file are skipped and reported. Th
 a setup whose columns are all present automatically, offers partial matches, and can save the user's
 own changes as a setup file for the next wave. See [RECODING_PLAN.md](RECODING_PLAN.md) §6.
 
-`CLIENT_RULES_LEGACY` (default `true`) now only adds the analysts' data sheets (FULL DATA + category
-tabs, `services/respondent_sheet.py`) to auto-analyze; they move to the codebook-driven data workbook
-in RECODING_PLAN.md R6, and the flag goes with them.
+Respondent **data sheets** (FULL DATA with 1/blank flag columns + one sheet per category, with % and
+count rows) come from the codebook's `data_workbook` setting (`services/data_workbook.py`): set it in
+the review page's *Data sheets* panel or with a setup (the HubSpot setups reproduce the analysts'
+workbook). Auto-analyze appends them when the codebook has the setting;
+`POST /v1/exports/data-workbook` returns them on their own.
 
 ## Stack
 

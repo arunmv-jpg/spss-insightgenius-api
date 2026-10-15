@@ -195,7 +195,7 @@ Implementation = IMPLEMENTATION_PLAN.md **M7** (generic `data_workbook.py` drive
 
 Suggested order: **R1 → R2 → R3 → R4** (makes the HubSpot rules configurable), then R5, R6, R7.
 
-**Status (Oct 2026):** R1–R5 done. R4 notes: the job-role group, product count / mix and DRIVERS are
+**Status (Oct 2026):** R1–R6 done. R4 notes: the job-role group, product count / mix and DRIVERS are
 setups (`presets/hubspot_cx_pulse.json`, `presets/hubspot_cx_exam_stage.json`) and inference has no
 client rules; the golden output with the setup equals the old output plus three new tables (Number
 of products, Product mix, Drivers), and the real W3 Pulse / Exam Stage files give identical groups.
@@ -209,6 +209,16 @@ merges / new values / exclusions, show in the review preview, and replace the gu
 /v1/tabulate and /v1/auto-analyze (a request's own `nets` still win). "Values" needed no separate
 `Code.value`: the drawer's Value column (`set_codes`, R1) already is the number means use — a
 reversed scale gives 6 − mean with the nets still on the same answers (tests/test_nets.py).
+
+R6 notes: `services/data_workbook.py` builds FULL DATA + category sheets from `Codebook.data_workbook`
+(op `set_data_workbook`; extra columns after a given column — flags per answer, var + code, a
+condition, number ticked, first answered of several columns — score flags per rating, dropped
+columns, tabs). The HubSpot setups carry the analysts' layout; on the sample and on the real W3 Pulse
+and Exam Stage files every cell of all 9 sheets equals the old `respondent_sheet.py` output (the
+sample's sheet is now named FULL DATA PULSE, as the real Pulse file's was). `respondent_sheet.py` and
+`CLIENT_RULES_LEGACY` are deleted: no client rules remain in code. Review page: *Data sheets* panel
+(title, flag columns, score columns, category tabs, columns left out; Save / Download now).
+Not done from M7: the coded .sav / CSV export with the full codebook (M7.3).
 R1–R3 are front-end heavy on top of the existing rule engine; R4 is mostly moving data out of code.
 
 ## 10. Testing

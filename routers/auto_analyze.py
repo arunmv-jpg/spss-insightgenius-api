@@ -12,24 +12,17 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import StreamingResponse
 
 from auth import require_scope, KeyConfig
-from config import get_settings
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
-from services.data_loader import load_data, read_table
-from services.respondent_sheet import add_respondent_sheets
+from services.data_loader import SPSS_FORMATS, file_format, load_data
+from services.data_workbook import append_data_workbook
 from services.tabulation_builder import TabulateSpec, build_tabulation
 from shared.filenames import output_filename
 
 router = APIRouter(tags=["Processing"])
-
-
-def _with_respondent_sheet(excel_bytes: bytes, file_bytes: bytes, filename: str) -> bytes:
-    """Append the analyst-style FULL DATA + per-category sheets for tabular (non-SPSS) uploads."""
-    raw = read_table(file_bytes, filename)
-    return excel_bytes if raw is None else add_respondent_sheets(excel_bytes, raw, filename)
 
 
 def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
@@ -308,13 +301,13 @@ async def auto_analyze(
         except Exception as e:
             logger.warning("[AUTO] Executive summary failed (non-blocking): %s", e)
 
-    # LEGACY client rule: analyst-style respondent data sheets for Excel/CSV exports
-    # (replaced by the codebook-driven data workbook in IMPLEMENTATION_PLAN.md M7)
-    if get_settings().client_rules_legacy and options_dict.get("include_respondent_sheet", True):
+    # Respondent data sheets (FULL DATA + category tabs) when the codebook asks for them (e.g. a setup)
+    if (cb is not None and cb.data_workbook is not None and file_format(filename) not in SPSS_FORMATS
+            and options_dict.get("include_data_workbook", True)):
         try:
-            excel_bytes = await run_in_executor(_with_respondent_sheet, excel_bytes, file_bytes, filename)
+            excel_bytes = await run_in_executor(append_data_workbook, excel_bytes, file_bytes, filename, cb)
         except Exception as e:
-            logger.warning("[AUTO] Respondent sheet failed (non-blocking): %s", e)
+            logger.warning("[AUTO] Data workbook failed (non-blocking): %s", e)
 
     return StreamingResponse(
         io.BytesIO(excel_bytes),

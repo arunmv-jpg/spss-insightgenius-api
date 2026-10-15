@@ -27,11 +27,6 @@ class Settings(BaseSettings):
     # are still validated normally. /v1/keys always requires a real key.
     auth_disabled: bool = False
 
-    # The analysts' data sheets for the client CX survey (respondent_sheet.py) on auto-analyze.
-    # The coding rules themselves are setups (presets/); the sheets move to the codebook-driven
-    # data workbook (RECODING_PLAN.md R6) and this flag is then removed.
-    client_rules_legacy: bool = True
-
     # Claude AI (Haiku for ticket parsing + smart labeling)
     anthropic_api_key: str = ""
 

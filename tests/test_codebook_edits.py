@@ -11,7 +11,6 @@ from services.codebook.infer import infer_codebook
 from services.codebook.patch import EditError, apply_ops
 from services.data_loader import load_data
 from services.ingest.readers import read_raw
-from services.respondent_sheet import ROLE_FLAGS, build_columns
 
 FIXTURE = Path(__file__).parent / "fixtures" / "exports" / "hubspot_cx_sample.xlsx"
 CLIENT_RULES = Path(__file__).parent / "fixtures" / "codebooks" / "cx_client_rules.json"
@@ -190,25 +189,45 @@ def client_coded(raw, cb):
     return edited, apply_codebook(raw.df, edited).columns
 
 
-def test_client_role_rule_matches_analyst_sheet(raw, client_coded):
+def _ticked(series: pd.Series) -> list[set[str]]:
+    return [{o.strip() for o in str(v).split(";") if o.strip()} if pd.notna(v) else set() for v in series]
+
+
+def _analyst_role(roles: set[str]) -> float | None:
+    """The analysts' written rule: EO > Leader (incl. HoD who isn't a Teacher) > Teacher > Other."""
+    if not roles:
+        return None
+    if "Exams Officer" in roles:
+        return 1.0
+    if roles & {"School Leader", "School Group/School District Leader"} or ("Head of Department" in roles and "Teacher" not in roles):
+        return 2.0
+    return 3.0 if "Teacher" in roles else 4.0
+
+
+PRODUCTS = {"Resources": "Teaching and learning resources such as textbooks, digital tools, or curriculum support",
+            "Programmes": "Programmes or curriculum", "Exams": "Exams or qualifications"}
+
+
+def test_client_role_rule_matches_the_analysts_rule(raw, client_coded):
     _, cols = client_coded
-    sheet = {h: pd.to_numeric(pd.Series(v), errors="coerce").fillna(0).reset_index(drop=True)
-             for h, v, _ in build_columns(raw.df) if isinstance(h, str)}
-    for code, column in ROLE_FLAGS.items():
-        assert ((cols["Role_group"] == code).astype(float) == sheet[column]).all(), column
+    expected = [_analyst_role(r) for r in _ticked(raw.df["Job role"])]
+    assert cols["Role_group"].tolist() == pytest.approx(expected, nan_ok=True)
 
 
-def test_client_product_and_driver_rules_match_analyst_sheet(raw, client_coded):
+def test_client_product_and_driver_rules_match_the_analysts_rules(raw, client_coded):
     edited, cols = client_coded
-    sheet = {h: pd.to_numeric(pd.Series(v), errors="coerce").fillna(0).reset_index(drop=True)
-             for h, v, _ in build_columns(raw.df) if isinstance(h, str)}
-    for code, column in [(1.0, "Single product"), (2.0, "Dual product"), (3.0, "Triple product")]:
-        assert ((cols["Product_count"] == code).astype(float) == sheet[column]).all(), column
-    for code, column in [(1.0, "Resources only"), (3.0, "Exams only"), (6.0, "Resources + Exams")]:
-        assert ((cols["Product_mix"] == code).astype(float) == sheet[column]).all(), column
-    assert ((cols["Programmes_or_exams"] == 1.0).astype(float) == sheet["Programmes AND/OR exams"]).all()
-    for opt in edited.find_derived("DRIVERS").outputs:
-        assert (cols[opt.name].fillna(0) == sheet[opt.label]).all(), opt.label
+    customer = _ticked(raw.df["Customer type"])
+    count = [min(len(t), 3) or None for t in customer]  # every listed answer counts (their LEN formula)
+    assert cols["Product_count"].tolist() == pytest.approx([float(c) if c else None for c in count], nan_ok=True)
+    named = {v: k for k, v in PRODUCTS.items()}
+    sets = [{named.get(a, a) for a in t} for t in customer]  # non-product answers rule a mix out
+    for code, mix in [(1.0, {"Resources"}), (3.0, {"Exams"}), (6.0, {"Resources", "Exams"})]:
+        assert ((cols["Product_mix"] == code).tolist()) == [s == mix for s in sets], mix
+    either = [bool(s) and s <= {"Programmes", "Exams"} for s in sets]
+    assert (cols["Programmes_or_exams"] == 1.0).tolist() == either
+    first = raw.df["Detractors Drivers"].combine_first(raw.df["Passive Drivers"]).combine_first(raw.df["Promoter Drivers"])
+    for opt, given in [(o, _ticked(first)) for o in edited.find_derived("DRIVERS").outputs]:
+        assert (cols[opt.name] == 1).tolist() == [opt.label in g for g in given], opt.label
 
 
 def test_client_rules_place_role_group_after_job_role(client_coded):

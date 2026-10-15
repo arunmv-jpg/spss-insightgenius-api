@@ -37,7 +37,7 @@ from services.codebook.model import Code, Codebook, Inferred, Source, Variable
 from services.codebook.patch import EditError, apply_ops  # noqa: F401
 from services.quantipy_engine import QuantiProEngine, SPSSData
 
-# Re-exported for existing importers (routers, MCP, respondent_sheet, tests)
+# Re-exported for existing importers (routers, MCP, tests)
 from services.codebook.heuristics import (  # noqa: F401
     MAX_CATEGORIES,
     MULTI_SELECT_DELIMITER,

@@ -114,6 +114,7 @@
             </div>
           </details>
           <input id="setup-file" type="file" accept=".json,application/json" class="hidden">
+          <button id="open-data-sheets" class="edit-only btn btn-ghost" title="FULL DATA sheet + one sheet per category">Data sheets</button>
           <button id="download-codebook" class="btn btn-ghost" title="Download how each column is coded (JSON)">Export codebook</button>
           <button id="approve" class="btn btn-primary ml-2">
             <span id="approve-label">Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
@@ -162,6 +163,26 @@
       </div>
     </section>
   </main>
+
+  <!-- Data sheets (FULL DATA + category tabs) -->
+  <dialog id="dwb" class="drawer p-0 ambient" aria-labelledby="dwb-title">
+    <div class="h-full flex flex-col">
+      <div class="px-5 pt-4 pb-3 ring-1 ring-gray-100 flex items-start justify-between gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-gray-400">Output</p>
+          <h3 id="dwb-title" class="font-semibold">Respondent data sheets</h3>
+        </div>
+        <button id="dwb-close" class="icon-btn" aria-label="Close">&#x2715;</button>
+      </div>
+      <div id="dwb-body" class="flex-1 overflow-y-auto px-5 py-4 space-y-4"></div>
+      <div class="px-5 py-3 ring-1 ring-gray-100 flex flex-wrap items-center gap-2">
+        <p id="dwb-status" class="text-xs text-gray-500 flex-1 min-w-0"></p>
+        <button id="dwb-download" class="btn btn-ghost ring-1 ring-gray-200">Download now</button>
+        <button id="dwb-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="dwb-save" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Recode drawer -->
   <dialog id="recoder" class="drawer p-0 ambient" aria-labelledby="rc-title">
@@ -839,6 +860,148 @@ $('setup-menu').addEventListener('toggle', async () => {
                                         onclick: () => applySetup({ setup_id: x.id }) }, `Apply ${x.name}`)));
   } catch (_) { /* optional */ }
 });
+
+// ── Data sheets: FULL DATA + one tab per category (RECODING_PLAN.md §7) ──
+// A draft of the codebook's data_workbook setting; Save stores it (one Undo step), Download builds it now.
+const dw = { on: false, s: null };
+const DW_DEFAULT = () => ({ title: 'FULL DATA', drop_columns: [], groups: [], score_flags: null, tabs: [] });
+
+function openDataSheets() {
+  const current = state.codebook.data_workbook;
+  dw.on = !!current;
+  dw.s = current ? JSON.parse(JSON.stringify(current)) : DW_DEFAULT();
+  renderDataSheets();
+  $('dwb').showModal();
+}
+
+// Variables a tab or flag columns can be built from: coded questions, multi-selects and added variables
+function dwSources() {
+  const vars = state.codebook.variables.filter(v => (isTabulable(v) || v.role === 'multi'))
+    .map(v => ({ ref: ref(v), label: v.label, codes: v.role === 'multi' ? [] : v.codes, column: v.column, multi: v.role === 'multi' }));
+  const derived = state.codebook.derived.filter(d => d.codes.length || d.outputs.length)
+    .map(d => ({ ref: d.name, label: d.label, codes: d.codes, column: derivedSourceVar(d)?.column, multi: !!d.outputs.length }));
+  return [...vars, ...derived];
+}
+const dwFind = (r) => dwSources().find(x => x.ref === r);
+
+function dwSelect(items, value, onchange, label) {
+  return el('select', { class: 'rc-input w-auto max-w-[16rem]', 'aria-label': label, onchange: (e) => onchange(e.target.value) },
+    ...items.map(([v, t]) => { const o = el('option', { value: v }, t); if (String(v) === String(value)) o.selected = true; return o; }));
+}
+
+function dwColumnName(c) {
+  if (c.flags_of) return `one column per answer of ${dwFind(c.flags_of)?.label ?? c.flags_of}`;
+  if (c.count) return `${c.header || 'count'} (number ticked)`;
+  if (c.first_of) return `${c.header} (first answered of ${c.first_of.length})`;
+  return c.header || c.var;
+}
+
+function renderDataSheets() {
+  const s = dw.s, rerender = renderDataSheets, body = $('dwb-body');
+  const section = (title, hint, ...kids) => el('div', { class: 'space-y-2' },
+    el('p', { class: 'text-sm font-medium text-gray-700' }, title, hint ? el('span', { class: 'font-normal text-gray-500' }, ` — ${hint}`) : null), ...kids);
+  const sources = dwSources();
+  const columns = state.codebook.variables.map(v => v.column);
+
+  const flagPick = dwSelect([['', 'Add one column per answer of…'], ...sources.map(x => [x.ref, x.label])], '', (r) => {
+    const src = dwFind(r);
+    if (!src) return;
+    s.groups.push({ after: (src.column || columns.at(-1)).trim(), columns: [{ flags_of: r }] });
+    rerender();
+  }, 'Add flag columns');
+
+  const tabPick = dwSelect([['', 'Add one tab per answer of…'], ...sources.filter(x => x.codes.length).map(x => [x.ref, x.label])], '', (r) => {
+    const src = dwFind(r);
+    if (!src) return;
+    s.tabs.push(...src.codes.map(c => ({ title: c.label.slice(0, 31), var: r, code: c.code })));
+    rerender();
+  }, 'Add tabs');
+
+  const tabRow = (t, i) => {
+    const src = dwFind(t.var);
+    return el('div', { class: 'flex flex-wrap items-center gap-1.5' },
+      el('input', { class: 'rc-input w-40', value: t.title, maxlength: '31', 'aria-label': 'Tab name', oninput: (e) => { t.title = e.target.value; } }),
+      t.when ? el('span', { class: 'text-xs text-gray-500' }, 'a condition (set by a setup)') : el('span', { class: 'contents' },
+        dwSelect(sources.filter(x => x.codes.length).map(x => [x.ref, x.label]), t.var, (r) => { t.var = r; t.code = dwFind(r)?.codes[0]?.code ?? null; rerender(); }, 'Variable'),
+        dwSelect((src?.codes || []).map(c => [c.code, c.label]), t.code, (c) => { t.code = Number(c); }, 'Category')),
+      smallBtn('↑', 'Earlier', () => { moveItem(s.tabs, i, -1); rerender(); }, i === 0),
+      smallBtn('✕', 'Remove tab', () => { s.tabs.splice(i, 1); rerender(); }));
+  };
+
+  const scores = s.score_flags || [1, 5];
+  body.replaceChildren(
+    el('label', { class: 'flex items-center gap-2 text-sm' },
+      el('input', { type: 'checkbox', ...(dw.on ? { checked: '' } : {}), onchange: (e) => { dw.on = e.target.checked; rerender(); } }),
+      'Add respondent data sheets to the analysis workbook'),
+    el('p', { class: 'text-xs text-gray-500' }, 'A FULL DATA sheet with every respondent\'s answers, extra 1/blank columns to count categories ',
+      '(each with % and count rows), and one sheet per category with just those respondents — the layout analysts build by hand.'),
+    el('fieldset', { class: `space-y-5 ${dw.on ? '' : 'opacity-50 pointer-events-none'}`, ...(dw.on ? {} : { disabled: '' }) },
+      el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, 'Name of the full data sheet'),
+        el('input', { class: 'rc-input', value: s.title, maxlength: '31', oninput: (e) => { s.title = e.target.value; } })),
+      section('Extra columns', 'placed right after the column they come from',
+        ...s.groups.map((g, i) => el('div', { class: 'rounded-lg ring-1 ring-gray-200 p-2 flex items-start gap-2' },
+          el('div', { class: 'flex-1 min-w-0 text-sm' }, el('p', { class: 'text-xs text-gray-500' }, `After "${g.after}"`),
+            el('div', { class: 'flex flex-wrap gap-1 mt-1' }, ...g.columns.map(c => el('span', { class: 'chip bg-gray-100 text-gray-700 max-w-[18rem] truncate', title: dwColumnName(c) }, dwColumnName(c))))),
+          smallBtn('✕', 'Remove these columns', () => { s.groups.splice(i, 1); rerender(); }))),
+        flagPick,
+        el('label', { class: 'flex flex-wrap items-center gap-2 text-sm' },
+          el('input', { type: 'checkbox', ...(s.score_flags ? { checked: '' } : {}), onchange: (e) => { s.score_flags = e.target.checked ? scores : null; rerender(); } }),
+          'A column per score after each rating question, from',
+          el('input', { class: 'rc-input w-14', type: 'number', value: scores[0], onchange: (e) => { s.score_flags = [+e.target.value, scores[1]]; } }), 'to',
+          el('input', { class: 'rc-input w-14', type: 'number', value: scores[1], onchange: (e) => { s.score_flags = [scores[0], +e.target.value]; } }))),
+      section('Category sheets', 'one sheet per category, in this order', ...s.tabs.map(tabRow), tabPick),
+      section('Leave out these columns', 'e.g. system columns of the export',
+        el('div', { class: 'max-h-40 overflow-y-auto rounded-lg ring-1 ring-gray-200 p-2 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-sm' },
+          ...columns.map(c => {
+            const off = s.drop_columns.some(x => x.trim().toLowerCase() === c.trim().toLowerCase());
+            return el('label', { class: 'flex items-center gap-1.5 min-w-0' },
+              el('input', { type: 'checkbox', ...(off ? { checked: '' } : {}), onchange: (e) => {
+                s.drop_columns = s.drop_columns.filter(x => x.trim().toLowerCase() !== c.trim().toLowerCase());
+                if (e.target.checked) s.drop_columns.push(c.trim());
+              } }), el('span', { class: 'truncate', title: c }, c));
+          })))));
+  $('dwb-status').textContent = '';
+}
+
+function dwSettings() {
+  if (!dw.on) return null;
+  const s = { ...dw.s, title: dw.s.title.trim() || 'FULL DATA' };
+  if (s.tabs.some(t => !t.title.trim())) throw new Error('Give each category sheet a name.');
+  return s;
+}
+
+$('dwb-save').addEventListener('click', async () => {
+  let settings;
+  try { settings = dwSettings(); } catch (e) { $('dwb-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  if (JSON.stringify(settings) === JSON.stringify(state.codebook.data_workbook ?? null)) { $('dwb').close(); return; }
+  if (await edit([{ op: 'set_data_workbook', settings }])) {
+    $('dwb').close();
+    toast(settings ? 'Data sheets will be added to the analysis' : 'No data sheets');
+  }
+});
+$('dwb-download').addEventListener('click', async () => {
+  let settings;
+  try { settings = dwSettings() || dw.s; } catch (e) { $('dwb-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  $('dwb-status').replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), 'Building…');
+  try {
+    const res = await fetch('/v1/exports/data-workbook', { method: 'POST', headers: { Authorization: `Bearer ${API_KEY}` },
+                                                           body: fileForm({ settings: JSON.stringify(settings) }, true) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.detail?.message || `Request failed (${res.status})`);
+    const warnings = JSON.parse(res.headers.get('X-Warnings') || '[]');
+    const blob = await res.blob();
+    const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'data.xlsx';
+    const a = el('a', { href: URL.createObjectURL(blob), download: name });
+    a.click(); URL.revokeObjectURL(a.href);
+    $('dwb-status').replaceChildren(warnings.length
+      ? el('span', { class: 'text-amber-700', title: warnings.join('\n') }, `Downloaded; ${plural(warnings.length, 'item')} left out (hover for why)`)
+      : 'Downloaded');
+  } catch (e) {
+    $('dwb-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message));
+  }
+});
+$('dwb-cancel').addEventListener('click', () => $('dwb').close());
+$('dwb-close').addEventListener('click', () => $('dwb').close());
+$('open-data-sheets').addEventListener('click', openDataSheets);
 
 // ── Actions ──
 $('download-codebook').addEventListener('click', () => {

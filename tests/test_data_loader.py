@@ -268,7 +268,7 @@ def test_job_role_group_assigns_one_role_by_priority():
     file_bytes = _xlsx({"Data": pd.DataFrame({"ID": range(8), "Job role": roles})})
     raw = read_raw(file_bytes, "roles.xlsx")
     codebook, applied, skipped = apply_setup(infer_codebook(raw), get_setup("hubspot_cx_pulse"), raw.df)
-    assert applied == ["Job role group"]  # this file has no Customer type / drivers: those are skipped
+    assert applied == ["Job role group", "Data sheets"]  # no Customer type / drivers here: those are skipped
     data = load_data(file_bytes, "roles.xlsx", codebook)
 
     assert data.meta.variable_value_labels["Job_role_group"] == {

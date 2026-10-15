@@ -95,6 +95,8 @@ def describe_edit(op: dict) -> str:
     kind = op.get("op", "?")
     if kind in ("add_derived", "update_derived"):
         return str((op.get("derived") or {}).get("label") or op.get("name") or kind)
+    if kind == "set_data_workbook":
+        return "Data sheets" if op.get("settings") else "No data sheets"
     if kind == "remove_derived":
         return f"remove {op.get('name')}"
     target = op.get("var", "")

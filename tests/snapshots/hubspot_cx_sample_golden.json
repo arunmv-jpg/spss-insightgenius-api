@@ -859,7 +859,7 @@
   "Passive Drivers",
   "Promoter Drivers",
   "Drivers",
-  "FULL DATA",
+  "FULL DATA PULSE",
   "Detractors",
   "Promoters",
   "Single",
@@ -3958,7 +3958,7 @@
   ]
  },
  "data_sheets": {
-  "FULL DATA": {
+  "FULL DATA PULSE": {
    "headers": [
     "COUNT",
     "Record ID",

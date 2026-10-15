@@ -86,6 +86,44 @@ class Derived(BaseModel):
         return [o.name for o in self.outputs] if self.outputs else [self.name]
 
 
+class SheetColumn(BaseModel):
+    """An extra column of the data workbook (services.data_workbook)."""
+    header: str = ""
+    var: str | None = Field(None, description="Variable / derived name: its value, or a flag with `code`")
+    code: float | None = Field(None, description="1 where `var` has this code")
+    when: dict[str, Any] | None = Field(None, description="1 where this condition holds (rule conditions)")
+    flags_of: str | None = Field(None, description="One flag column per answer / option of this variable")
+    headers: dict[str, str] = Field(default_factory=dict, description="flags_of: header per answer label or code")
+    order: list[str] = Field(default_factory=list, description="flags_of: answers containing these words first, in order")
+    last: list[str] = Field(default_factory=list, description="flags_of: these answers at the end")
+    count: str | None = Field(None, description="Number of options ticked of this multi-select")
+    exclude: list[str] = Field(default_factory=list, description="count: options not counted")
+    first_of: list[str] | None = Field(None, description="The first answered of these file columns, as answered")
+    total: Literal["SUM", "COUNT"] | None = None
+
+
+class ColumnGroup(BaseModel):
+    after: str = Field(description="File column the extra columns follow")
+    columns: list[SheetColumn]
+
+
+class SheetTab(BaseModel):
+    """A sheet with just the respondents of one category."""
+    title: str
+    var: str | None = None
+    code: float | None = None
+    when: dict[str, Any] | None = None
+
+
+class DataWorkbook(BaseModel):
+    """Respondent-level FULL DATA sheet + category tabs (RECODING_PLAN.md §7)."""
+    title: str = "FULL DATA"
+    drop_columns: list[str] = Field(default_factory=list, description="File columns left out")
+    groups: list[ColumnGroup] = Field(default_factory=list)
+    score_flags: tuple[int, int] | None = Field(None, description="[lo, hi]: a flag per score after each rating")
+    tabs: list[SheetTab] = Field(default_factory=list)
+
+
 class Source(BaseModel):
     format: str
     adapter: str = "generic"
@@ -98,6 +136,7 @@ class Codebook(BaseModel):
     source: Source
     variables: list[Variable]
     derived: list[Derived] = Field(default_factory=list)
+    data_workbook: DataWorkbook | None = Field(None, description="FULL DATA sheet + category tabs, if wanted")
 
     def variable(self, name: str) -> Variable | None:
         return next((v for v in self.variables if v.name == name), None)

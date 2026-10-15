@@ -1,7 +1,7 @@
 {
   "id": "hubspot_cx_exam_stage",
   "name": "HubSpot CX Exam Stage",
-  "description": "Job role group (one role per respondent by priority: Exams Officer > Leader, incl. Heads of Department who aren't teachers > Teacher > Other), number of products (Single / Dual / Triple), product mix, and one DRIVERS set from the detractor / passive / promoter driver questions.",
+  "description": "Job role group (one role per respondent by priority: Exams Officer > Leader, incl. Heads of Department who aren't teachers > Teacher > Other), number of products (Single / Dual / Triple), product mix, and one DRIVERS set from the detractor / passive / promoter driver questions. Data sheets: FULL DATA with role / product / NPS / driver / score flag columns, and one tab per NPS group, product count and role.",
   "match": {
     "columns": [
       "Job role",
@@ -205,6 +205,181 @@
             "Promoter Drivers"
           ]
         }
+      }
+    },
+    {
+      "op": "set_data_workbook",
+      "settings": {
+        "title": "FULL DATA",
+        "drop_columns": [
+          "Response",
+          "Industry Standard Question Type",
+          "Sentiment",
+          "Submission Name",
+          "Source",
+          "Survey ID",
+          "Survey Type",
+          "Rating",
+          "Visitor ID",
+          "Tags"
+        ],
+        "groups": [
+          {
+            "after": "Job role",
+            "columns": [
+              {
+                "flags_of": "Job_role_group",
+                "headers": {
+                  "1": "(##) Exams officer (regardless of other roles)",
+                  "2": "(##) Leader (if not EO, incl HoD who aren't teachers)",
+                  "3": "(##) Teachers (All other roles)",
+                  "4": "(##) Other (no listed role, e.g. only Other)"
+                }
+              }
+            ]
+          },
+          {
+            "after": "Customer type",
+            "columns": [
+              {
+                "header": "Number of products",
+                "count": "Customer type"
+              },
+              {
+                "flags_of": "Product_count"
+              },
+              {
+                "header": "Resources only",
+                "var": "Product_mix",
+                "code": 1
+              },
+              {
+                "header": "Programmes only",
+                "var": "Product_mix",
+                "code": 2
+              },
+              {
+                "header": "Exams only",
+                "var": "Product_mix",
+                "code": 3
+              },
+              {
+                "header": "Resources + Programmes",
+                "var": "Product_mix",
+                "code": 4
+              },
+              {
+                "header": "Programmes + Exams",
+                "var": "Product_mix",
+                "code": 5
+              },
+              {
+                "header": "Programmes AND/OR exams",
+                "var": "Programmes_or_exams",
+                "code": 1
+              },
+              {
+                "header": "Resources + Exams",
+                "var": "Product_mix",
+                "code": 6
+              }
+            ]
+          },
+          {
+            "after": "Exam Stage NPS",
+            "columns": [
+              {
+                "header": "Promoters",
+                "var": "Exam_Stage_NPS_group",
+                "code": 3
+              },
+              {
+                "header": "Passives",
+                "var": "Exam_Stage_NPS_group",
+                "code": 2
+              },
+              {
+                "header": "Detractors",
+                "var": "Exam_Stage_NPS_group",
+                "code": 1
+              }
+            ]
+          },
+          {
+            "after": "Promoter Drivers",
+            "columns": [
+              {
+                "header": "DRIVERS",
+                "first_of": [
+                  "Detractors Drivers",
+                  "Passive Drivers",
+                  "Promoter Drivers"
+                ]
+              },
+              {
+                "flags_of": "DRIVERS",
+                "order": [
+                  "accessibility",
+                  "quality",
+                  "ease of working",
+                  "support",
+                  "communication",
+                  "outcomes",
+                  "value for money"
+                ],
+                "last": [
+                  "Other"
+                ]
+              }
+            ]
+          }
+        ],
+        "score_flags": [
+          1,
+          5
+        ],
+        "tabs": [
+          {
+            "title": "Detractors",
+            "var": "Exam_Stage_NPS_group",
+            "code": 1
+          },
+          {
+            "title": "Promoters",
+            "var": "Exam_Stage_NPS_group",
+            "code": 3
+          },
+          {
+            "title": "Single",
+            "var": "Product_count",
+            "code": 1
+          },
+          {
+            "title": "Dual",
+            "var": "Product_count",
+            "code": 2
+          },
+          {
+            "title": "Triple",
+            "var": "Product_count",
+            "code": 3
+          },
+          {
+            "title": "Exam officers",
+            "var": "Job_role_group",
+            "code": 1
+          },
+          {
+            "title": "Teachers",
+            "var": "Job_role_group",
+            "code": 3
+          },
+          {
+            "title": "Leaders",
+            "var": "Job_role_group",
+            "code": 2
+          }
+        ]
       }
     }
   ]

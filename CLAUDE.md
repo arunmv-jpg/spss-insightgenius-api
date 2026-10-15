@@ -54,7 +54,7 @@ User identity = `key.name`. NEVER accept user_id from client input.
 | Metadata | POST /v1/metadata |
 | Analysis | /v1/frequency, /v1/crosstab, /v1/anova, /v1/correlation, /v1/gap-analysis, /v1/satisfaction-summary |
 | Tabulation | POST /v1/tabulate (sync + async webhook), POST /v1/auto-analyze |
-| Export | POST /v1/convert |
+| Export | POST /v1/convert, POST /v1/exports/data-workbook (FULL DATA + category sheets from the codebook) |
 | AI | POST /v1/smart-spec, /v1/parse-ticket, /v1/chat, /v1/chat-stream |
 | Weighting | POST /v1/weight/preview, /v1/weight/compute |
 | Wave | POST /v1/wave-compare |
