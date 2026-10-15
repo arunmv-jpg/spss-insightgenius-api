@@ -38,7 +38,8 @@ def test_builtin_setups_load():
     assert {"hubspot_cx_pulse", "hubspot_cx_exam_stage"} <= ids
     for setup in builtin_setups():
         assert setup.edits and setup.match.columns
-        assert "Cambridge" not in json.dumps(setup.model_dump())  # no client names in the repo
+        # No client names in the repo: rules refer to columns and generic answers, never brand wording
+        assert "Acme" not in json.dumps(setup.model_dump())  # the fixture's stand-in brand
 
 
 def test_match_prefers_the_survey_with_all_columns(raw):
