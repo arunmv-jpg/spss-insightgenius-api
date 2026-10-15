@@ -562,7 +562,9 @@ function details(item) {
     if (d.inferred?.reason) box.append(el('p', { class: 'text-xs text-gray-500' }, d.inferred.reason));
     const base = d.outputs.length ? state.codebook.source.rows : d.codes.reduce((s, c) => s + (c.count || 0), 0);
     box.append(el('div', { class: 'space-y-1.5' }, bars(d.outputs.length ? d.outputs : d.codes, base)));
+    const src = derivedSourceVar(d);
     box.append(el('div', { class: 'edit-only gap-1' },
+      src ? el('button', { class: 'btn btn-primary', onclick: () => openRecoder(src, 'new', d) }, 'Edit…') : null,
       el('button', { class: 'btn btn-ghost text-red-700', onclick: () => edit([{ op: 'remove_derived', name: d.name }]) }, 'Remove variable')));
     return box;
   }
@@ -728,12 +730,16 @@ $('approve').addEventListener('click', async () => {
 // Changes are staged here and sent as one batch of edits on Apply (one Undo step).
 const rc = { v: null, tab: 'edit', rows: [], merges: [], dragFrom: null };
 
-function openRecoder(v, tab = 'edit') {
-  rc.v = v; rc.tab = v.role === 'multi' ? 'new' : tab; rc.merges = [];
+// `editing`: an existing derived variable to change (the drawer opens on its builder, pre-filled)
+function openRecoder(v, tab = 'edit', editing = null) {
+  rc.v = v; rc.tab = v.role === 'multi' || editing ? 'new' : tab; rc.merges = []; rc.editing = editing;
   const row = (c, missing) => ({ orig: c.code, value: c.code, label: c.label, origLabel: c.label, count: c.count || 0,
                                  missing, origMissing: missing, sel: false });
   rc.rows = [...v.codes.map(c => row(c, false)), ...v.missing.map(c => row(c, true))];
-  $('rc-title').textContent = v.label;
+  nw.forVar = null;  // a fresh builder each time the drawer opens
+  if (editing) { nwReset(v); nwLoad(editing, v); nw.forVar = v.column; }
+  $('rc-title').textContent = editing ? editing.label : v.label;
+  document.querySelector('.rc-tab').parentElement.classList.toggle('hidden', !!editing);
   renderRecoder();
   if (!$('recoder').open) $('recoder').showModal();
 }
@@ -748,7 +754,7 @@ function renderRecoder() {
   document.querySelectorAll('.rc-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.rcTab === rc.tab)));
   const multiEdit = rc.tab === 'edit' && rc.v.role === 'multi';
   $('rc-apply').classList.toggle('hidden', multiEdit);
-  $('rc-apply').textContent = rc.tab === 'edit' ? 'Apply changes' : 'Create variable';
+  $('rc-apply').textContent = rc.tab === 'edit' ? 'Apply changes' : rc.editing ? 'Save changes' : 'Create variable';
   $('rc-status').textContent = '';
   rc.tab === 'edit' ? renderRecodeEdit() : renderRecodeNew();
 }
@@ -869,17 +875,19 @@ const nw = { mode: null, name: '', cats: [], picked: new Set(), elseMode: 'missi
              ranges: [], countExclude: new Set(), countBands: [], combine: new Set(), previewTimer: null, seq: 0 };
 
 function nwModes(v) {
-  if (v.role === 'multi') return [['count', 'Count options ticked'], ['combine', 'Combine with other multi-selects']];
+  if (v.role === 'multi') return [['count', 'Count options ticked'], ['combos', 'Combinations'], ['priority', 'Priority groups'],
+                                  ['combine', 'Combine with other multi-selects']];
   const modes = [['group', 'Group answers']];
   if (v.codes.length && v.codes.every(c => Number.isFinite(c.code))) modes.push(['ranges', 'Number ranges']);
-  modes.push(['flags', 'One column per answer']);
+  modes.push(['priority', 'Priority groups'], ['flags', 'One column per answer']);
   return modes;
 }
 
 function nwReset(v) {
   const modes = nwModes(v);
   Object.assign(nw, { mode: modes[0][0], name: nwDefaultName(v, modes[0][0]), cats: [], picked: new Set(), elseMode: 'missing',
-                      elseLabel: 'Other', countExclude: new Set(), combine: new Set([v.column]) });
+                      elseLabel: 'Other', countExclude: new Set(), combine: new Set([v.column]),
+                      prio: { groups: [], elseOn: true, elseLabel: 'Other', json: null }, combos: [], ignore: new Set() });
   const values = v.codes.map(c => c.code);
   const lo = Math.min(...values), hi = Math.max(...values);
   nw.ranges = values.length ? nwEqualRanges(lo, hi, Math.min(3, values.length)) : [];
@@ -888,8 +896,8 @@ function nwReset(v) {
 
 // A name that says what the variable is; replaced when the mode changes unless the user typed their own
 function nwDefaultName(v, mode) {
-  return `${v.label}: ` + { group: 'groups', ranges: 'bands', flags: 'one column per answer',
-                            count: 'number ticked', combine: 'combined' }[mode];
+  return `${v.label}: ` + { group: 'groups', ranges: 'bands', flags: 'one column per answer', count: 'number ticked',
+                            combine: 'combined', priority: 'priority groups', combos: 'combinations' }[mode];
 }
 
 function nwEqualRanges(lo, hi, n) {
@@ -910,8 +918,10 @@ function renderRecodeNew() {
   const modes = nwModes(v);
   const body = $('rc-body');
   body.replaceChildren(
-    el('p', { class: 'text-sm text-gray-600' }, 'Build a new variable from this question. The question itself stays as it is.'),
-    el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, 'Name of the new variable'),
+    el('p', { class: 'text-sm text-gray-600' }, rc.editing
+      ? `Change how this variable is built from "${v.label}". Tables using it update when you save.`
+      : 'Build a new variable from this question. The question itself stays as it is.'),
+    el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, rc.editing ? 'Name' : 'Name of the new variable'),
       el('input', { class: 'rc-input', value: nw.name, oninput: (e) => { nw.name = e.target.value; } })),
     el('div', { class: 'flex flex-wrap gap-1 text-sm', role: 'tablist' }, ...modes.map(([key, label]) =>
       el('button', { class: 'rc-tab px-3 py-1.5 rounded-lg ring-1 ring-gray-200', 'aria-selected': String(nw.mode === key),
@@ -921,7 +931,8 @@ function renderRecodeNew() {
                      } }, label))),
     el('div', { id: 'nw-form', class: 'space-y-3' }),
     el('div', { id: 'nw-preview', class: 'space-y-1.5 text-sm' }));
-  ({ group: nwGroupForm, ranges: nwRangesForm, flags: nwFlagsForm, count: nwCountForm, combine: nwCombineForm })[nw.mode](v);
+  ({ group: nwGroupForm, ranges: nwRangesForm, flags: nwFlagsForm, count: nwCountForm, combine: nwCombineForm,
+     priority: nwPriorityForm, combos: nwCombosForm })[nw.mode](v);
   nwSchedulePreview();
 }
 
@@ -1078,6 +1089,238 @@ function nwFlagsForm(v) {
   nwSchedulePreview();
 }
 
+// ── Priority groups: each group has conditions; the first group a person matches wins (Forsta's "logic" categories) ──
+// A group matches when any of its "ways" matches; a way matches when all of its condition rows match.
+function findVar(r) { return state.codebook.variables.find(v => [v.name, v.column, v.column?.trim(), v.label].includes(r)); }
+function condVars() { return [...multiVars(), ...codedVars()]; }
+function condOps(v) {
+  return v?.role === 'multi' ? [['any', 'ticked any of'], ['all', 'ticked all of'], ['none', 'ticked none of']]
+                             : [['in', 'is any of'], ['none', 'is none of']];
+}
+function condChoices(v) {
+  if (!v) return [];
+  return v.role === 'multi' ? v.options.map(o => ({ value: o.label, label: o.label }))
+                            : [...v.codes, ...v.missing].map(c => ({ value: c.code, label: c.label }));
+}
+function nwNewRow(v = rc.v) { return { var: ref(v), op: condOps(v)[0][0], values: [] }; }
+
+// Option chips that toggle on click (the values of a condition, the options of a combination)
+function chips(choices, selected, onToggle) {
+  return el('div', { class: 'flex flex-wrap gap-1' }, ...choices.map(c => {
+    const on = selected.some(x => x === c.value);
+    return el('button', { type: 'button', title: c.label, 'aria-pressed': String(on),
+      class: `chip max-w-[16rem] truncate ${on ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`,
+      onclick: () => onToggle(c.value, !on) }, c.label);
+  }));
+}
+
+function moveItem(list, i, by) {
+  const j = i + by;
+  if (j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+}
+const smallBtn = (text, title, onclick, disabled = false) =>
+  el('button', { type: 'button', class: 'icon-btn', title, 'aria-label': title, disabled: disabled ? '' : null, onclick }, text);
+
+function nwPriorityForm(v) {
+  const p = nw.prio, rerender = () => nwPriorityForm(v);
+  if (p.json != null) {
+    const area = el('textarea', { class: 'rc-input font-mono text-xs', rows: '16', spellcheck: 'false',
+                                  oninput: (e) => { p.json = e.target.value; nwSchedulePreview(); } });
+    area.value = p.json;
+    $('nw-form').replaceChildren(
+      el('p', { class: 'text-sm text-gray-600' }, 'This rule uses conditions the builder can\'t show, so it is edited as text.'), area);
+    return nwSchedulePreview();
+  }
+  if (!p.groups.length) p.groups.push({ label: '', ways: [[nwNewRow(v)]] });
+  const row = (g, way, r, ri) => {
+    const rv = findVar(r.var);
+    const varSel = el('select', { class: 'rc-input w-auto max-w-[14rem]', 'aria-label': 'Question',
+      onchange: (e) => { Object.assign(r, nwNewRow(findVar(e.target.value))); rerender(); } },
+      ...condVars().map(cv => { const o = el('option', { value: ref(cv) }, cv.label); if (ref(cv) === ref(rv || {})) o.selected = true; return o; }));
+    const opSel = el('select', { class: 'rc-input w-auto', 'aria-label': 'Condition',
+      onchange: (e) => { r.op = e.target.value; nwSchedulePreview(); } },
+      ...condOps(rv).map(([k, t]) => { const o = el('option', { value: k }, t); if (k === r.op) o.selected = true; return o; }));
+    return el('div', { class: 'space-y-1.5' },
+      el('div', { class: 'flex flex-wrap items-center gap-1.5 text-sm' },
+        el('span', { class: 'text-xs text-gray-400 w-8' }, ri ? 'and' : ''), varSel, opSel,
+        way.length > 1 ? smallBtn('✕', 'Remove this condition', () => { way.splice(ri, 1); rerender(); }) : null),
+      el('div', { class: 'pl-10' }, chips(condChoices(rv), r.values, (value, on) => {
+        r.values = on ? [...r.values, value] : r.values.filter(x => x !== value); rerender(); })));
+  };
+  const card = (g, gi) => el('div', { class: 'rounded-lg ring-1 ring-gray-200 p-3 space-y-2' },
+    el('div', { class: 'flex items-center gap-1.5' },
+      el('span', { class: 'text-xs font-semibold text-gray-400 w-5 text-right', title: 'Priority: checked in this order' }, gi + 1),
+      el('input', { class: 'rc-input', value: g.label, placeholder: 'Group name, e.g. Leader',
+                    oninput: (e) => { g.label = e.target.value; nwSchedulePreview(); } }),
+      smallBtn('↑', 'Check this group earlier', () => { moveItem(p.groups, gi, -1); rerender(); }, gi === 0),
+      smallBtn('↓', 'Check this group later', () => { moveItem(p.groups, gi, 1); rerender(); }, gi === p.groups.length - 1),
+      smallBtn('✕', 'Remove group', () => { p.groups.splice(gi, 1); rerender(); })),
+    el('p', { class: 'text-xs text-gray-500 pl-6' }, 'Gets this group when:'),
+    ...g.ways.flatMap((way, wi) => [
+      wi ? el('p', { class: 'text-xs font-semibold text-gray-400 pl-6' }, '— or —') : null,
+      el('div', { class: 'rounded-md bg-gray-50 p-2 ml-6 space-y-2' }, ...way.map((r, ri) => row(g, way, r, ri)),
+        el('div', { class: 'flex gap-2 pl-10' },
+          el('button', { type: 'button', class: 'text-xs text-blue-600', onclick: () => { way.push(nwNewRow(findVar(way.at(-1)?.var) || v)); rerender(); } }, '+ and'),
+          g.ways.length > 1 ? el('button', { type: 'button', class: 'text-xs text-gray-500', onclick: () => { g.ways.splice(wi, 1); rerender(); } }, 'remove this way') : null))]),
+    el('button', { type: 'button', class: 'text-xs text-blue-600 pl-6', onclick: () => { g.ways.push([nwNewRow(v)]); rerender(); } }, '+ or another way'));
+
+  $('nw-form').replaceChildren(
+    el('p', { class: 'text-sm text-gray-600' }, 'One group per person, checked from the top: the first group someone matches wins ',
+       '(e.g. Exams Officer, then Leader, then Teacher). Use ↑ ↓ to change the order.'),
+    ...p.groups.map(card),
+    el('button', { type: 'button', class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      p.groups.push({ label: '', ways: [[nwNewRow(v)]] }); rerender(); } }, '+ Group'),
+    el('label', { class: 'flex flex-wrap items-center gap-2 text-sm' },
+      el('input', { type: 'checkbox', ...(p.elseOn ? { checked: '' } : {}), onchange: (e) => { p.elseOn = e.target.checked; nwSchedulePreview(); } }),
+      `Everyone else who answered "${v.label}" goes to`,
+      el('input', { class: 'rc-input w-32', value: p.elseLabel, oninput: (e) => { p.elseLabel = e.target.value; nwSchedulePreview(); } })),
+    el('button', { type: 'button', class: 'text-xs text-gray-400 hover:text-gray-600', onclick: () => {
+      try { p.json = JSON.stringify(nwPriorityParams(), null, 2); } catch { p.json = JSON.stringify({ base: ref(v), groups: [] }, null, 2); }
+      rerender(); } }, 'Edit as text…'));
+  nwSchedulePreview();
+}
+
+function nwPriorityParams() {
+  const p = nw.prio;
+  if (p.json != null) {
+    try { return JSON.parse(p.json); } catch (e) { throw new Error(`The rule isn't valid: ${e.message}`); }
+  }
+  const groups = p.groups.map((g, i) => {
+    const label = g.label.trim() || `Group ${i + 1}`;
+    const ways = g.ways.map(way => way.filter(r => r.values.length).map(r => ({ var: r.var, [r.op]: r.values })))
+                       .filter(way => way.length).map(way => way.length === 1 ? way[0] : { and: way });
+    if (!ways.length) throw new Error(`"${label}": pick at least one answer in its conditions.`);
+    return { code: i + 1, label, when: ways.length === 1 ? ways[0] : { or: ways } };
+  });
+  if (!groups.length) throw new Error('Add at least one group.');
+  const params = { base: ref(rc.v), groups };
+  if (p.elseOn) params.else = { code: groups.length + 1, label: p.elseLabel.trim() || 'Other' };
+  return params;
+}
+
+// A stored condition back into builder rows (OR of AND-ed rows); null when it can't be shown that way
+function waysOf(when) {
+  const leaf = (c) => {
+    const op = ['any', 'all', 'none', 'in'].find(k => Array.isArray(c?.[k]));
+    if (!c?.var || !op || Object.keys(c).length !== 2 || !findVar(c.var)) return null;
+    const v = findVar(c.var);
+    const values = v.role === 'multi' ? c[op]
+      : c[op].map(x => typeof x === 'number' ? x : [...v.codes, ...v.missing].find(k => k.label.toLowerCase() === String(x).toLowerCase())?.code);
+    if (values.some(x => x === undefined)) return null;
+    return { var: ref(v), op: v.role === 'multi' ? (op === 'in' ? 'any' : op) : (op === 'none' ? 'none' : 'in'), values };
+  };
+  const way = (c) => c?.and ? c.and.map(leaf) : [leaf(c)];
+  const ways = when?.or ? when.or.map(way) : [way(when)];
+  return ways.every(w => w.every(Boolean)) ? ways : null;
+}
+
+// ── Combinations of a multi-select (e.g. Resources only / Resources + Exams …) ──
+function shortLabel(label) { const s = label.split(/ such as | \(| - /)[0]; return s.length > 32 ? `${s.slice(0, 31)}…` : s; }
+
+function nwCombosForm(v) {
+  const rerender = () => nwCombosForm(v);
+  const options = v.options.map(o => o.label).filter(l => !nw.ignore.has(l));
+  const choices = options.map(l => ({ value: l, label: l }));
+  const card = (c, i) => el('div', { class: 'rounded-lg ring-1 ring-gray-200 p-3 space-y-2' },
+    el('div', { class: 'flex items-center gap-1.5' },
+      el('span', { class: 'text-xs font-semibold text-gray-400 w-5 text-right' }, i + 1),
+      el('input', { class: 'rc-input', value: c.label, placeholder: 'Name, e.g. Resources + Exams',
+                    oninput: (e) => { c.label = e.target.value; c.touched = true; nwSchedulePreview(); } }),  // typed names stay
+      el('select', { class: 'rc-input w-auto', 'aria-label': 'How to match', onchange: (e) => { c.kind = e.target.value; nwSchedulePreview(); } },
+        ...[['exact', 'exactly these'], ['within', 'only from these']].map(([k, t]) => {
+          const o = el('option', { value: k }, t); if (k === c.kind) o.selected = true; return o; })),
+      smallBtn('↑', 'Check earlier', () => { moveItem(nw.combos, i, -1); rerender(); }, i === 0),
+      smallBtn('↓', 'Check later', () => { moveItem(nw.combos, i, 1); rerender(); }, i === nw.combos.length - 1),
+      smallBtn('✕', 'Remove', () => { nw.combos.splice(i, 1); rerender(); })),
+    el('div', { class: 'pl-6' }, chips(choices, [...c.values], (value, on) => {
+      on ? c.values.add(value) : c.values.delete(value);
+      if (!c.touched) c.label = [...c.values].map(shortLabel).join(' + ') + (c.values.size === 1 && c.kind === 'exact' ? ' only' : '');
+      rerender(); })));
+
+  $('nw-form').replaceChildren(
+    el('p', { class: 'text-sm text-gray-600' }, 'One group per person from the options they ticked. ',
+       '"Exactly these" = those options and nothing else; "only from these" = one or more of them, nothing else. The first match wins.'),
+    el('div', { class: 'text-sm space-y-1' }, el('p', { class: 'text-gray-500' }, 'Ignore these options when matching:'),
+      el('div', { class: 'flex flex-wrap gap-x-4 gap-y-1' }, ...v.options.map(o => el('label', { class: 'flex items-center gap-1.5' },
+        el('input', { type: 'checkbox', ...(nw.ignore.has(o.label) ? { checked: '' } : {}), onchange: (e) => {
+          e.target.checked ? nw.ignore.add(o.label) : nw.ignore.delete(o.label);
+          nw.combos.forEach(c => c.values.delete(o.label)); rerender(); } }), o.label)))),
+    options.length && options.length <= 8 ? el('button', { type: 'button', class: 'btn btn-ghost ring-1 ring-gray-200',
+      onclick: () => nwEveryCombination(v, options) }, 'Every combination people gave') : null,
+    ...nw.combos.map(card),
+    el('button', { type: 'button', class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      nw.combos.push({ label: '', kind: 'exact', values: new Set() }); rerender(); } }, '+ Combination'),
+    el('p', { class: 'text-xs text-gray-400' }, 'People whose ticks match no combination are left out (missing).'));
+  nwSchedulePreview();
+}
+
+// All combinations of the options, counted once on the server; the ones nobody gave are dropped
+async function nwEveryCombination(v, options) {
+  const subsets = [];
+  for (let mask = 1; mask < 1 << options.length; mask++) subsets.push(options.filter((_, b) => mask & (1 << b)));
+  subsets.sort((a, b) => a.length - b.length);
+  const combos = subsets.map(s => ({ label: s.map(shortLabel).join(' + ') + (s.length === 1 ? ' only' : ''), kind: 'exact', values: new Set(s) }));
+  $('rc-status').textContent = 'Finding the combinations in the data…';
+  try {
+    const spec = { label: 'combinations', rule: 'combination', params: { from: ref(v), ignore: [...nw.ignore],
+                   combos: combos.map((c, i) => ({ code: i + 1, label: c.label, exact: [...c.values] })) } };
+    const data = await api('/v1/codebook', fileForm({ edits: JSON.stringify([{ op: 'add_derived', derived: spec }]) }, true));
+    const counts = new Map(data.codebook.derived.at(-1).codes.map(c => [c.code, c.count || 0]));
+    nw.combos = combos.filter((_, i) => counts.get(i + 1) > 0);
+    $('rc-status').textContent = `${plural(nw.combos.length, 'combination')} found`;
+  } catch (e) {
+    $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message));
+    return;
+  }
+  nwCombosForm(v);
+}
+
+// Fill the builder from an existing derived variable (Edit)
+function nwLoad(d, v) {
+  const p = d.params || {};
+  const codeOf = (x) => typeof x === 'number' ? x : nwAnswers(v).find(a => a.label.toLowerCase() === String(x).toLowerCase())?.code;
+  nw.name = d.label;
+  if (d.rule === 'recode') {
+    nw.mode = 'group';
+    nw.cats = (p.groups || []).map(g => ({ label: g.label, values: new Set((g.values || []).map(codeOf).filter(x => x !== undefined)) }));
+    if (p.else) Object.assign(nw, { elseMode: 'other', elseLabel: p.else.label });
+  } else if (d.rule === 'bands') {
+    nw.mode = 'ranges';
+    nw.ranges = (p.bands || []).map(b => ({ label: b.label, min: b.min ?? null, max: b.max ?? null, mask: false }));
+  } else if (d.rule === 'count') {
+    nw.mode = 'count';
+    nw.countExclude = new Set(p.exclude || []);
+    nw.countBands = (p.bands || []).map(b => ({ label: b.label, min: b.min ?? null, max: b.max ?? null }));
+  } else if (d.rule === 'coalesce') {
+    nw.mode = 'combine';
+    nw.combine = new Set((p.from || []).map(r => findVar(r)?.column).filter(Boolean));
+  } else if (d.rule === 'flags') {
+    nw.mode = 'flags';
+  } else if (d.rule === 'priority') {
+    nw.mode = 'priority';
+    const groups = (p.groups || []).map(g => ({ label: g.label, ways: waysOf(g.when) }));
+    nw.prio = groups.every(g => g.ways)
+      ? { groups, elseOn: !!p.else, elseLabel: p.else?.label || 'Other', json: null }
+      : { groups: [], elseOn: true, elseLabel: 'Other', json: JSON.stringify(p, null, 2) };
+  } else if (d.rule === 'combination') {
+    nw.mode = 'combos';
+    nw.ignore = new Set(p.ignore || []);
+    nw.combos = (p.combos || []).map(c => ({ label: c.label, kind: c.within ? 'within' : 'exact',
+                                             values: new Set(c.within || c.exact || []), touched: true }));
+  }
+}
+
+// The question a derived variable is built from, so it can be edited in the drawer
+function derivedSourceVar(d) {
+  if (d.rule === 'legacy_job_role_group') return null;
+  const p = d.params || {};
+  const from = Array.isArray(p.from) ? p.from[0] : p.from;
+  const refs = [from, p.base, d.source].filter(Boolean);
+  const scan = (x) => x && typeof x === 'object' ? (typeof x.var === 'string' ? [x.var] : []).concat(...Object.values(x).map(scan)) : [];
+  return [...refs, ...scan(p)].map(findVar).find(Boolean) || null;
+}
+
 // ── Spec, preview, create ──
 function nwSpec() {
   const v = rc.v, label = nw.name.trim();
@@ -1101,6 +1344,13 @@ function nwSpec() {
   if (nw.mode === 'combine') {
     if (nw.combine.size < 2) throw new Error('Pick at least two multi-select questions to combine.');
     return { label, rule: 'coalesce', params: { from: multiVars().filter(m => nw.combine.has(m.column)).map(m => m.column) } };
+  }
+  if (nw.mode === 'priority') return { label, rule: 'priority', params: nwPriorityParams() };
+  if (nw.mode === 'combos') {
+    const combos = nw.combos.filter(c => c.values.size).map((c, i) => ({ code: i + 1, label: c.label.trim() || `Combination ${i + 1}`,
+                                                                          [c.kind]: [...c.values] }));
+    if (!combos.length) throw new Error('Add a combination and pick its options.');
+    return { label, rule: 'combination', params: { from: ref(v), ignore: [...nw.ignore], combos } };
   }
   return { label, rule: 'flags', params: { from: ref(v) } };
 }
@@ -1134,10 +1384,12 @@ async function nwPreview() {
 async function nwCreate() {
   let spec;
   try { spec = nwSpec(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
-  if (await edit([{ op: 'add_derived', derived: spec }])) {
+  const editing = rc.editing;
+  const op = editing ? { op: 'update_derived', name: editing.name, derived: spec } : { op: 'add_derived', derived: spec };
+  if (await edit([op])) {
     nw.forVar = null;
     $('recoder').close();
-    toast(`Created "${spec.label}"`);
+    toast(editing ? `Saved "${spec.label}"` : `Created "${spec.label}"`);
   }
 }
 

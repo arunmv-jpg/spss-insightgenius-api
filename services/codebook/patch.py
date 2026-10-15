@@ -294,9 +294,13 @@ def _update_derived(cb, op, df):
     if current is None:
         raise EditError(f"no derived variable '{op['name']}'")
     index = cb.derived.index(current)
+    spec = dict(op["derived"])
+    spec.setdefault("after", current.after)  # an edit keeps the variable where it was
+    spec.setdefault("source", current.source)
+    spec.setdefault("inferred", {"rule": "manual", "reason": f"Edited by a reviewer ({spec.get('rule')})"})
     cb.derived.pop(index)
     try:
-        cb.derived.insert(index, _build_derived(cb, op["derived"], df, name=op["derived"].get("name") or current.name))
+        cb.derived.insert(index, _build_derived(cb, spec, df, name=spec.get("name") or current.name))
     except EditError:
         cb.derived.insert(index, current)
         raise

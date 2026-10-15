@@ -146,6 +146,33 @@ def test_remove_and_update_derived(raw, cb):
             "from": "CX_Pulse_Overall_NPS", "bands": [{"code": 1, "label": "0-8", "min": 0, "max": 8},
                                                       {"code": 2, "label": "9-10", "min": 9, "max": 10}]}}}])
     assert set(cols[nps].dropna()) == {1.0, 2.0}
+    before, after = cb.find_derived(nps), edited.find_derived(nps)
+    assert after.after == before.after and after.source == before.source  # stays in place
+    assert after.inferred.reason.startswith("Edited")
+
+
+def test_priority_and_combination_rules_built_in_the_ui(raw, cb):
+    # The shape the review page's priority builder sends: OR of AND-ed condition rows
+    role = "Job role"
+    edited, cols = coded(raw, cb, [
+        {"op": "add_derived", "derived": {"label": "Role (UI)", "rule": "priority", "params": {"base": role, "groups": [
+            {"code": 1, "label": "Exams Officer", "when": {"var": role, "any": ["Exams Officer"]}},
+            {"code": 2, "label": "Leader", "when": {"or": [
+                {"var": role, "any": ["School Leader", "School Group/School District Leader"]},
+                {"and": [{"var": role, "any": ["Head of Department"]}, {"var": role, "none": ["Teacher"]}]}]}},
+            {"code": 3, "label": "Teacher", "when": {"var": role, "any": ["Teacher"]}}],
+            "else": {"code": 4, "label": "Other"}}}},
+        {"op": "add_derived", "derived": {"label": "Mix (UI)", "rule": "combination", "params": {
+            "from": "Customer type", "ignore": [], "combos": [
+                {"code": 1, "label": "Exams only", "exact": ["Exams or qualifications"]},
+                {"code": 2, "label": "Programmes / exams", "within": ["Programmes or curriculum", "Exams or qualifications"]}]}}},
+    ])
+    client = json.loads(CLIENT_RULES.read_text(encoding="utf-8"))
+    _, legacy = coded(raw, cb, client["edits"])
+    role_ui = cols[edited.derived[-2].name]
+    assert role_ui.fillna(-1).equals(legacy["Role_group"].fillna(-1))
+    mix = cols[edited.derived[-1].name]
+    assert set(mix.dropna()) <= {1.0, 2.0} and (mix == 1).sum() > 0
 
 
 def test_name_collision_rejected(raw, cb):
