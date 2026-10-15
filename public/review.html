@@ -864,7 +864,7 @@ $('setup-menu').addEventListener('toggle', async () => {
 // ── Data sheets: FULL DATA + one tab per category (RECODING_PLAN.md §7) ──
 // A draft of the codebook's data_workbook setting; Save stores it (one Undo step), Download builds it now.
 const dw = { on: false, s: null };
-const DW_DEFAULT = () => ({ title: 'FULL DATA', drop_columns: [], groups: [], score_flags: null, tabs: [] });
+const DW_DEFAULT = () => ({ title: 'FULL DATA', drop_columns: [], groups: [], score_flags: null, tabs: [], percent_row: true });
 
 function openDataSheets() {
   const current = state.codebook.data_workbook;
@@ -938,6 +938,9 @@ function renderDataSheets() {
     el('fieldset', { class: `space-y-5 ${dw.on ? '' : 'opacity-50 pointer-events-none'}`, ...(dw.on ? {} : { disabled: '' }) },
       el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, 'Name of the full data sheet'),
         el('input', { class: 'rc-input', value: s.title, maxlength: '31', oninput: (e) => { s.title = e.target.value; } })),
+      el('label', { class: 'flex items-center gap-2 text-sm' },
+        el('input', { type: 'checkbox', ...(s.percent_row !== false ? { checked: '' } : {}), onchange: (e) => { s.percent_row = e.target.checked; } }),
+        'A % row above the counts row'),
       section('Extra columns', 'placed right after the column they come from',
         ...s.groups.map((g, i) => el('div', { class: 'rounded-lg ring-1 ring-gray-200 p-2 flex items-start gap-2' },
           el('div', { class: 'flex-1 min-w-0 text-sm' }, el('p', { class: 'text-xs text-gray-500' }, `After "${g.after}"`),

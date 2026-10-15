@@ -222,3 +222,18 @@ def test_auto_analyze_appends_the_sheets_only_when_set(client, auth_headers, hub
     assert "Leaders" in load_workbook(io.BytesIO(r.content), read_only=True).sheetnames
     r = _post(client, auth_headers, "/v1/auto-analyze", opts, file_bytes, "x.xlsx")
     assert not any(s.startswith("FULL DATA") for s in load_workbook(io.BytesIO(r.content), read_only=True).sheetnames)
+
+
+def test_counts_only_layout_like_the_exam_stage_workbook(survey):
+    file_bytes, raw, cb, df = survey
+    settings = {**SETTINGS, "percent_row": False, "tabs": []}
+    cb = apply_ops(cb, [{"op": "set_data_workbook", "settings": settings}], raw.df)
+    ws = load_workbook(io.BytesIO(data_workbook_bytes(file_bytes, "survey.xlsx", cb)[0]))["Respondents"]
+    last = 2 + len(df)
+    assert ws["A2"].value == f"=SUM(A3:A{last})" and ws.freeze_panes == "C3"
+    assert ws.max_row == last and ws["A3"].value == 1  # respondents start in row 3
+
+
+def test_exam_stage_setup_is_one_sheet_without_tabs():
+    settings = next(e for e in get_setup("hubspot_cx_exam_stage").edits if e["op"] == "set_data_workbook")["settings"]
+    assert settings["title"] == "Exam Stage" and settings["tabs"] == [] and settings["percent_row"] is False

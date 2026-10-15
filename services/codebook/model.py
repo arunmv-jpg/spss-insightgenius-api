@@ -121,6 +121,7 @@ class DataWorkbook(BaseModel):
     drop_columns: list[str] = Field(default_factory=list, description="File columns left out")
     groups: list[ColumnGroup] = Field(default_factory=list)
     score_flags: tuple[int, int] | None = Field(None, description="[lo, hi]: a flag per score after each rating")
+    percent_row: bool = Field(True, description="A % row above the counts row")
     tabs: list[SheetTab] = Field(default_factory=list)
 
 

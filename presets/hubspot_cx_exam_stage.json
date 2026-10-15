@@ -1,7 +1,7 @@
 {
   "id": "hubspot_cx_exam_stage",
   "name": "HubSpot CX Exam Stage",
-  "description": "Job role group (one role per respondent by priority: Exams Officer > Leader, incl. Heads of Department who aren't teachers > Teacher > Other), number of products (Single / Dual / Triple), product mix, and one DRIVERS set from the detractor / passive / promoter driver questions. Data sheets: FULL DATA with role / product / NPS / driver / score flag columns, and one tab per NPS group, product count and role.",
+  "description": "Job role group (one role per respondent by priority: Exams Officer > Leader, incl. Heads of Department who aren't teachers > Teacher > Other), number of products (Single / Dual / Triple), product mix, and one DRIVERS set from the detractor / passive / promoter driver questions. Data sheet: one 'Exam Stage' sheet with role / product / NPS / driver / score flag columns and a counts row, as in the analysts' Exam Stage workbook.",
   "match": {
     "columns": [
       "Job role",
@@ -210,7 +210,7 @@
     {
       "op": "set_data_workbook",
       "settings": {
-        "title": "FULL DATA",
+        "title": "Exam Stage",
         "drop_columns": [
           "Response",
           "Industry Standard Question Type",
@@ -338,48 +338,8 @@
           1,
           5
         ],
-        "tabs": [
-          {
-            "title": "Detractors",
-            "var": "Exam_Stage_NPS_group",
-            "code": 1
-          },
-          {
-            "title": "Promoters",
-            "var": "Exam_Stage_NPS_group",
-            "code": 3
-          },
-          {
-            "title": "Single",
-            "var": "Product_count",
-            "code": 1
-          },
-          {
-            "title": "Dual",
-            "var": "Product_count",
-            "code": 2
-          },
-          {
-            "title": "Triple",
-            "var": "Product_count",
-            "code": 3
-          },
-          {
-            "title": "Exam officers",
-            "var": "Job_role_group",
-            "code": 1
-          },
-          {
-            "title": "Teachers",
-            "var": "Job_role_group",
-            "code": 3
-          },
-          {
-            "title": "Leaders",
-            "var": "Job_role_group",
-            "code": 2
-          }
-        ]
+        "tabs": [],
+        "percent_row": false
       }
     }
   ]

@@ -7,9 +7,9 @@ review page or by a setup), so any survey can get the layout analysts build by h
 
 Every sheet has the same layout:
   row 1  headers
-  row 2  % of the sheet's respondents (count ÷ base in A3)
-  row 3  counts — SUM of each flag column, COUNT of numeric questions, base in A3
-  row 4+ respondents
+  row 2  % of the sheet's respondents (count ÷ base) — unless `percent_row` is off
+  row 3  counts — SUM of each flag column, COUNT of numeric questions, base in column A
+  row 4+ respondents                                 (rows 2 / 3+ without the % row)
 
 Columns:
   COUNT                       1 per respondent (first column)
@@ -194,20 +194,22 @@ def build_columns(df: pd.DataFrame, codebook: Codebook, settings: DataWorkbook) 
     return columns, b
 
 
-def write_sheet(ws, columns: list[Column]) -> None:
+def write_sheet(ws, columns: list[Column], percent_row: bool = True) -> None:
     n = len(columns[0][1]) if columns else 0
-    first, last = 4, 3 + n
+    counts = 3 if percent_row else 2
+    first, last = counts + 1, counts + n
 
     for j, (header, values, total) in enumerate(columns, start=1):
         letter = get_column_letter(j)
         ws.cell(row=1, column=j, value=header).font = HEADER_FONT
         if j == 1:  # base: number of respondents on this sheet
-            ws.cell(row=3, column=1, value=f"=SUM(A{first}:A{last})" if n else 0).font = TOTALS_FONT
+            ws.cell(row=counts, column=1, value=f"=SUM(A{first}:A{last})" if n else 0).font = TOTALS_FONT
         elif total:
-            count = ws.cell(row=3, column=j, value=f"={total}({letter}{first}:{letter}{last})" if n else 0)
+            count = ws.cell(row=counts, column=j, value=f"={total}({letter}{first}:{letter}{last})" if n else 0)
             count.font = TOTALS_FONT
-            share = ws.cell(row=2, column=j, value=f"=IF($A$3=0,0,{letter}3/$A$3)")
-            share.font, share.number_format = TOTALS_FONT, PERCENT_FORMAT
+            if percent_row:
+                share = ws.cell(row=2, column=j, value=f"=IF($A$3=0,0,{letter}3/$A$3)")
+                share.font, share.number_format = TOTALS_FONT, PERCENT_FORMAT
         for i, value in enumerate(values, start=first):
             if value is None or (not isinstance(value, str) and pd.isna(value)):
                 continue
@@ -216,7 +218,7 @@ def write_sheet(ws, columns: list[Column]) -> None:
             cell = ws.cell(row=i, column=j, value=value)
             if total == "SUM":
                 cell.fill = FLAG_FILL
-    ws.freeze_panes = "C4"
+    ws.freeze_panes = f"C{first}"
 
 
 def _title(wb, title: str) -> str:
@@ -233,13 +235,14 @@ def add_sheets(wb, df: pd.DataFrame, codebook: Codebook, settings: DataWorkbook)
     """Append FULL DATA + one sheet per tab to an openpyxl workbook → warnings."""
     df = df.dropna(axis=0, how="all").reset_index(drop=True)
     columns, b = build_columns(df, codebook, settings)
-    write_sheet(wb.create_sheet(_title(wb, settings.title)), columns)
+    write_sheet(wb.create_sheet(_title(wb, settings.title)), columns, settings.percent_row)
     for tab in settings.tabs:
         rows = b.rows_of(tab)
         if rows is None:
             continue
         mask = rows.to_numpy()
-        write_sheet(wb.create_sheet(_title(wb, tab.title)), [(h, v[mask], t) for h, v, t in columns])
+        write_sheet(wb.create_sheet(_title(wb, tab.title)), [(h, v[mask], t) for h, v, t in columns],
+                    settings.percent_row)
     return b.warnings
 
 
