@@ -1,9 +1,12 @@
 """Web UI sign-in: credentials from env, signed session cookie, gated pages."""
 
+import os
+
 from fastapi.testclient import TestClient
 
-from conftest import UI_EMAIL, UI_PASSWORD
 from main import app
+
+UI_EMAIL, UI_PASSWORD = os.environ["UI_LOGIN_EMAIL"], os.environ["UI_LOGIN_PASSWORD"]  # set in conftest
 
 APP_PAGES = ["/home", "/datasets", "/datasets/upload", "/review", "/workflows",
              "/export", "/express", "/wizard", "/export-mcp", "/settings"]
