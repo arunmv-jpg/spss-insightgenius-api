@@ -63,6 +63,29 @@ User identity = `key.name`. NEVER accept user_id from client input.
 | Keys | POST/GET/DELETE /v1/keys |
 | MCP | 13 tools at /mcp/sse |
 
+## Web UI
+
+Static pages in `public/`, routed in `main.py`. One design system for every page:
+- `public/ui/ic.css`: tokens and component classes (`.ic-btn`, `.ic-card`, `.ic-table`, `.ic-stepper`, `.ic-dropzone`, `.ic-option`, `.ic-result`, `.ic-modal`…).
+- `public/ui/ic.js`: `<ic-sidebar>`, `<ic-topbar>` and `<ic-icon>`, plus the `window.IC` helpers.
+- `public/ui/tw.js`: Tailwind theme for pages whose scripts still build utility-class markup.
+- `public/ui/datasets.js`: library calls and the shared datasets table.
+- New pages copy the skeleton in `home.html`. Don't add new colours or a second style system.
+
+Sidebar sections and the pages behind them:
+- Home: `/home`
+- Datasets: `/datasets`, `/datasets/upload`, `/datasets/{id}`
+- Transformations: `/review`
+- Workflows: `/workflows` → `/export` (tabulation), `/express`, `/wizard`, `/export-mcp` (AI chat)
+- Settings: `/settings`
+
+Sign-in:
+- `/` is the split-screen sign-in.
+- App pages need the `ic_session` cookie (`routers/ui_auth.py`). Without it they redirect to `/?next=…`.
+- There is one account, set by `UI_LOGIN_EMAIL` / `UI_LOGIN_PASSWORD` (`UI_LOGIN_NAME` is optional). Sign-in is refused while either is unset.
+- `/upload` (MCP uploader), `/privacy` and `/docs/mcp` stay public.
+- The pages still call the API with the demo key from `/static/config.js`.
+
 ## Testing
 
 ```bash
