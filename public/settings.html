@@ -14,7 +14,12 @@
   .set-row dt { width: 180px; flex-shrink: 0; color: var(--ic-text-muted); font-size: 13px; }
   .set-row dd { margin: 0; flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
   .set-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 20px; }
-  @media (max-width: 960px) { .set-links { grid-template-columns: 1fr; } .set-row dt { width: 120px; } }
+  @media (max-width: 960px) {
+    .set-links { grid-template-columns: 1fr; }
+    .set-row { flex-wrap: wrap; gap: 4px 12px; }
+    .set-row dt { width: 100%; }
+    .set-row dd { flex: 1 1 0; }
+  }
 </style>
 </head>
 <body class="ic-body">

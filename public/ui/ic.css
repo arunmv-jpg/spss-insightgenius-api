@@ -317,7 +317,8 @@ dialog.ic-modal::backdrop { background: rgba(15, 27, 61, .4); }
   .ic-app { grid-template-columns: 1fr; }
   ic-sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--ic-border); }
   ic-sidebar .ic-brand { padding: 0 8px 0 0; }
-  ic-sidebar .ic-nav { flex-direction: row; flex-wrap: wrap; }
+  ic-sidebar .ic-nav { flex-direction: row; flex-wrap: wrap; gap: 0; }
+  ic-sidebar .ic-nav-link { padding: 6px 8px; font-size: 13px; gap: 6px; }
   .ic-sidebar-promo { display: none; }
   ic-topbar { padding: 0 16px; position: static; }
   .ic-page { padding: 20px 16px 40px; }

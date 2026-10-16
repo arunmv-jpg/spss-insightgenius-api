@@ -287,7 +287,9 @@ def create_application() -> FastAPI:
             async def get_response(self, path, scope):
                 if path.endswith(".html"):
                     return JSONResponse(status_code=404, content={"detail": "Not Found"})
-                return await super().get_response(path, scope)
+                response = await super().get_response(path, scope)
+                response.headers.update(PAGE_HEADERS)  # revalidate shared CSS/JS like the pages
+                return response
 
         app.mount("/static", AssetFiles(directory=str(public_dir)), name="static")
     else:
