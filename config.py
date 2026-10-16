@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     # Demo API key for embedded frontend (not in repo — set in Railway env vars)
     demo_api_key: str = ""
 
+    # Web UI sign-in — one shared account until real user accounts exist.
+    # Sign-in is refused while email or password is unset.
+    ui_login_email: str = ""
+    ui_login_password: str = ""
+    ui_login_name: str = ""  # shown in the top bar; falls back to the email
+    ui_session_secret: str = ""  # signs the session cookie; derived from the credentials if unset
+    ui_session_hours: int = 12
+
     # MCP file sessions
     spss_session_ttl_seconds: int = 1800  # 30 minutes sliding window
     redis_max_file_size_mb: int = 100

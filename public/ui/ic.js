@@ -194,6 +194,24 @@
     }
   }
 
+  // Decorative illustration: stacked data sheets with a trend chart (hero + sign-in).
+  const ART = `<svg viewBox="0 0 220 170" fill="none" aria-hidden="true">
+    <rect x="58" y="10" width="140" height="104" rx="12" fill="#dfe6fa" stroke="#c8d3f3"/>
+    <rect x="40" y="26" width="140" height="104" rx="12" fill="#eef2fd" stroke="#c8d3f3"/>
+    <rect x="22" y="42" width="140" height="104" rx="12" fill="#fff" stroke="#c8d3f3"/>
+    <rect x="36" y="58" width="60" height="7" rx="3.5" fill="#c8d3f3"/>
+    <rect x="36" y="74" width="96" height="5" rx="2.5" fill="#e7ecfa"/>
+    <rect x="36" y="86" width="80" height="5" rx="2.5" fill="#e7ecfa"/>
+    <rect x="36" y="98" width="88" height="5" rx="2.5" fill="#e7ecfa"/>
+    <rect x="116" y="96" width="70" height="62" rx="12" fill="#2f4fb3"/>
+    <path d="M128 144 L142 128 L154 136 L174 112" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="174" cy="112" r="4" fill="#fff"/>
+  </svg>`;
+  class IcIllustration extends HTMLElement {
+    connectedCallback() { if (!this.firstChild) this.innerHTML = ART; }
+  }
+
+  customElements.define('ic-illustration', IcIllustration);
   customElements.define('ic-icon', IcIcon);
   customElements.define('ic-sidebar', IcSidebar);
   customElements.define('ic-topbar', IcTopbar);

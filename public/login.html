@@ -1,176 +1,152 @@
 <!DOCTYPE html>
-
-<html class="light" lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Login | Indico Crosstab</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "inverse-on-surface": "#eaf1ff",
-              "on-tertiary-container": "#faecff",
-              "background": "#f8f9ff",
-              "on-primary-container": "#eeefff",
-              "on-secondary-container": "#00217a",
-              "on-background": "#0b1c30",
-              "surface-dim": "#cbdbf5",
-              "on-secondary-fixed-variant": "#173bab",
-              "surface-container": "#e5eeff",
-              "tertiary": "#762fb3",
-              "on-primary-fixed-variant": "#003ea8",
-              "primary-fixed": "#dbe1ff",
-              "surface-container-high": "#dce9ff",
-              "inverse-surface": "#213145",
-              "secondary": "#3755c3",
-              "on-tertiary-fixed-variant": "#661aa3",
-              "secondary-container": "#708cfd",
-              "secondary-fixed-dim": "#b8c4ff",
-              "outline": "#737686",
-              "on-secondary-fixed": "#001453",
-              "tertiary-container": "#904bce",
-              "surface-bright": "#f8f9ff",
-              "primary-container": "#2563eb",
-              "tertiary-fixed": "#f1dbff",
-              "on-tertiary-fixed": "#2d0050",
-              "primary": "#004ac6",
-              "outline-variant": "#c3c6d7",
-              "error-container": "#ffdad6",
-              "on-surface-variant": "#434655",
-              "inverse-primary": "#b4c5ff",
-              "surface-tint": "#0053db",
-              "surface-container-highest": "#d3e4fe",
-              "tertiary-fixed-dim": "#dfb7ff",
-              "on-secondary": "#ffffff",
-              "on-primary": "#ffffff",
-              "primary-fixed-dim": "#b4c5ff",
-              "surface-container-lowest": "#ffffff",
-              "surface": "#f8f9ff",
-              "secondary-fixed": "#dde1ff",
-              "error": "#ba1a1a",
-              "on-surface": "#0b1c30",
-              "on-error-container": "#93000a",
-              "surface-variant": "#d3e4fe",
-              "surface-container-low": "#eff4ff",
-              "on-error": "#ffffff",
-              "on-primary-fixed": "#00174b",
-              "on-tertiary": "#ffffff"
-            },
-            fontFamily: {
-              "headline": ["Inter"],
-              "body": ["Inter"],
-              "label": ["Inter"]
-            },
-            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
-          },
-        },
-      }
-    </script>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Indico Crosstab</title>
+<meta name="description" content="Indico Crosstab — survey tabulation with significance testing, from Indico Labs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ui/ic.css">
+<script src="/static/ui/ic.js"></script>
 <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-            vertical-align: middle;
-        }
-        .bg-glass {
-            background: rgba(248, 249, 255, 0.8);
-            backdrop-filter: blur(16px);
-        }
-        .ambient-shadow {
-            box-shadow: 0 10px 30px -5px rgba(11, 28, 48, 0.06);
-        }
-    </style>
+  .auth { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); min-height: 100vh; }
+  .auth-brand {
+    position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 40px 56px;
+    background: radial-gradient(120% 90% at 0% 0%, #2a3f86 0%, var(--ic-navy-800) 45%, var(--ic-navy-900) 100%); color: #fff;
+  }
+  .auth-brand .ic-brand { color: #fff; padding: 0; }
+  .auth-brand .ic-brand-mark { background: rgba(255,255,255,.14); }
+  .auth-pitch { margin: auto 0; max-width: 460px; }
+  .auth-pitch h1 { font-size: 34px; line-height: 1.15; font-weight: 700; letter-spacing: -.025em; }
+  .auth-pitch > p { margin-top: 14px; color: #c3cdec; font-size: 15px; line-height: 1.6; }
+  .auth-points { margin-top: 28px; display: grid; gap: 14px; }
+  .auth-points li { display: flex; gap: 12px; align-items: flex-start; color: #e4e9f8; font-size: 14px; }
+  .auth-points ic-icon { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,.1); display: inline-grid !important; place-items: center; color: #fff; }
+  .auth-points b { display: block; color: #fff; font-weight: 600; }
+  .auth-points span { color: #b7c2e6; font-size: 13px; }
+  .auth-art { position: absolute; right: -30px; bottom: -10px; width: 300px; opacity: .2; pointer-events: none; }
+  .auth-foot { font-size: 12px; color: #93a1cf; }
+
+  .auth-form-side { display: flex; flex-direction: column; background: #fff; padding: 40px 56px; }
+  .auth-form-wrap { margin: auto; width: 100%; max-width: 380px; }
+  .auth-form-wrap h2 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+  .auth-form-wrap > p { margin-top: 6px; color: var(--ic-text-muted); }
+  .auth-form { margin-top: 28px; }
+  .pw-wrap { position: relative; }
+  .pw-wrap .ic-input { padding-right: 42px; }
+  .pw-toggle { position: absolute; right: 4px; top: 4px; }
+  .auth-links { display: flex; gap: 18px; justify-content: center; font-size: 12.5px; }
+  .auth-links a { color: var(--ic-text-subtle); text-decoration: none; }
+  .auth-links a:hover { color: var(--ic-text); }
+  .input-icon { position: relative; }
+  .input-icon > ic-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ic-text-subtle); pointer-events: none; }
+  .input-icon .ic-input { padding-left: 38px; }
+
+  @media (max-width: 900px) {
+    .auth { grid-template-columns: 1fr; }
+    .auth-brand { padding: 28px 24px; }
+    .auth-pitch { margin: 28px 0 8px; }
+    .auth-pitch h1 { font-size: 26px; }
+    .auth-points, .auth-art, .auth-foot { display: none; }
+    .auth-form-side { padding: 32px 24px; }
+  }
+</style>
 </head>
-<body class="bg-background font-body text-on-surface antialiased min-h-screen flex flex-col">
-<!-- Suppressed Navigation: Transitioning to Task-Focused Layout -->
-<main class="flex-grow flex items-center justify-center px-4 py-12">
-<div class="w-full max-w-[440px] space-y-8">
-<!-- Brand Anchor -->
-<div class="text-center space-y-2">
-<div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary mb-4">
-<span class="material-symbols-outlined text-on-primary text-2xl" data-icon="insights">insights</span>
+<body class="ic-body">
+<div class="auth">
+  <section class="auth-brand">
+    <a class="ic-brand" href="/"><span class="ic-brand-mark"><ic-icon name="logo" size="16"></ic-icon></span>Indico Crosstab</a>
+    <div class="auth-pitch">
+      <h1>Turn raw survey data into client-ready tables.</h1>
+      <p>Upload SPSS, CSV or Excel files and get professional crosstabs with significance testing — the same results every time.</p>
+      <ul class="auth-points">
+        <li><ic-icon name="table" size="16"></ic-icon><div><b>Excel tabulation</b><span>Banners, stubs, nets and means in one workbook.</span></div></li>
+        <li><ic-icon name="check-circle" size="16"></ic-icon><div><b>Significance testing</b><span>Column letters at 90, 95 or 99% confidence.</span></div></li>
+        <li><ic-icon name="message" size="16"></ic-icon><div><b>Ask questions in plain words</b><span>Chat with your data, or connect it to Claude.</span></div></li>
+      </ul>
+    </div>
+    <div class="auth-foot">An Indico Labs product</div>
+    <ic-illustration class="auth-art"></ic-illustration>
+  </section>
+
+  <section class="auth-form-side">
+    <div class="auth-form-wrap">
+      <h2>Welcome back</h2>
+      <p>Sign in to continue to your workspace.</p>
+
+      <form id="login-form" class="auth-form" novalidate>
+        <div class="ic-field">
+          <label class="ic-label" for="email">Email</label>
+          <div class="input-icon">
+            <ic-icon name="mail" size="16"></ic-icon>
+            <input class="ic-input" id="email" name="email" type="email" autocomplete="username" placeholder="you@company.com" required>
+          </div>
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="password">Password</label>
+          <div class="pw-wrap input-icon">
+            <ic-icon name="lock" size="16"></ic-icon>
+            <input class="ic-input" id="password" name="password" type="password" autocomplete="current-password" placeholder="Your password" required>
+            <button type="button" class="ic-icon-btn pw-toggle" id="pw-toggle" aria-label="Show password" aria-pressed="false"><ic-icon name="eye" size="16"></ic-icon></button>
+          </div>
+        </div>
+        <div id="login-error" class="ic-alert ic-alert--danger" role="alert" hidden style="margin-bottom:16px"></div>
+        <button type="submit" class="ic-btn ic-btn--primary ic-btn--lg ic-btn--block" id="login-submit">Sign in</button>
+      </form>
+    </div>
+    <nav class="auth-links" aria-label="Resources">
+      <a href="/docs">API docs</a><a href="/docs/mcp">MCP docs</a><a href="/privacy">Privacy</a>
+    </nav>
+  </section>
 </div>
-<h1 class="text-3xl font-extrabold tracking-tighter text-on-surface">Indico Crosstab</h1>
-<p class="text-on-surface-variant font-medium">Statistical Precision Guaranteed.</p>
-</div>
-<!-- Login Card -->
-<div class="bg-surface-container-lowest ambient-shadow rounded-xl p-8 md:p-10">
-<div class="space-y-6">
-<div>
-<h2 class="text-xl font-bold tracking-tight text-on-surface mb-1">Welcome back</h2>
-<p class="text-sm text-on-surface-variant">Please enter your details to sign in.</p>
-</div>
-<!-- Social Auth -->
-<button class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-sm font-semibold rounded-lg transition-all duration-200 active:scale-95">
-<svg class="w-5 h-5" viewbox="0 0 24 24">
-<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
-<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
-<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"></path>
-<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
-</svg>
-                        Continue with Google
-                    </button>
-<div class="relative flex items-center gap-4">
-<div class="flex-grow h-px bg-outline-variant/30"></div>
-<span class="text-[10px] uppercase tracking-widest text-outline font-bold">or use email</span>
-<div class="flex-grow h-px bg-outline-variant/30"></div>
-</div>
-<!-- Traditional Form -->
-<form class="space-y-4">
-<div class="space-y-1.5">
-<label class="text-[11px] font-bold uppercase tracking-wider text-outline" for="email">Email Address</label>
-<input class="w-full px-4 py-3 rounded-lg bg-surface-container-low border-none focus:ring-2 focus:ring-primary text-on-surface text-sm transition-all" id="email" placeholder="name@company.com" type="email"/>
-</div>
-<div class="space-y-1.5">
-<div class="flex justify-between items-center">
-<label class="text-[11px] font-bold uppercase tracking-wider text-outline" for="password">Password</label>
-<a class="text-[11px] font-bold text-primary hover:underline decoration-2 underline-offset-4" href="#">Forgot password?</a>
-</div>
-<input class="w-full px-4 py-3 rounded-lg bg-surface-container-low border-none focus:ring-2 focus:ring-primary text-on-surface text-sm transition-all" id="password" placeholder="••••••••" type="password"/>
-</div>
-<button class="w-full py-3.5 bg-gradient-to-br from-primary to-primary-container text-on-primary text-sm font-bold rounded-lg ambient-shadow transition-all duration-200 active:scale-[0.98] mt-2" type="submit">
-                            Sign In to Dashboard
-                        </button>
-</form>
-</div>
-<div class="mt-8 pt-6 border-t border-outline-variant/15 text-center">
-<p class="text-sm text-on-surface-variant">
-                        Don't have an account? 
-                        <a class="text-primary font-bold hover:underline decoration-2 underline-offset-4 ml-1" href="/signup">Sign up for free</a>
-</p>
-</div>
-</div>
-<!-- Trust Badge -->
-<div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 opacity-40 grayscale contrast-125">
-<img alt="Partner Logo 1" class="h-5" data-alt="minimalist clean vector logo for a technology company in grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHgvzZeG-R_p6UGBol1NQyP0sa2MmHJetP30LOGc63jtZRF_j_1m030prJvJwN5YFJwcw7wOCX3erDVhLkXvekvZucmo5su_ZNtuvgNfJLSrImXEMeTdqu7bV6itnrfGBiV5Pg-HieEJ671IkV2YvQ6fGviQcyNbP6Cjezq9r02ej_M43Zj_SI5SiPbSG5_axvqwSdHUYuokF_le0zPIuo2hFodySi80NV8xDgb1vVg-Sybdn0iFBPx-Rr5_d8KhNVayG4uSFpKSHZ"/>
-<img alt="Partner Logo 2" class="h-4" data-alt="modern simple typographic corporate logo in light grey vector style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHc9LkIkJO9f_gGFHchSptpYPKM2HrDscaq6TG9UBQuv-24qhtrlUWGkt8vcChjM8Gc6ZxoT2sKYXkkdDNh5a_VdqCpuWvMSb5Z12uy9zGot_SvBANBLmOSUlZe22qGlVzjUbNf-sM1IoCbXLqkiJakCRBLrkHD_oL3N2Ca8TwhnRxwrxJPwpDqL0bBn2yXkCTMvUQ_rO-6hyPvCObyQ4ojs2iA6ajjOvX26Z4MCxE6JEO4kM-j-_X-QZHFJqp9OCLDe3sxgwPknfH"/>
-<img alt="Partner Logo 3" class="h-5" data-alt="abstract geometric brand symbol for a data analytics firm in flat grey" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqbyJYH84Gh5lwGaFwk0-Bamv9Qj0Eae4HpD5KhAmvZhr93SnwOis9KhiGVqk0M-1kXTq0f3WZJw8oKEJcHphNhJLzY1IIsbHeuDO9adaRDVFqTx_azPnZYr-j8EKQhFVCm63Qp6JIonqC_-lhFCzEjZxnmVNPpSFE5K9_j7NQB8xDEPWjFsOySQDxAR_6kTGoRNt4Dhb9WHyoalo_5iLdYVsIOTPLENO6oMYLY-1DtUdVvaP1s_3Ps3P62R5D4eY92dHPpZZUNUJP"/>
-</div>
-</div>
-</main>
-<!-- Footer Segment -->
-<footer class="w-full py-8 border-t border-outline-variant/10">
-<div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-<div class="flex items-center gap-6">
-<span class="text-[10px] font-bold uppercase tracking-widest text-outline">© 2024 Indico Crosstab</span>
-</div>
-<div class="flex gap-6">
-<a class="text-[10px] font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors" href="#">Privacy Policy</a>
-<a class="text-[10px] font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors" href="#">Terms of Service</a>
-<a class="text-[10px] font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors" href="#">Support</a>
-</div>
-</div>
-</footer>
-<!-- Background Decorative Elements (The Ghost Grid) -->
-<div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
-<div class="absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(#0b1c30 1px, transparent 1px), linear-gradient(90deg, #0b1c30 1px, transparent 1px); background-size: 40px 40px;">
-</div>
-<div class="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full"></div>
-<div class="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] bg-secondary/5 blur-[100px] rounded-full"></div>
-</div>
-</body></html>
+
+<script>
+(function () {
+  const form = document.getElementById('login-form');
+  const email = document.getElementById('email');
+  const password = document.getElementById('password');
+  const errorBox = document.getElementById('login-error');
+  const submit = document.getElementById('login-submit');
+  const toggle = document.getElementById('pw-toggle');
+
+  function nextUrl() {
+    const n = new URLSearchParams(location.search).get('next') || '';
+    return n.startsWith('/') && !n.startsWith('//') ? n : '/home';
+  }
+  function showError(msg) { errorBox.textContent = msg; errorBox.hidden = !msg; }
+
+  toggle.addEventListener('click', () => {
+    const show = password.type === 'password';
+    password.type = show ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', String(show));
+    toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    toggle.querySelector('ic-icon').setAttribute('name', show ? 'eye-off' : 'eye');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    showError('');
+    if (!email.value.trim() || !password.value) { showError('Enter your email and password.'); return; }
+    submit.disabled = true;
+    submit.replaceChildren(IC.el('span', { class: 'ic-spinner' }), 'Signing in…');
+    try {
+      const res = await fetch('/auth/login', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.value.trim(), password: password.value }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.success) throw new Error((body.error && body.error.message) || 'Sign-in failed. Try again.');
+      location.href = nextUrl();
+    } catch (err) {
+      showError(err.message);
+      submit.disabled = false;
+      submit.textContent = 'Sign in';
+    }
+  });
+  email.focus();
+})();
+</script>
+</body>
+</html>

@@ -171,6 +171,7 @@ def create_application() -> FastAPI:
     from routers.codebook import router as codebook_router
     from routers.setups import router as setups_router
     from routers.exports import router as exports_router
+    from routers.ui_auth import router as ui_auth_router
 
     app.include_router(health_router)
     app.include_router(metadata_router)
@@ -197,6 +198,7 @@ def create_application() -> FastAPI:
     app.include_router(codebook_router)
     app.include_router(setups_router)
     app.include_router(exports_router)
+    app.include_router(ui_auth_router)
 
     from routers.jobs import router as jobs_router
     app.include_router(jobs_router)
@@ -230,71 +232,64 @@ def create_application() -> FastAPI:
     # without this, browsers heuristically cache the HTML and keep running old page code.
     PAGE_HEADERS = {"Cache-Control": "no-cache"}
     if public_dir.exists():
-        # Landing page (new Stitch design)
-        @app.get("/", include_in_schema=False)
-        async def root():
-            return FileResponse(public_dir / "index.html", headers=PAGE_HEADERS)
+        from urllib.parse import quote
 
-        # Auth pages
-        @app.get("/login", include_in_schema=False)
-        async def login_page():
-            return FileResponse(public_dir / "login.html", headers=PAGE_HEADERS)
+        from fastapi.responses import RedirectResponse
 
-        @app.get("/signup", include_in_schema=False)
-        async def signup_page():
-            return FileResponse(public_dir / "signup.html", headers=PAGE_HEADERS)
+        from routers.ui_auth import session_email
 
-        # Dashboard pages
-        @app.get("/app", include_in_schema=False)
-        async def app_page():
-            return FileResponse(public_dir / "app.html", headers=PAGE_HEADERS)
+        def page(name: str):
+            return FileResponse(public_dir / name, headers=PAGE_HEADERS)
 
-        @app.get("/export", include_in_schema=False)
-        async def export_page():
-            return FileResponse(public_dir / "app.html", headers=PAGE_HEADERS)
+        def signed_in_page(name: str):
+            """App pages need a signed-in session; otherwise go to sign-in and come back."""
+            async def handler(request: Request):
+                if not session_email(request):
+                    target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+                    return RedirectResponse(f"/?next={quote(target, safe='')}", status_code=303)
+                return page(name)
+            return handler
 
-        @app.get("/express", include_in_schema=False)
-        async def express_page():
-            return FileResponse(public_dir / "express.html", headers=PAGE_HEADERS)
+        # Sign-in (split screen) — signed-in visitors go straight to Home
+        async def sign_in(request: Request):
+            if session_email(request):
+                return RedirectResponse("/home", status_code=303)
+            return page("login.html")
 
-        @app.get("/wizard", include_in_schema=False)
-        async def wizard_page():
-            return FileResponse(public_dir / "wizard.html", headers=PAGE_HEADERS)
+        app.add_api_route("/", sign_in, methods=["GET"], include_in_schema=False)
+        app.add_api_route("/login", sign_in, methods=["GET"], include_in_schema=False)
 
-        @app.get("/export-mcp", include_in_schema=False)
-        async def export_mcp_page():
-            return FileResponse(public_dir / "chat.html", headers=PAGE_HEADERS)
+        # App pages (sidebar sections: Home, Datasets, Transformations, Workflows, Settings)
+        app_pages = {
+            "/home": "home.html",
+            "/datasets": "datasets.html",
+            "/datasets/upload": "dataset-upload.html",
+            "/datasets/{library_id}": "dataset.html",
+            "/review": "review.html",
+            "/workflows": "workflows.html",
+            "/app": "app.html",
+            "/export": "app.html",
+            "/express": "express.html",
+            "/wizard": "wizard.html",
+            "/export-mcp": "chat.html",
+            "/settings": "settings.html",
+        }
+        for path, name in app_pages.items():
+            app.add_api_route(path, signed_in_page(name), methods=["GET"], include_in_schema=False)
 
-        @app.get("/upload", include_in_schema=False)
-        async def upload_page():
-            return FileResponse(public_dir / "upload.html", headers=PAGE_HEADERS)
+        # Public pages: the MCP file uploader (linked from Claude) and docs
+        public_pages = {"/upload": "upload.html", "/privacy": "privacy.html", "/docs/mcp": "mcp-docs.html"}
+        for path, name in public_pages.items():
+            app.add_api_route(path, (lambda n: lambda: page(n))(name), methods=["GET"], include_in_schema=False)
 
-        @app.get("/review", include_in_schema=False)
-        async def review_page():
-            return FileResponse(public_dir / "review.html", headers=PAGE_HEADERS)
+        class AssetFiles(StaticFiles):
+            """Shared assets only: pages are served by the routes above (so sign-in applies)."""
+            async def get_response(self, path, scope):
+                if path.endswith(".html"):
+                    return JSONResponse(status_code=404, content={"detail": "Not Found"})
+                return await super().get_response(path, scope)
 
-        @app.get("/app/dashboard", include_in_schema=False)
-        async def dashboard_page():
-            return FileResponse(public_dir / "dashboard.html", headers=PAGE_HEADERS)
-
-        @app.get("/app/keys", include_in_schema=False)
-        async def api_keys_page():
-            return FileResponse(public_dir / "api-keys.html", headers=PAGE_HEADERS)
-
-        @app.get("/app/billing", include_in_schema=False)
-        async def billing_page():
-            return FileResponse(public_dir / "billing.html", headers=PAGE_HEADERS)
-
-        # Info pages
-        @app.get("/privacy", include_in_schema=False)
-        async def privacy():
-            return FileResponse(public_dir / "privacy.html", headers=PAGE_HEADERS)
-
-        @app.get("/docs/mcp", include_in_schema=False)
-        async def mcp_docs():
-            return FileResponse(public_dir / "mcp-docs.html", headers=PAGE_HEADERS)
-
-        app.mount("/static", StaticFiles(directory=str(public_dir)), name="static")
+        app.mount("/static", AssetFiles(directory=str(public_dir)), name="static")
     else:
         @app.get("/", include_in_schema=False)
         async def root():
