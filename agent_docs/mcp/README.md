@@ -1,4 +1,4 @@
-# SPSS InsightGenius — MCP Server Technical Documentation
+# Indico Crosstab — MCP Server Technical Documentation
 
 > Server name: `spss_mcp` | Version: 2.0.0 | 14 tools | Streamable HTTP + SSE
 
@@ -13,8 +13,8 @@ Add to your MCP settings:
 ```json
 {
   "mcpServers": {
-    "spss_insightgenius": {
-      "url": "https://spss.insightgenius.io/mcp/http",
+    "indico_crosstab": {
+      "url": "https://crosstab.indicolabs.io/mcp/http",
       "headers": {
         "Authorization": "Bearer sk_test_YOUR_API_KEY"
       }
@@ -25,7 +25,7 @@ Add to your MCP settings:
 
 ### Connect from n8n / Make
 
-SSE endpoint (legacy): `https://spss.insightgenius.io/mcp/sse`
+SSE endpoint (legacy): `https://crosstab.indicolabs.io/mcp/sse`
 Pass `api_key` as parameter in each tool call.
 
 ### First Conversation
@@ -164,7 +164,7 @@ Every analysis tool accepts `response_format`:
 `spss_create_tabulation`, `spss_auto_analyze`, `spss_export_data` return:
 ```json
 {
-  "download_url": "https://spss.insightgenius.io/downloads/{token}",
+  "download_url": "https://crosstab.indicolabs.io/downloads/{token}",
   "download_expires_in_seconds": 300,
   "filename": "tabulation_region_survey.xlsx"
 }

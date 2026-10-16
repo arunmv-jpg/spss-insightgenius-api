@@ -1,8 +1,8 @@
-# SPSS InsightGenius API
+# Indico Crosstab API
 
 **Professional SPSS processing API + MCP server for market research.** Upload .sav files, get crosstabs with significance testing, auto-detected question types, and publication-ready Excel exports. Includes AI-powered zero-config analysis.
 
-**Live**: [spss.insightgenius.io](https://spss.insightgenius.io) | **API Docs**: [spss.insightgenius.io/docs](https://spss.insightgenius.io/docs) | **MCP**: `spss.insightgenius.io/mcp/sse`
+**Live**: [crosstab.indicolabs.io](https://crosstab.indicolabs.io) | **API Docs**: [crosstab.indicolabs.io/docs](https://crosstab.indicolabs.io/docs) | **MCP**: `crosstab.indicolabs.io/mcp/sse`
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### Option 1: Web UI (no code needed)
 
-1. Open [spss.insightgenius.io](https://spss.insightgenius.io)
+1. Open [crosstab.indicolabs.io](https://crosstab.indicolabs.io)
 2. Drag & drop your `.sav` file
 3. Click **Auto-Analyze** for instant results, or configure manually:
    - Select banner variables (demographics for columns)
@@ -28,7 +28,7 @@ Single/Dual/Triple counts, priority groups…) with a live preview. Approve to r
 ### Option 2: Auto-Analyze (zero config)
 
 ```bash
-curl -X POST https://spss.insightgenius.io/v1/auto-analyze \
+curl -X POST https://crosstab.indicolabs.io/v1/auto-analyze \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@survey.sav" \
   -o auto_analysis.xlsx
@@ -39,7 +39,7 @@ AI auto-detects banners, groups variables into MRS/Grid, applies nets, and gener
 ### Option 3: Full Control
 
 ```bash
-curl -X POST https://spss.insightgenius.io/v1/tabulate \
+curl -X POST https://crosstab.indicolabs.io/v1/tabulate \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@survey.sav" \
   -F 'spec={
@@ -58,7 +58,7 @@ curl -X POST https://spss.insightgenius.io/v1/tabulate \
 import requests, json
 
 resp = requests.post(
-    "https://spss.insightgenius.io/v1/tabulate",
+    "https://crosstab.indicolabs.io/v1/tabulate",
     headers={"Authorization": "Bearer YOUR_API_KEY"},
     files={"file": open("survey.sav", "rb")},
     data={"spec": json.dumps({
@@ -75,7 +75,7 @@ print(f"Done: {resp.headers['X-Stubs-Success']} tables generated")
 
 ### Option 5: MCP (for AI agents)
 
-Connect to `https://spss.insightgenius.io/mcp/sse` and use any of the 12 tools. Files are passed as base64.
+Connect to `https://crosstab.indicolabs.io/mcp/sse` and use any of the 12 tools. Files are passed as base64.
 
 ---
 
@@ -236,4 +236,4 @@ workbook). Auto-analyze appends them when the codebook has the setting;
 | MCP | FastMCP with SSE transport |
 | Deploy | Railway (Docker, Gunicorn, 4 replicas, auto-deploy) |
 
-Built by [Genius Labs](https://github.com/quack2025).
+Built by [Indico Labs](https://indicolabs.io).

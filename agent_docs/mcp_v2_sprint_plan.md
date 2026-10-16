@@ -79,7 +79,7 @@ Rewrite `routers/mcp_server.py` with all 13 tools, Pydantic models, content_bloc
 ```json
 {
   "tool": "spss_create_tabulation",
-  "download_url": "https://spss.insightgenius.io/downloads/{token}",
+  "download_url": "https://crosstab.indicolabs.io/downloads/{token}",
   "download_expires_in_seconds": 300,
   "stubs_processed": 17,
   "stubs_failed": 0,
@@ -181,7 +181,7 @@ Pass quality bar for Claude Directory / MCP Registry submission.
 
 **5c. `server.json` manifest (Adj 7)**
 - Schema: `static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json`
-- Remote endpoint: `"type": "streamable-http"` → `https://spss.insightgenius.io/mcp`
+- Remote endpoint: `"type": "streamable-http"` → `https://crosstab.indicolabs.io/mcp`
 - Name, description, version, tool list
 
 **5d. Final polish**

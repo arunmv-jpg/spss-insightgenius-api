@@ -3,7 +3,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>API Keys | InsightGenius</title>
+<title>API Keys | Indico Crosstab</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -85,7 +85,7 @@
 <!-- SideNavBar (Authority: Shared Components JSON) -->
 <aside class="h-screen w-64 fixed left-0 top-0 bg-[#eff4ff] flex flex-col h-full py-6 px-4 z-40">
 <div class="mb-10 px-2">
-<h1 class="text-lg font-black text-[#0b1c30] tracking-tighter uppercase">InsightGenius</h1>
+<h1 class="text-lg font-black text-[#0b1c30] tracking-tighter uppercase">Indico Crosstab</h1>
 <p class="text-[10px] text-[#0b1c30]/60 font-bold tracking-widest uppercase mt-1">Precision Architect</p>
 </div>
 <nav class="flex-1 space-y-1">
@@ -135,7 +135,7 @@
 </div>
 <h2 class="text-4xl font-extrabold tracking-tight text-on-background">API Keys Management</h2>
 <p class="text-on-surface-variant max-w-xl text-sm leading-relaxed">
-                    Generate and manage secure access tokens for the InsightGenius Statistical Engine. Integrate high-precision analysis directly into your workflow.
+                    Generate and manage secure access tokens for the Indico Crosstab Statistical Engine. Integrate high-precision analysis directly into your workflow.
                 </p>
 </div>
 <button class="flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:shadow-primary/20 active:scale-95 transition-all">
@@ -298,7 +298,7 @@
 <button class="p-1.5 hover:bg-surface-container rounded-lg transition-colors"><span class="material-symbols-outlined text-sm text-outline">content_copy</span></button>
 </div>
 <div class="bg-on-surface rounded-xl p-4 overflow-x-auto">
-<pre class="code-block text-[11px] text-surface-container-low leading-relaxed">curl -X GET "https://api.insightgenius.io/v1/analyze" \
+<pre class="code-block text-[11px] text-surface-container-low leading-relaxed">curl -X GET "https://crosstab.indicolabs.io/v1/analyze" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json"</pre>
 </div>
@@ -313,7 +313,7 @@
 <button class="p-1.5 hover:bg-surface-container rounded-lg transition-colors"><span class="material-symbols-outlined text-sm text-outline">content_copy</span></button>
 </div>
 <div class="bg-on-surface rounded-xl p-4 overflow-x-auto">
-<pre class="code-block text-[11px] text-surface-container-low leading-relaxed">import insightgenius as ig
+<pre class="code-block text-[11px] text-surface-container-low leading-relaxed">import indico_crosstab as ig
 
 client = ig.Client(api_key="YOUR_KEY")
 report = client.analyze(
@@ -334,9 +334,9 @@ report = client.analyze(
 <div class="bg-on-surface rounded-xl p-4 overflow-x-auto">
 <pre class="code-block text-[11px] text-surface-container-low leading-relaxed">{
   "mcpServers": {
-    "insight-genius": {
+    "indico-crosstab": {
       "command": "npx",
-      "args": ["@insightgenius/mcp-server"],
+      "args": ["@indicolabs/crosstab-mcp-server"],
       "env": { "IG_API_KEY": "YOUR_KEY" }
     }
   }
@@ -350,9 +350,9 @@ report = client.analyze(
 <footer class="ml-64 bg-[#f8f9ff] w-full py-12 border-t border-[#0b1c30]/5">
 <div class="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
 <div class="flex flex-col gap-4">
-<span class="font-bold text-[#0b1c30]">InsightGenius</span>
+<span class="font-bold text-[#0b1c30]">Indico Crosstab</span>
 <p class="font-['Inter'] text-xs uppercase tracking-widest text-[#0b1c30]/50">
-                    © 2024 InsightGenius. Statistical Precision Guaranteed.
+                    © 2024 Indico Crosstab. Statistical Precision Guaranteed.
                 </p>
 </div>
 <div class="flex flex-wrap gap-6 md:justify-end">

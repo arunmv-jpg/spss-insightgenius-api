@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Talk2Data InsightGenius — Wizard</title>
+<title>Indico Crosstab — Wizard</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="/static/config.js"></script>
@@ -30,7 +30,7 @@
 
 <header class="bg-white border-b px-6 py-3 flex items-center justify-between">
   <div>
-    <h1 class="text-lg font-bold text-gray-900">Talk2Data InsightGenius</h1>
+    <h1 class="text-lg font-bold text-gray-900">Indico Crosstab</h1>
     <p class="text-xs text-gray-500">Wizard — Step by step</p>
   </div>
   <div class="flex gap-3 text-xs">
@@ -206,7 +206,7 @@ function shortName(kind, sourceName) {
   return `${kind}_${stem || 'data'}.xlsx`;
 }
 
-const API_KEY = window.__INSIGHTGENIUS_DEMO_KEY__ || 'demo';
+const API_KEY = window.__INDICO_CROSSTAB_DEMO_KEY__ || 'demo';
 const API_BASE = window.location.origin;
 
 let files = { main: null, ticket: null, quest: null };

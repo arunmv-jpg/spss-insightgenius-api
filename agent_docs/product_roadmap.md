@@ -1,4 +1,4 @@
-# SPSS InsightGenius — Product Roadmap
+# Indico Crosstab — Product Roadmap
 
 > Last updated: 2026-04-05
 
@@ -58,7 +58,7 @@ The **Stripe of market research** — a deterministic statistical engine that de
 | Privacy policy | Production | `/privacy` |
 | API docs (Swagger) | Production | `/docs` |
 | MCP docs | Production | `/docs/mcp` |
-| npm SDK (@insightgenius/sdk) | Built | `insightgenius-sdk/` repo |
+| npm SDK (@indicolabs/crosstab-sdk) | Built | `indico-crosstab-sdk/` repo |
 
 ### Key Metrics
 
@@ -107,7 +107,7 @@ Score: 6.5/10 → 7.5/10 after fixes:
 - python-pptx restored (transitive dependency of quantipymrx)
 
 ### Sprint A: Developer Experience (Apr 5, in progress)
-- npm SDK (`@insightgenius/sdk`) — 13 types, all 28 methods, MSW tests
+- npm SDK (`@indicolabs/crosstab-sdk`) — 13 types, all 28 methods, MSW tests
 - Async webhooks — job store, `/v1/jobs/{id}`, webhook delivery
 - Next.js template (pending)
 - Developer portal page (pending)
@@ -138,7 +138,7 @@ Score: 6.5/10 → 7.5/10 after fixes:
 | Item | Impact |
 |------|--------|
 | Template marketplace (3-5 pre-built templates) | High |
-| "Built with InsightGenius" badge program | Medium |
+| "Built with Indico Crosstab" badge program | Medium |
 | Open-source frontends as starter kits | High |
 | Landing page for developers (not end-users) | High |
 | Partner program for agencies | Medium |

@@ -262,8 +262,8 @@ async def authenticate_request(
                 raise ToolError(
                     f'{{"error": "invalid_token", '
                     f'"user_message": "Your session has expired or is invalid. '
-                    f'Please reconnect Talk2Data in Claude.ai settings.", '
-                    f'"recovery_action": "Tell the user to go to Claude.ai Settings > Connectors > Talk2Data > Reconnect", '
+                    f'Please reconnect Indico Crosstab in Claude.ai settings.", '
+                    f'"recovery_action": "Tell the user to go to Claude.ai Settings > Connectors > Indico Crosstab > Reconnect", '
                     f'"details": "{e}"}}'
                 )
 
@@ -281,17 +281,17 @@ async def authenticate_request(
             raise ToolError(
                 '{"error": "invalid_api_key", '
                 '"user_message": "The API key you provided is not valid. '
-                'You can find your key at https://spss.insightgenius.io/account.", '
+                'You can find your key at https://crosstab.indicolabs.io/account.", '
                 '"recovery_action": "Ask the user for a valid API key. Do NOT retry with a guessed key.", '
-                '"docs_url": "https://spss.insightgenius.io/docs/mcp#authentication"}'
+                '"docs_url": "https://crosstab.indicolabs.io/docs/mcp#authentication"}'
             )
 
     # Neither provided
     from fastmcp.exceptions import ToolError
     raise ToolError(
         '{"error": "auth_required", '
-        '"user_message": "Authentication required. Please provide your Talk2Data API key '
+        '"user_message": "Authentication required. Please provide your Indico Crosstab API key '
         '(format: sk_test_... or sk_live_...) or connect via OAuth in Claude.ai.", '
-        '"recovery_action": "Ask the user for their API key, or direct them to reconnect Talk2Data in Claude.ai settings.", '
-        '"get_key_url": "https://spss.insightgenius.io/account"}'
+        '"recovery_action": "Ask the user for their API key, or direct them to reconnect Indico Crosstab in Claude.ai settings.", '
+        '"get_key_url": "https://crosstab.indicolabs.io/account"}'
     )

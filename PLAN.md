@@ -1,4 +1,4 @@
-# Plan de Integración: QuantipyMRX → SPSS InsightGenius API
+# Plan de Integración: QuantipyMRX → Indico Crosstab API
 
 ## Situación Actual
 

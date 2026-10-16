@@ -46,7 +46,7 @@ def error_response(
         "error": {
             "code": "VALIDATION_ERROR",
             "message": "Variable 'Q99' not found",
-            "doc_url": "https://spss.insightgenius.io/docs#errors"
+            "doc_url": "https://crosstab.indicolabs.io/docs#errors"
         }
     }
     """

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
     # App
-    app_name: str = "SPSS InsightGenius API"
+    app_name: str = "Indico Crosstab API"
     app_env: str = "development"
     app_version: str = "1.0.0"
     port: int = 8000
@@ -56,17 +56,17 @@ class Settings(BaseSettings):
     clerk_publishable_key: str = ""
     clerk_secret_key: str = ""
     clerk_jwt_issuer: str = ""  # Auto-detected from publishable key if empty
-    clerk_domain: str = ""  # e.g., "beloved-redbird-68.clerk.accounts.dev" or "clerk.insightgenius.io"
+    clerk_domain: str = ""  # e.g., "beloved-redbird-68.clerk.accounts.dev" or "clerk.indicolabs.io"
 
     # Supabase (user data, API keys, usage tracking)
     supabase_url: str = ""
     supabase_service_role_key: str = ""
 
     # Base URL for download links
-    base_url: str = "https://spss.insightgenius.io"
+    base_url: str = "https://crosstab.indicolabs.io"
 
     # CORS — production origins only; override with CORS_ORIGINS env var
-    cors_origins: str = '["https://spss.insightgenius.io", "https://talk2data.insightgenius.io", "https://claude.ai"]'
+    cors_origins: str = '["https://crosstab.indicolabs.io", "https://talk2data.indicolabs.io", "https://claude.ai"]'
 
     @property
     def is_production(self) -> bool:
@@ -84,9 +84,9 @@ class Settings(BaseSettings):
     def parsed_cors_origins(self) -> list[str]:
         try:
             origins = json.loads(self.cors_origins)
-            return origins if isinstance(origins, list) else ["https://spss.insightgenius.io"]
+            return origins if isinstance(origins, list) else ["https://crosstab.indicolabs.io"]
         except json.JSONDecodeError:
-            return ["https://spss.insightgenius.io"]
+            return ["https://crosstab.indicolabs.io"]
 
     @property
     def clerk_frontend_api(self) -> str:

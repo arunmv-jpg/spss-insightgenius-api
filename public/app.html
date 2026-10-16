@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPSS InsightGenius</title>
+  <title>Indico Crosstab</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -33,7 +33,7 @@
   <header class="bg-white border-b border-gray-200">
     <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
       <div>
-        <h1 class="text-xl font-bold text-gray-900">SPSS InsightGenius</h1>
+        <h1 class="text-xl font-bold text-gray-900">Indico Crosstab</h1>
         <p class="text-sm text-gray-500">Upload SPSS &rarr; Professional crosstabs with significance testing</p>
       </div>
       <a href="/docs" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 font-medium">API Docs &rarr;</a>
@@ -401,7 +401,7 @@
       </summary>
       <div class="px-6 pb-6 text-sm">
         <h3 class="font-semibold text-gray-800 mt-2 mb-2">curl &mdash; multiple banners + means + MRS</h3>
-        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs"><code>curl -X POST https://spss.insightgenius.io/v1/tabulate \
+        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs"><code>curl -X POST https://crosstab.indicolabs.io/v1/tabulate \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@survey.sav" \
   -F 'spec={
@@ -417,7 +417,7 @@
         <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs"><code>import requests, json
 
 resp = requests.post(
-    "https://spss.insightgenius.io/v1/tabulate",
+    "https://crosstab.indicolabs.io/v1/tabulate",
     headers={"Authorization": "Bearer YOUR_API_KEY"},
     files={"file": open("survey.sav", "rb")},
     data={"spec": json.dumps({
@@ -444,7 +444,7 @@ form.append("spec", JSON.stringify({
   significance_level: 0.95,
 }));
 
-const resp = await fetch("https://spss.insightgenius.io/v1/tabulate", {
+const resp = await fetch("https://crosstab.indicolabs.io/v1/tabulate", {
   method: "POST",
   headers: { Authorization: "Bearer YOUR_API_KEY", ...form.getHeaders() },
   body: form,
@@ -458,7 +458,7 @@ console.log(`${resp.headers.get("X-Stubs-Success")} tables generated`);</code></
   </main>
 
   <footer class="max-w-5xl mx-auto px-6 py-6 text-center text-xs text-gray-400">
-    SPSS InsightGenius &bull; Powered by QuantipyMRX &bull; Built by Genius Labs
+    Indico Crosstab &bull; Powered by QuantipyMRX &bull; Built by Indico Labs
   </footer>
 
 <script src="/static/config.js"></script>
@@ -510,8 +510,8 @@ window.addEventListener('message', async (e) => {
   }
 });
 
-// Demo API key — loaded at deploy time. For your own key, visit https://spss.insightgenius.io/account
-const API_KEY = window.__INSIGHTGENIUS_DEMO_KEY__ || 'demo';
+// Demo API key — loaded at deploy time. For your own key, visit https://crosstab.indicolabs.io/account
+const API_KEY = window.__INDICO_CROSSTAB_DEMO_KEY__ || 'demo';
 const API_BASE = window.location.origin;
 
 // ── Drop zones ──

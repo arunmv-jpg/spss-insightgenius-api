@@ -280,7 +280,7 @@ async def _execute_tool(tool_name: str, tool_input: dict, data: SPSSData) -> dic
         return {"error": str(e)}
 
 
-SYSTEM_PROMPT = """You are a senior market research analyst using Talk2Data InsightGenius.
+SYSTEM_PROMPT = """You are a senior market research analyst using Indico Crosstab.
 You have access to a survey dataset and powerful analysis tools. Your job is to:
 
 1. Understand the user's question

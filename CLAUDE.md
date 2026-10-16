@@ -1,10 +1,10 @@
-# SPSS InsightGenius API — CLAUDE.md
+# Indico Crosstab API — CLAUDE.md
 
 ## What this project is
 
 REST API + MCP server for deterministic market research data analysis. Processes SPSS files and generates professional Excel tabulations with significance testing. The product IS the API — frontends are convenience wrappers.
 
-**URL:** https://spss.insightgenius.io
+**URL:** https://crosstab.indicolabs.io
 **GitHub:** quack2025/spss-insightgenius-api
 **Deploy:** Railway (auto-deploy from `master`, 4 replicas)
 **Engine:** QuantipyMRX (Python 3.11 + pandas + scipy)
@@ -84,10 +84,10 @@ python -m pytest tests/ -x -q --tb=short  # 114 tests, ~22s
 
 ## npm SDK
 
-`@insightgenius/sdk` at `C:\Users\jorge\proyectos_python\insightgenius-sdk`
+`@indicolabs/crosstab-sdk` at `C:\Users\jorge\proyectos_python\indico-crosstab-sdk`
 
 ```typescript
-const ig = new InsightGenius("sk_test_...");
+const ig = new IndicoCrosstab("sk_test_...");
 const { file_id } = await ig.upload(file, "survey.sav");
 const meta = await ig.getMetadata(file_id);
 const ct = await ig.crosstab(file_id, { row: "Q1", col: "Gender" });
@@ -96,4 +96,4 @@ const excel = await ig.tabulate(file_id, { banners: ["Gender"], stubs: ["_all_"]
 
 ## Enterprise Standards
 
-See `~/.claude/projects/C--Users-jorge/memory/enterprise_api_standards.md` for the full checklist that this project and all Genius Labs API products must follow.
+See `~/.claude/projects/C--Users-jorge/memory/enterprise_api_standards.md` for the full checklist that this project and all Indico Labs API products must follow.

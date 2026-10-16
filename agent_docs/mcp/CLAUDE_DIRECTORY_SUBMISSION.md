@@ -1,4 +1,4 @@
-# Talk2Data InsightGenius — Claude Connectors Directory Submission
+# Indico Crosstab — Claude Connectors Directory Submission
 
 **Submission form:** https://docs.google.com/forms/d/e/1FAIpQLSeafJF2NDI7oYx1r8o0ycivCSVLNq92Mpc1FPxMKSw1CzDkqA/viewform
 **Directory policy:** https://support.claude.com/en/articles/11697096-anthropic-mcp-directory-policy
@@ -10,12 +10,12 @@
 
 ### Server Name
 ```
-Talk2Data InsightGenius
+Indico Crosstab
 ```
 
 ### Server URL (SSE endpoint)
 ```
-https://spss.insightgenius.io/mcp/sse
+https://crosstab.indicolabs.io/mcp/sse
 ```
 
 Note: SSE transport. Streamable HTTP is not yet supported due to a FastMCP limitation
@@ -29,7 +29,7 @@ Analyze survey data (.sav, .csv, .xlsx) through Claude — crosstabs with signif
 
 ### Detailed Description
 ```
-Talk2Data InsightGenius lets market researchers analyze survey data by talking to Claude instead of wrestling with desktop software. Upload an SPSS (.sav), CSV, or Excel file once and run unlimited analyses through 13 specialized tools.
+Indico Crosstab lets market researchers analyze survey data by talking to Claude instead of wrestling with desktop software. Upload an SPSS (.sav), CSV, or Excel file once and run unlimited analyses through 13 specialized tools.
 
 What it does:
 - Frequency tables with mean, standard deviation, and median
@@ -71,20 +71,20 @@ API keys in format sk_test_... or sk_live_... Keys are SHA256-hashed server-side
 Streamable HTTP: Authorization: Bearer sk_live_... header on the HTTP connection.
 SSE transport: api_key passed as parameter in each tool call (SSE has no header support).
 
-Users obtain keys at https://spss.insightgenius.io. The api_key parameter pattern on SSE is a deliberate design choice due to SSE transport limitations — SSE connections don't support custom headers in all MCP clients.
+Users obtain keys at https://crosstab.indicolabs.io. The api_key parameter pattern on SSE is a deliberate design choice due to SSE transport limitations — SSE connections don't support custom headers in all MCP clients.
 ```
 
 ### Test Credentials (for Anthropic QA team)
 ```
-API Key: Contact support@insightgenius.io for a test key
+API Key: Contact support@indicolabs.io for a test key
 Plan: Pro (60 requests/min, 50MB max file)
 Scopes: All (metadata, frequency, crosstab, process, convert, parse_ticket)
 
-SSE endpoint: https://spss.insightgenius.io/mcp/sse (api_key as tool parameter)
-Health check: https://spss.insightgenius.io/v1/health
+SSE endpoint: https://crosstab.indicolabs.io/mcp/sse (api_key as tool parameter)
+Health check: https://crosstab.indicolabs.io/v1/health
 
 To test with MCP Inspector:
-  npx @anthropic-ai/mcp-inspector https://spss.insightgenius.io/mcp/sse
+  npx @anthropic-ai/mcp-inspector https://crosstab.indicolabs.io/mcp/sse
 
 Quick test: call spss_get_server_info with api_key to verify connectivity.
 The server accepts CSV and Excel files for testing without SPSS software.
@@ -97,8 +97,8 @@ Note: This test key has strict rate limits (60/min) and is revocable.
 ```json
 {
   "mcpServers": {
-    "talk2data_insightgenius": {
-      "url": "https://spss.insightgenius.io/mcp/sse"
+    "indico_crosstab": {
+      "url": "https://crosstab.indicolabs.io/mcp/sse"
     }
   }
 }
@@ -109,7 +109,7 @@ headers in all MCP clients, so auth is at the tool-call level.
 
 For Claude Code:
 ```bash
-claude mcp add --transport sse talk2data_insightgenius https://spss.insightgenius.io/mcp/sse
+claude mcp add --transport sse indico_crosstab https://crosstab.indicolabs.io/mcp/sse
 ```
 
 ### Tools List (13 tools)
@@ -184,7 +184,7 @@ Claude calls: spss_upload_file(api_key="sk_test_...", file_base64="[base64 of ha
 
 Claude calls: spss_auto_analyze(api_key="sk_test_...", file_id="xyz789")
 → Returns: {
-    download_url: "https://spss.insightgenius.io/downloads/tmp_abc.xlsx",
+    download_url: "https://crosstab.indicolabs.io/downloads/tmp_abc.xlsx",
     download_expires_in_seconds: 300,
     stubs_processed: 62,
     banners_used: ["age_group"],
@@ -208,12 +208,12 @@ Claude responds: "Done! I auto-detected age_group as the best banner and generat
 
 ## Privacy Policy URL
 ```
-https://spss.insightgenius.io/privacy
+https://crosstab.indicolabs.io/privacy
 ```
 
 ## Documentation URL
 ```
-https://spss.insightgenius.io/docs/mcp
+https://crosstab.indicolabs.io/docs/mcp
 ```
 
 ## Repository URL
@@ -224,13 +224,13 @@ GitHub: quack2025/spss-insightgenius-api (private)
 
 ## Support Contact
 ```
-support@insightgenius.io
+support@indicolabs.io
 ```
 
 ## Company / Vendor
 ```
-Genius Labs
-https://spss.insightgenius.io
+Indico Labs
+https://crosstab.indicolabs.io
 ```
 
 ## Categories / Tags
@@ -242,12 +242,12 @@ data-analysis, market-research, spss, survey-data, crosstabs, significance-testi
 
 ## Pre-Submission Checklist
 
-- [x] Privacy policy page is live at https://spss.insightgenius.io/privacy
-- [x] MCP docs page is live at https://spss.insightgenius.io/docs/mcp
+- [x] Privacy policy page is live at https://crosstab.indicolabs.io/privacy
+- [x] MCP docs page is live at https://crosstab.indicolabs.io/docs/mcp
 - [ ] Streamable HTTP: deferred (FastMCP anyio task group limitation when mounted as sub-app)
-- [x] SSE endpoint responds: `curl -s https://spss.insightgenius.io/mcp/sse` → 200 OK text/event-stream
+- [x] SSE endpoint responds: `curl -s https://crosstab.indicolabs.io/mcp/sse` → 200 OK text/event-stream
 - [x] Test key works — verified via MCP Inspector (13 tools loaded, tool calls return results)
-- [x] Health check returns OK: `curl https://spss.insightgenius.io/v1/health`
+- [x] Health check returns OK: `curl https://crosstab.indicolabs.io/v1/health`
 - [x] server.json in repo root with correct transport URL
 - [x] Tool annotations on all 13 tools (readOnlyHint, destructiveHint, idempotentHint, openWorldHint)
 - [x] SSE stream delivers responses end-to-end (initialize → tools/list → tools/call)
@@ -255,7 +255,7 @@ data-analysis, market-research, spss, survey-data, crosstabs, significance-testi
 - [x] Test key has strict rate limits and is revocable
 - [ ] Reviewed Anthropic MCP Directory Policy
 - [ ] Reviewed Anthropic MCP Directory Terms
-- [ ] Configure support@insightgenius.io email
+- [ ] Configure support@indicolabs.io email
 - [ ] Submitted form
 
 ---
@@ -274,7 +274,7 @@ Use the same description and examples.
 Repo: https://github.com/punkpeye/awesome-mcp-servers
 Add under "Data Analysis" category:
 ```markdown
-- [Talk2Data InsightGenius](https://spss.insightgenius.io) 🐍 ☁️ - Professional SPSS processing: crosstabs with significance testing, auto-detect, zero-config analysis, Excel export. Upload .sav/.csv/.xlsx, get publication-ready market research deliverables.
+- [Indico Crosstab](https://crosstab.indicolabs.io) 🐍 ☁️ - Professional SPSS processing: crosstabs with significance testing, auto-detect, zero-config analysis, Excel export. Upload .sav/.csv/.xlsx, get publication-ready market research deliverables.
 ```
 
 ### MCP.so

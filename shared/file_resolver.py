@@ -43,7 +43,7 @@ async def resolve_file(
     raise HTTPException(400, detail={
         "code": "NO_FILE",
         "message": "Provide 'file' (upload) or 'file_id' (from /v1/library/upload). "
-                   "Upload at https://spss.insightgenius.io/upload to get a file_id.",
+                   "Upload at https://crosstab.indicolabs.io/upload to get a file_id.",
     })
 
 

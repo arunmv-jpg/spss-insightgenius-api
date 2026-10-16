@@ -1,4 +1,4 @@
-# Talk2Data InsightGenius — Strategic Next Steps
+# Indico Crosstab — Strategic Next Steps
 
 **Date:** 2026-04-05 (updated)
 **Status:** Active — Pivoting to Platform/Engine strategy
@@ -16,8 +16,8 @@
 
 ### The Positioning Statement
 
-> **Claude analyzes. InsightGenius certifies.**
-> Use Claude to explore your data. Use InsightGenius when the numbers need to be right.
+> **Claude analyzes. Indico Crosstab certifies.**
+> Use Claude to explore your data. Use Indico Crosstab when the numbers need to be right.
 
 ### The Platform Vision (NEW — Apr 2026)
 
@@ -43,7 +43,7 @@
 - Ceiling: ~$10M+ ARR (platform)
 
 ### Why This Works
-1. **npm SDK exists** (`@insightgenius/sdk`) — typed TypeScript client
+1. **npm SDK exists** (`@indicolabs/crosstab-sdk`) — typed TypeScript client
 2. **Async webhooks exist** — `webhook_url` → 202 + callback
 3. **13 MCP tools** — Claude.ai native integration
 4. **Deterministic engine** — the moat. Hard to replicate without statisticians.
@@ -69,7 +69,7 @@
 
 ### 3. Growth (Sprint C — week after)
 - [ ] Template marketplace
-- [ ] "Built with InsightGenius" badge
+- [ ] "Built with Indico Crosstab" badge
 - [ ] Open-source frontends
 - [ ] Developer landing page
 - [ ] Partner program
@@ -78,7 +78,7 @@
 
 ## Enterprise Standards
 
-All Genius Labs API products must pass the enterprise checklist:
+All Indico Labs API products must pass the enterprise checklist:
 - See `~/.claude/projects/C--Users-jorge/memory/enterprise_api_standards.md`
 - 10 sections, ~60 checkpoints
 - Audit process: 7 agents in parallel (Security, API, Performance, Dead Code, Test Coverage, Playwright, MCP)

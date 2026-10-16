@@ -21,7 +21,7 @@ async def spss_upload_file(
     """Get a file_id for analysis. Users upload files via the web UI, not through this tool.
 
     IMPORTANT — How file upload works:
-    1. Ask the user to go to https://spss.insightgenius.io/upload
+    1. Ask the user to go to https://crosstab.indicolabs.io/upload
     2. They drag & drop their file there and get a file_id (e.g., "abc123")
     3. They paste the file_id back in chat
     4. You use that file_id in all subsequent tool calls (spss_get_metadata, spss_analyze_frequencies, etc.)
@@ -34,7 +34,7 @@ async def spss_upload_file(
     Authentication: OAuth (Claude.ai) = no api_key needed. Claude Desktop = pass api_key.
 
     Args:
-        file_id:  File ID from https://spss.insightgenius.io/upload. Ask user if you don't have one.
+        file_id:  File ID from https://crosstab.indicolabs.io/upload. Ask user if you don't have one.
         api_key:  API key (sk_test_... or sk_live_...). Optional if connected via OAuth.
     """
     await _auth_async(api_key)
@@ -70,10 +70,10 @@ async def spss_upload_file(
     # No file_id provided — direct user to upload page
     return {
         "file_id": None,
-        "upload_url": "https://spss.insightgenius.io/upload",
+        "upload_url": "https://crosstab.indicolabs.io/upload",
         "message": (
             "To analyze a file, the user needs to upload it first:\n"
-            "1. Go to https://spss.insightgenius.io/upload\n"
+            "1. Go to https://crosstab.indicolabs.io/upload\n"
             "2. Drag & drop the file (.sav, .csv, or .xlsx)\n"
             "3. Copy the file_id shown after upload\n"
             "4. Paste it back here\n\n"

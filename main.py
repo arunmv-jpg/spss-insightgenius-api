@@ -61,7 +61,7 @@ def create_application() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         description=(
-            "**SPSS InsightGenius API** — REST API for processing SPSS (.sav) files.\n\n"
+            "**Indico Crosstab API** — REST API for processing SPSS (.sav) files.\n\n"
             "Powered by QuantipyMRX for market research analysis: crosstabs with significance testing, "
             "auto-detection of question types, NPS, Top/Bottom Box, nets, and AI-powered "
             "Reporting Ticket parsing via Claude Haiku.\n\n"
@@ -220,7 +220,7 @@ def create_application() -> FastAPI:
         demo_key = settings.demo_api_key or "demo"
         from starlette.responses import Response
         return Response(
-            content=f"window.__INSIGHTGENIUS_DEMO_KEY__ = '{demo_key}';",
+            content=f"window.__INDICO_CROSSTAB_DEMO_KEY__ = '{demo_key}';",
             media_type="application/javascript",
         )
 

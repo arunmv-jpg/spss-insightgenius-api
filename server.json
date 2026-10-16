@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.quack2025/talk2data-insightgenius",
-  "title": "Talk2Data InsightGenius",
+  "name": "io.github.quack2025/indico-crosstab",
+  "title": "Indico Crosstab",
   "description": "Survey data analysis: crosstabs with significance, ANOVA, correlation, Excel exports.",
   "version": "1.0.0",
   "repository": {
@@ -11,10 +11,10 @@
   "remotes": [
     {
       "type": "sse",
-      "url": "https://spss.insightgenius.io/mcp/sse?api_key={api_key}",
+      "url": "https://crosstab.indicolabs.io/mcp/sse?api_key={api_key}",
       "variables": {
         "api_key": {
-          "description": "Your Talk2Data API key (sk_live_... or sk_test_...). Get one at https://spss.insightgenius.io",
+          "description": "Your Indico Crosstab API key (sk_live_... or sk_test_...). Get one at https://crosstab.indicolabs.io",
           "isRequired": true,
           "isSecret": true
         }
