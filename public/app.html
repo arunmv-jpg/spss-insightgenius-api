@@ -1,407 +1,577 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Indico Crosstab</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .drop-zone { transition: all 0.2s; }
-    .drop-zone.dragover { border-color: #2563eb; background: #eff6ff; }
-    .fade-in { animation: fadeIn 0.3s ease-in; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .spinner { border: 3px solid #e5e7eb; border-top: 3px solid #2563eb; border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    select[multiple] { min-height: 100px; }
-    .pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; cursor: default; }
-    .pill-blue { background: #dbeafe; color: #1e40af; }
-    .pill-green { background: #dcfce7; color: #166534; }
-    .pill-purple { background: #f3e8ff; color: #6b21a8; }
-    .pill .remove { cursor: pointer; opacity: 0.6; font-size: 14px; }
-    .pill .remove:hover { opacity: 1; }
-    .chip { padding: 6px 12px; border-radius: 8px; border: 1.5px solid #e5e7eb; font-size: 13px; cursor: pointer; transition: all 0.15s; user-select: none; }
-    .chip:hover { border-color: #93c5fd; background: #eff6ff; }
-    .chip.selected { border-color: #2563eb; background: #dbeafe; color: #1e40af; font-weight: 500; }
-    .section-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; font-weight: 700; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crosstab Tabulation · Indico Crosstab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ui/ic.css">
+<script src="/static/config.js"></script>
+<script src="/static/ui/ic.js"></script>
+<style>
+  .hidden { display: none !important; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* Stepper: locked steps are plain, reachable ones are clickable */
+  #steps-nav .ic-step:disabled { cursor: default; }
+  #steps-nav button.ic-step:not(:disabled):hover { color: var(--ic-text); }
+  @media (max-width: 720px) {
+    #steps-nav { gap: 6px; }
+    #steps-nav .ic-step:not(.is-current) { font-size: 0; gap: 0; }
+    #steps-nav .ic-step-line { min-width: 8px; }
+  }
+
+  .step-head { display: block; }
+  .step-head .ic-help { margin-top: 2px; }
+  .step-footer { gap: 10px; }
+
+  /* Upload */
+  .upload-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+  .dz-stack { display: flex; flex-direction: column; gap: 16px; }
+  .field-label { display: flex; align-items: center; gap: 6px; }
+  .field-label .opt-tag { font-weight: 400; color: var(--ic-text-subtle); }
+  .field-label .ic-help { display: inline-flex; cursor: help; }
+  .upload-main { display: flex; flex-direction: column; }
+  .upload-main .ic-dropzone { flex: 1; }
+  @media (max-width: 760px) { .upload-grid { grid-template-columns: 1fr; } }
+
+  .ic-alert.is-block { display: block; }
+  .ic-panel { border: 1px solid var(--ic-border); border-radius: var(--ic-radius); background: var(--ic-surface-muted); padding: 16px; }
+  .ic-panel-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .ic-panel-row > .grow { flex: 1 1 260px; min-width: 0; }
+  .ic-panel-title { font-weight: 600; font-size: 13.5px; }
+
+  .kv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+  .kv-grid .wide { grid-column: 1 / -1; }
+  .kv-key { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ic-text-subtle); }
+  .kv-val { margin-top: 2px; color: var(--ic-text); font-size: 13.5px; }
+  @media (max-width: 520px) { .kv-grid { grid-template-columns: 1fr; } }
+
+  /* Result ("Processing complete") */
+  .result-next { padding: 16px 24px 20px; border-top: 1px solid var(--ic-border); }
+  .next-label { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--ic-text); }
+
+  /* Banner chips + pills */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--ic-border-strong); background: var(--ic-surface); font: inherit; font-size: 13px; color: var(--ic-text); cursor: pointer; transition: border-color .15s, background .15s; user-select: none; text-align: left; }
+  .chip:hover:not(:disabled) { border-color: var(--ic-blue-500); background: var(--ic-blue-50); }
+  .chip.selected { border-color: var(--ic-navy-800); background: var(--ic-blue-100); color: var(--ic-navy-800); }
+  .chip.active { background: var(--ic-surface-muted); }
+  .chip-name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: var(--ic-text-subtle); }
+  .chip-label { font-weight: 500; }
+  .chip .ic-badge { height: 18px; padding: 0 6px; font-size: 10.5px; }
+  .chip-group-label { flex-basis: 100%; font-size: 12px; font-weight: 600; color: var(--ic-text-muted); margin-top: 6px; }
+  .chip-sep { flex-basis: 100%; height: 1px; background: var(--ic-border); margin: 6px 0; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: default; border: 1px solid transparent; }
+  .pill-blue { background: var(--ic-blue-100); color: var(--ic-navy-800); }
+  .pill-green { background: var(--ic-success-bg); color: var(--ic-success); }
+  .pill-purple { background: var(--ic-surface-muted); color: var(--ic-text); border-color: var(--ic-border-strong); }
+  .pill .remove { cursor: pointer; opacity: .6; font-size: 15px; line-height: 1; }
+  .pill .remove:hover { opacity: 1; }
+  .selected-row { display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; align-items: center; }
+
+  /* Groups (MRS / grid / custom) */
+  .subsection { border-top: 1px solid var(--ic-border); margin-top: 20px; padding-top: 20px; }
+  .subsection-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .list-stack { display: flex; flex-direction: column; gap: 8px; }
+  .group-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--ic-border); border-radius: var(--ic-radius); background: var(--ic-surface); }
+  .group-row-main { flex: 1; min-width: 0; }
+  .group-row-title { font-weight: 600; font-size: 13.5px; }
+  .auto-badge { margin-bottom: 8px; }
+  select[multiple].ic-select { min-height: 140px; }
+  #stubs-select { min-height: 100px; margin-top: 12px; }
+  .check-row { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+  .cg-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .cg-row .cg-var, .cg-row .cg-val { flex: 1 1 180px; width: auto; min-width: 0; }
+  .cg-row .cg-op { flex: 0 0 76px; width: 76px; }
+
+  /* Options */
+  .option-list { display: flex; flex-direction: column; gap: 10px; }
+  .option-text { min-width: 0; }
+
+  /* Weight wizard */
+  .ww-vars { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+  .ww-dist { border: 1px solid var(--ic-border); border-radius: var(--ic-radius); margin-bottom: 12px; overflow: hidden; }
+  .ww-dist-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; }
+  .ww-dist .ic-table th, .ww-dist .ic-table td { padding: 8px 14px; }
+  .ww-dist .ic-input { width: 76px; text-align: right; }
+  .ww-bars { display: flex; gap: 2px; align-items: center; height: 14px; width: 120px; }
+  .ww-bars div { height: 10px; border-radius: 2px; }
+  .ww-bar-cur { background: var(--ic-border-strong); }
+  .ww-bar-tgt { background: var(--ic-blue-500); }
+  .ww-dist-actions { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--ic-border); }
+  .t-success { color: var(--ic-success); } .t-warning { color: var(--ic-warning); } .t-danger { color: var(--ic-danger); }
+  .ww-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; color: var(--ic-text); }
+  .ww-stats .ic-stat { padding: 10px 12px; }
+  .ww-stats .ic-stat-value { font-size: 15px; margin-top: 2px; }
+  @media (max-width: 520px) { .ww-stats { grid-template-columns: 1fr; } }
+
+  /* API reference */
+  .api-ref summary { padding: 16px 20px; cursor: pointer; font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 8px; list-style: none; }
+  .api-ref summary::-webkit-details-marker { display: none; }
+  .api-ref[open] summary { border-bottom: 1px solid var(--ic-border); }
+  .api-ref h3 { font-size: 13px; font-weight: 600; margin: 18px 0 8px; }
+  .code-block { background: var(--ic-navy-900); color: var(--ic-blue-100); padding: 16px; border-radius: var(--ic-radius); overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.55; }
+
+  #review-frame { display: block; width: 100%; border: 0; border-radius: var(--ic-radius); }
+</style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-
-  <header class="bg-white border-b border-gray-200">
-    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-bold text-gray-900">Indico Crosstab</h1>
-        <p class="text-sm text-gray-500">Upload SPSS &rarr; Professional crosstabs with significance testing</p>
-      </div>
-      <a href="/docs" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 font-medium">API Docs &rarr;</a>
-    </div>
-  </header>
-
-  <main class="max-w-5xl mx-auto px-6 py-8 space-y-6">
-
-    <!-- Step 1: Upload -->
-    <section class="bg-white rounded-xl border border-gray-200 p-6">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="section-badge bg-blue-600 text-white">1</span>
-        <h2 class="text-lg font-semibold text-gray-900">Upload files</h2>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<body class="ic-body">
+<div class="ic-app">
+  <ic-sidebar></ic-sidebar>
+  <div class="ic-main">
+    <ic-topbar></ic-topbar>
+    <main class="ic-page" style="max-width:1080px">
+      <a class="ic-back" href="/workflows"><ic-icon name="arrow-left" size="16"></ic-icon>Back</a>
+      <div class="ic-page-header">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Data file <span class="text-red-500">*</span></label>
-          <div id="sav-drop" class="drop-zone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400">
-            <div id="sav-icon" class="text-3xl mb-2">&#128202;</div>
-            <p id="sav-label" class="text-sm text-gray-500">Drop SPSS (.sav), Excel (.xlsx, .xls) or CSV / TSV here, or click to browse</p>
-            <input type="file" id="sav-input" accept=".sav,.por,.zsav,.xlsx,.xls,.csv,.tsv" class="hidden">
-          </div>
+          <h1 class="ic-title">Crosstab Tabulation</h1>
+          <p class="ic-subtitle">Upload SPSS, Excel or CSV data and get professional crosstabs with significance testing.</p>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Reporting Ticket (.docx) <span class="text-gray-400">optional</span>
-            <span class="inline-block ml-1 w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold text-center leading-4 cursor-help" title="Client instructions: banners, stubs, sig level, nets. AI reads it and configures tables automatically.">?</span>
-          </label>
-          <div id="docx-drop" class="drop-zone border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400">
-            <div id="docx-icon" class="text-2xl mb-1">&#128203;</div>
-            <p id="docx-label" class="text-sm text-gray-500">Reporting Ticket (.docx)</p>
-            <input type="file" id="docx-input" accept=".docx" class="hidden">
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Questionnaire (.docx/.pdf) <span class="text-gray-400">optional</span>
-            <span class="inline-block ml-1 w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold text-center leading-4 cursor-help" title="The survey instrument. AI uses it to detect skip logic, routing, and question types for accurate base calculations.">?</span>
-          </label>
-          <div id="quest-drop" class="drop-zone border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400">
-            <div id="quest-icon" class="text-2xl mb-1">&#128221;</div>
-            <p id="quest-label" class="text-sm text-gray-500">Questionnaire (.docx/.pdf)</p>
-            <input type="file" id="quest-input" accept=".docx,.pdf" class="hidden">
-          </div>
-        </div>
+        <a class="ic-btn ic-btn--secondary ic-btn--sm" href="/docs" target="_blank" rel="noopener"><ic-icon name="book" size="14"></ic-icon>API Docs</a>
       </div>
-      <div id="file-info" class="hidden mt-4 p-3 bg-blue-50 rounded-lg fade-in">
-        <p class="text-sm font-medium text-blue-900" id="file-info-text"></p>
-      </div>
-      <!-- Ticket Confirmation Card -->
-      <div id="ticket-confirm" class="hidden mt-4 p-4 bg-white rounded-lg border border-green-300 shadow-sm fade-in">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">✓</span>
-          <p class="text-sm font-semibold text-gray-800">Reporting Ticket parsed successfully</p>
-          <span id="ticket-confidence" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">AI</span>
+
+      <nav id="steps-nav" class="ic-stepper" aria-label="Steps"></nav>
+
+      <!-- Step 1: Upload -->
+      <section id="upload-section" class="ic-card fade-in">
+        <div class="ic-card-header step-head">
+          <h2 class="ic-section-title">Upload files</h2>
+          <p class="ic-help">Your data file is required. A Reporting Ticket and Questionnaire are optional and let AI configure the tables.</p>
         </div>
-        <div class="grid grid-cols-2 gap-3 text-sm mb-3">
-          <div>
-            <span class="text-xs font-medium text-gray-500 uppercase">Banners</span>
-            <p id="ticket-banners" class="text-gray-800 mt-0.5"></p>
-          </div>
-          <div>
-            <span class="text-xs font-medium text-gray-500 uppercase">Significance</span>
-            <p id="ticket-sig" class="text-gray-800 mt-0.5"></p>
-          </div>
-          <div class="col-span-2">
-            <span class="text-xs font-medium text-gray-500 uppercase">Stubs</span>
-            <p id="ticket-stubs" class="text-gray-800 mt-0.5"></p>
-          </div>
-          <div>
-            <span class="text-xs font-medium text-gray-500 uppercase">Nets</span>
-            <p id="ticket-nets-info" class="text-gray-800 mt-0.5"></p>
-          </div>
-          <div>
-            <span class="text-xs font-medium text-gray-500 uppercase">Weight</span>
-            <p id="ticket-weight" class="text-gray-800 mt-0.5"></p>
-          </div>
-        </div>
-        <div id="ticket-notes" class="hidden mb-3 text-xs text-amber-700 bg-amber-50 rounded-lg p-2"></div>
-        <div id="label-enrich-export" class="hidden mb-3 bg-green-50 border border-green-200 rounded-lg p-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-xs font-semibold text-green-800">Label Enrichment</p>
-              <p id="label-enrich-export-text" class="text-xs text-green-600"></p>
+        <div class="ic-card-body ic-stack">
+          <div class="upload-grid">
+            <div class="upload-main">
+              <label class="ic-label field-label" for="sav-input">Data file <span class="ic-error-text">*</span></label>
+              <div id="sav-drop" class="ic-dropzone" role="button" tabindex="0">
+                <span id="sav-icon" class="ic-dropzone-icon"><ic-icon name="upload-cloud" size="34"></ic-icon></span>
+                <span id="sav-label" class="ic-dropzone-title">Drag and drop your data file here, or click to browse</span>
+                <span class="ic-dropzone-hint">SPSS (.sav, .por, .zsav), Excel (.xlsx, .xls) or CSV / TSV</span>
+                <input type="file" id="sav-input" accept=".sav,.por,.zsav,.xlsx,.xls,.csv,.tsv" class="hidden">
+              </div>
             </div>
-            <label class="flex items-center gap-2 text-xs cursor-pointer">
-              <input type="checkbox" id="opt-enrich-export" checked class="rounded text-green-600"> Apply
+            <div class="dz-stack">
+              <div>
+                <label class="ic-label field-label" for="docx-input">Reporting Ticket (.docx) <span class="opt-tag">optional</span>
+                  <span class="ic-help" title="Client instructions: banners, stubs, sig level, nets. AI reads it and configures tables automatically."><ic-icon name="help" size="14"></ic-icon></span>
+                </label>
+                <div id="docx-drop" class="ic-dropzone ic-dropzone--sm" role="button" tabindex="0">
+                  <span id="docx-icon" class="ic-dropzone-icon"><ic-icon name="file-text" size="22"></ic-icon></span>
+                  <span id="docx-label" class="ic-dropzone-hint">Reporting Ticket (.docx)</span>
+                  <input type="file" id="docx-input" accept=".docx" class="hidden">
+                </div>
+              </div>
+              <div>
+                <label class="ic-label field-label" for="quest-input">Questionnaire (.docx/.pdf) <span class="opt-tag">optional</span>
+                  <span class="ic-help" title="The survey instrument. AI uses it to detect skip logic, routing, and question types for accurate base calculations."><ic-icon name="help" size="14"></ic-icon></span>
+                </label>
+                <div id="quest-drop" class="ic-dropzone ic-dropzone--sm" role="button" tabindex="0">
+                  <span id="quest-icon" class="ic-dropzone-icon"><ic-icon name="file" size="22"></ic-icon></span>
+                  <span id="quest-label" class="ic-dropzone-hint">Questionnaire (.docx/.pdf)</span>
+                  <input type="file" id="quest-input" accept=".docx,.pdf" class="hidden">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="file-info" class="hidden ic-alert ic-alert--info fade-in">
+            <ic-icon name="database" size="16"></ic-icon>
+            <p id="file-info-text" style="font-weight:500"></p>
+          </div>
+
+          <!-- Ticket Confirmation Card -->
+          <div id="ticket-confirm" class="hidden ic-panel fade-in" style="background:var(--ic-surface)">
+            <div class="ic-row" style="margin-bottom:14px;flex-wrap:wrap">
+              <span class="t-success" style="display:inline-flex"><ic-icon name="check-circle" size="20"></ic-icon></span>
+              <p class="ic-panel-title">Reporting Ticket parsed successfully</p>
+              <span id="ticket-confidence" class="ic-badge ic-badge--success">AI</span>
+            </div>
+            <div class="kv-grid" style="margin-bottom:14px">
+              <div>
+                <span class="kv-key">Banners</span>
+                <p id="ticket-banners" class="kv-val"></p>
+              </div>
+              <div>
+                <span class="kv-key">Significance</span>
+                <p id="ticket-sig" class="kv-val"></p>
+              </div>
+              <div class="wide">
+                <span class="kv-key">Stubs</span>
+                <p id="ticket-stubs" class="kv-val"></p>
+              </div>
+              <div>
+                <span class="kv-key">Nets</span>
+                <p id="ticket-nets-info" class="kv-val"></p>
+              </div>
+              <div>
+                <span class="kv-key">Weight</span>
+                <p id="ticket-weight" class="kv-val"></p>
+              </div>
+            </div>
+            <div id="ticket-notes" class="hidden ic-alert ic-alert--warning is-block" style="margin-bottom:14px;font-size:12.5px"></div>
+            <div id="label-enrich-export" class="hidden ic-alert ic-alert--success is-block" style="margin-bottom:14px">
+              <div class="ic-row" style="justify-content:space-between">
+                <div>
+                  <p style="font-size:12.5px;font-weight:600">Label Enrichment</p>
+                  <p id="label-enrich-export-text" style="font-size:12px"></p>
+                </div>
+                <label class="ic-check" style="font-size:12.5px">
+                  <input type="checkbox" id="opt-enrich-export" checked> Apply
+                </label>
+              </div>
+              <div id="label-enrich-export-preview" class="ic-help" style="margin-top:6px;max-height:64px;overflow-y:auto"></div>
+            </div>
+            <div class="ic-row" style="flex-wrap:wrap">
+              <button type="button" onclick="generateFromTicket()" class="ic-btn ic-btn--primary">
+                <ic-icon name="check-circle" size="16"></ic-icon>
+                Generate Excel
+              </button>
+              <button type="button" onclick="editTicketManually()" class="ic-btn ic-btn--secondary">
+                Edit manually <ic-icon name="arrow-right" size="16"></ic-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Auto-Analyze quick action -->
+          <div id="auto-analyze-bar" class="hidden ic-panel fade-in">
+            <div class="ic-panel-row">
+              <span class="ic-option-icon"><ic-icon name="zap" size="18"></ic-icon></span>
+              <div class="grow">
+                <p class="ic-panel-title">One-click analysis</p>
+                <p class="ic-help">AI auto-detects banners, nets, and MRS groups. Add a Reporting Ticket and Questionnaire above to enrich labels, detect skip logic, and match question specs.</p>
+              </div>
+              <button type="button" id="auto-analyze-btn" onclick="autoAnalyze()" class="ic-btn ic-btn--primary">
+                <ic-icon name="zap" size="16"></ic-icon>
+                Auto-Analyze
+              </button>
+            </div>
+            <div id="auto-progress" class="hidden ic-row" style="margin-top:14px">
+              <span class="ic-spinner"></span>
+              <p class="ic-muted" style="font-size:12.5px" id="auto-progress-text">Running auto-analysis...</p>
+            </div>
+            <div id="auto-result" class="hidden ic-card fade-in" style="margin-top:14px">
+              <div class="ic-result">
+                <span class="ic-result-icon"><ic-icon name="check" size="22"></ic-icon></span>
+                <div>
+                  <div class="ic-result-title">Auto-analysis complete</div>
+                  <div class="ic-result-meta" id="auto-result-text"></div>
+                </div>
+              </div>
+              <div class="result-next">
+                <p class="next-label">What would you like to do next?</p>
+                <div class="ic-next-actions">
+                  <button type="button" onclick="downloadAutoResult()" class="ic-btn ic-btn--primary"><ic-icon name="download" size="16"></ic-icon>Download .xlsx</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ic-card-footer step-footer">
+          <button type="button" class="ic-btn ic-btn--primary js-next" onclick="nextStep()" disabled>Next <ic-icon name="arrow-right" size="16"></ic-icon></button>
+        </div>
+      </section>
+
+      <!-- Step 2: Review data (the /review page, embedded) -->
+      <section id="review-section" class="ic-card fade-in" hidden>
+        <div class="ic-card-header">
+          <div class="step-head">
+            <h2 class="ic-section-title">Review data</h2>
+            <p class="ic-help">How each column was read: fix anything, add derived variables.</p>
+          </div>
+          <span id="review-state" class="ic-help" style="white-space:nowrap"></span>
+        </div>
+        <div style="padding:12px">
+          <iframe id="review-frame" src="/review?embed=1" title="Review data" style="height: 680px"></iframe>
+        </div>
+        <div class="ic-card-footer step-footer">
+          <button type="button" class="ic-btn ic-btn--ghost" onclick="prevStep()"><ic-icon name="arrow-left" size="16"></ic-icon>Back</button>
+          <button type="button" class="ic-btn ic-btn--primary js-next" onclick="nextStep()">Next <ic-icon name="arrow-right" size="16"></ic-icon></button>
+        </div>
+      </section>
+
+      <!-- Step 3: Banners -->
+      <section id="banners-section" class="ic-card fade-in" hidden>
+        <div class="ic-card-header step-head">
+          <h2 class="ic-section-title">Select banners</h2>
+          <p class="ic-help">The columns in your crosstab.</p>
+        </div>
+        <div class="ic-card-body">
+          <p class="ic-muted" style="font-size:12.5px;margin-bottom:14px">Banners are the demographic variables that appear as columns across the top of your table (e.g., Gender, Age, Region). Each banner category gets a letter for significance testing &mdash; e.g., Gender: Male (A), Female (B); Region: London (C), North (D), South (E).</p>
+          <div id="banner-chips" class="chips" style="margin-bottom:16px"></div>
+          <p class="ic-label">Selected</p>
+          <div id="selected-banners" class="selected-row"></div>
+        </div>
+        <div class="ic-card-footer step-footer">
+          <button type="button" class="ic-btn ic-btn--ghost" onclick="prevStep()"><ic-icon name="arrow-left" size="16"></ic-icon>Back</button>
+          <button type="button" class="ic-btn ic-btn--primary js-next" onclick="nextStep()">Next <ic-icon name="arrow-right" size="16"></ic-icon></button>
+        </div>
+      </section>
+
+      <!-- Step 4: Stubs + MRS -->
+      <section id="stubs-section" class="ic-card fade-in" hidden>
+        <div class="ic-card-header step-head">
+          <h2 class="ic-section-title">Select stubs</h2>
+          <p class="ic-help">The rows in your crosstab.</p>
+        </div>
+        <div class="ic-card-body">
+          <p class="ic-muted" style="font-size:12.5px;margin-bottom:14px">Stubs are the questions that appear as rows in your tables. Each stub generates one crosstab sheet (or one block in single-sheet mode).</p>
+          <div class="check-row">
+            <label class="ic-check">
+              <input type="radio" name="stub-mode" value="all" checked> All variables
+            </label>
+            <label class="ic-check">
+              <input type="radio" name="stub-mode" value="select"> Select specific
             </label>
           </div>
-          <div id="label-enrich-export-preview" class="mt-1 text-xs text-gray-500 max-h-16 overflow-y-auto"></div>
+          <select id="stubs-select" multiple class="hidden ic-select"></select>
+
+          <!-- Open-end warning -->
+          <div id="open-end-warning" class="hidden ic-alert ic-alert--warning is-block" style="margin-top:12px;font-size:12.5px">
+          </div>
+
+          <!-- MRS Groups -->
+          <div class="subsection">
+            <div class="subsection-head">
+              <label class="ic-section-title" style="font-size:14px">Multiple Response Sets (MRS)</label>
+              <button type="button" onclick="toggleMrsPanel()" class="ic-btn ic-btn--secondary ic-btn--sm"><ic-icon name="plus" size="14"></ic-icon>Add MRS group</button>
+            </div>
+            <p class="ic-help" style="margin-bottom:10px"><strong>MRS = "select all that apply" questions</strong> (binary yes/no per option, e.g., brand awareness). Group the individual binary variables into one table where percentages can exceed 100%.</p>
+            <div id="mrs-groups" class="list-stack"></div>
+            <div id="mrs-panel" class="hidden ic-panel fade-in" style="margin-top:12px">
+              <div class="ic-field">
+                <label class="ic-label" for="mrs-name">Group name</label>
+                <input type="text" id="mrs-name" placeholder="e.g. Brand Awareness" class="ic-input">
+              </div>
+              <label class="ic-label" for="mrs-filter">Select member variables <span id="mrs-count" class="ic-help">(0 selected)</span></label>
+              <input type="text" id="mrs-filter" placeholder="Type to filter variables..." class="ic-input ic-input--sm" style="margin-bottom:6px" oninput="filterMrsMembers()">
+              <select id="mrs-members" multiple class="ic-select" onchange="updateMrsCount()"></select>
+              <p class="ic-help" style="margin-top:6px">Hold Ctrl/Cmd to select multiple. Tip: filter by prefix (e.g. "AWARE" or "Q5")</p>
+              <div class="ic-row" style="margin-top:14px">
+                <button type="button" onclick="addMrsGroup()" class="ic-btn ic-btn--primary ic-btn--sm">Add group</button>
+                <button type="button" onclick="toggleMrsPanel()" class="ic-btn ic-btn--secondary ic-btn--sm">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grid/Battery Summary -->
+          <div class="subsection">
+            <div class="subsection-head">
+              <label class="ic-section-title" style="font-size:14px">Grid / Battery Summary</label>
+              <button type="button" onclick="toggleGridPanel()" class="ic-btn ic-btn--secondary ic-btn--sm" id="grid-add-btn"><ic-icon name="plus" size="14"></ic-icon>Add grid group</button>
+            </div>
+            <p class="ic-help" style="margin-bottom:10px"><strong>Grid = rating scale questions with the same scale</strong> (e.g., 7 satisfaction questions all on 1-5). Shows Top 2 Box %, Bottom 2 Box %, and Mean in one compact summary sheet.</p>
+            <div id="grid-groups" class="list-stack"></div>
+            <div id="grid-panel" class="hidden ic-panel fade-in" style="margin-top:12px">
+              <div class="ic-field">
+                <label class="ic-label" for="grid-name">Group name</label>
+                <input type="text" id="grid-name" placeholder="e.g. Satisfaction Battery" class="ic-input">
+              </div>
+              <label class="ic-label" for="grid-filter">Select scale variables <span id="grid-count" class="ic-help">(0 selected)</span></label>
+              <input type="text" id="grid-filter" placeholder="Type to filter (e.g. sat_, Q20)..." class="ic-input ic-input--sm" style="margin-bottom:6px" oninput="filterGridMembers()">
+              <select id="grid-members" multiple class="ic-select" onchange="updateGridCount()"></select>
+              <p class="ic-help" style="margin-top:6px">Select variables that share the same scale (e.g., all 1-5 satisfaction questions)</p>
+              <div class="check-row" style="margin:14px 0">
+                <span class="ic-label" style="margin:0">Show:</span>
+                <label class="ic-check"><input type="checkbox" id="grid-show-t2b" checked> Top 2 Box</label>
+                <label class="ic-check"><input type="checkbox" id="grid-show-b2b" checked> Bottom 2 Box</label>
+                <label class="ic-check"><input type="checkbox" id="grid-show-mean" checked> Mean</label>
+              </div>
+              <div class="ic-row" style="padding-top:12px;border-top:1px solid var(--ic-border)">
+                <button type="button" onclick="addGridGroup()" class="ic-btn ic-btn--primary ic-btn--sm">Add grid</button>
+                <button type="button" onclick="toggleGridPanel()" class="ic-btn ic-btn--secondary ic-btn--sm">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button onclick="generateFromTicket()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div class="ic-card-footer step-footer">
+          <button type="button" class="ic-btn ic-btn--ghost" onclick="prevStep()"><ic-icon name="arrow-left" size="16"></ic-icon>Back</button>
+          <button type="button" class="ic-btn ic-btn--primary js-next" onclick="nextStep()">Next <ic-icon name="arrow-right" size="16"></ic-icon></button>
+        </div>
+      </section>
+
+      <!-- Step 5: Options -->
+      <section id="options-section" class="ic-card fade-in" hidden>
+        <div class="ic-card-header step-head">
+          <h2 class="ic-section-title">Options</h2>
+          <p class="ic-help">Significance, weighting and what goes into the workbook.</p>
+        </div>
+        <div class="ic-card-body">
+          <div class="ic-grid-3">
+            <div>
+              <label class="ic-label" for="sig-select">Significance level</label>
+              <select id="sig-select" class="ic-select">
+                <option value="0.90">90%</option>
+                <option value="0.95" selected>95%</option>
+                <option value="0.99">99%</option>
+              </select>
+            </div>
+            <div>
+              <label class="ic-label" for="weight-select">Weight variable</label>
+              <div class="ic-row" style="gap:8px">
+                <select id="weight-select" class="ic-select" style="flex:1;min-width:0">
+                  <option value="">None (unweighted)</option>
+                </select>
+                <button type="button" id="btn-create-weight" onclick="openWeightWizard()" class="ic-btn ic-btn--secondary" style="display:none">
+                  <ic-icon name="scale" size="16"></ic-icon>Create Weight
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="ic-label" for="title-input">Report title</label>
+              <input type="text" id="title-input" placeholder="e.g. NPS Study Q1 2026" class="ic-input">
+            </div>
+          </div>
+
+          <div class="subsection">
+            <p class="ic-label" style="margin-bottom:10px">Include in output</p>
+            <div class="option-list">
+              <label class="ic-option" for="opt-t2b">
+                <span class="ic-option-icon"><ic-icon name="layers" size="16"></ic-icon></span>
+                <div class="option-text">
+                  <div class="ic-option-title">Top 2 Box / Bottom 2 Box</div>
+                  <div class="ic-option-desc">Auto-applies T2B/B2B nets to scale variables (4-11 point scales).</div>
+                </div>
+                <input type="checkbox" id="opt-t2b" checked class="ic-checkbox">
+              </label>
+              <label class="ic-option" for="opt-means">
+                <span class="ic-option-icon"><ic-icon name="chart" size="16"></ic-icon></span>
+                <div class="option-text">
+                  <div class="ic-option-title">Means with T-test</div>
+                  <div class="ic-option-desc">Adds means to scale variables, with significance letters (A, B, C...) showing which columns are statistically different.</div>
+                </div>
+                <input type="checkbox" id="opt-means" checked class="ic-checkbox">
+              </label>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <p class="ic-label" style="margin-bottom:10px">Output format</p>
+            <div class="option-list">
+              <label class="ic-option">
+                <span class="ic-option-icon"><ic-icon name="layers" size="16"></ic-icon></span>
+                <div class="option-text">
+                  <div class="ic-option-title">One sheet per question</div>
+                  <div class="ic-option-desc">Each stub gets its own crosstab sheet.</div>
+                </div>
+                <input type="radio" name="output-mode" value="multi_sheet" checked class="ic-checkbox">
+              </label>
+              <label class="ic-option">
+                <span class="ic-option-icon"><ic-icon name="list" size="16"></ic-icon></span>
+                <div class="option-text">
+                  <div class="ic-option-title">All questions in one sheet</div>
+                  <div class="ic-option-desc">Ideal for scrolling, copy-paste to PPT, or comparing questions side by side.</div>
+                </div>
+                <input type="radio" name="output-mode" value="single_sheet" class="ic-checkbox">
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="ic-card-footer step-footer">
+          <button type="button" class="ic-btn ic-btn--ghost" onclick="prevStep()"><ic-icon name="arrow-left" size="16"></ic-icon>Back</button>
+          <button type="button" class="ic-btn ic-btn--primary js-next" onclick="nextStep()">Next <ic-icon name="arrow-right" size="16"></ic-icon></button>
+        </div>
+      </section>
+
+      <!-- Step 6: Custom Groups -->
+      <section id="custom-groups-section" class="ic-card fade-in" hidden>
+        <div class="ic-card-header step-head">
+          <h2 class="ic-section-title">Custom groups <span class="ic-badge" style="margin-left:6px">Optional</span></h2>
+          <p class="ic-help">Define custom banner columns by combining conditions.</p>
+        </div>
+        <div class="ic-card-body">
+          <p class="ic-muted" style="font-size:12.5px;margin-bottom:14px">Example: "London + Uber users" = region is London AND aware of Uber. Each group becomes a column with significance testing.</p>
+
+          <div id="custom-groups-list" class="list-stack" style="margin-bottom:12px"></div>
+
+          <div id="cg-builder" class="hidden ic-panel fade-in">
+            <div class="ic-field">
+              <label class="ic-label" for="cg-name">Group name</label>
+              <input type="text" id="cg-name" placeholder="e.g. London Uber Users" class="ic-input">
+            </div>
+
+            <p class="ic-label">Conditions <span class="ic-help">(all must be true &mdash; AND logic)</span></p>
+            <div id="cg-conditions" class="list-stack" style="margin-bottom:10px"></div>
+            <button type="button" onclick="addConditionRow()" class="ic-btn ic-btn--ghost ic-btn--sm" style="margin-bottom:12px"><ic-icon name="plus" size="14"></ic-icon>Add condition</button>
+
+            <div class="ic-row" style="padding-top:12px;border-top:1px solid var(--ic-border)">
+              <button type="button" onclick="saveCustomGroup()" class="ic-btn ic-btn--primary ic-btn--sm">Save group</button>
+              <button type="button" onclick="cancelCustomGroup()" class="ic-btn ic-btn--secondary ic-btn--sm">Cancel</button>
+            </div>
+          </div>
+
+          <button type="button" id="cg-add-btn" onclick="openCustomGroupBuilder()" class="ic-btn ic-btn--secondary"><ic-icon name="plus" size="16"></ic-icon>Add custom group</button>
+        </div>
+        <div class="ic-card-footer step-footer">
+          <button type="button" class="ic-btn ic-btn--ghost" onclick="prevStep()"><ic-icon name="arrow-left" size="16"></ic-icon>Back</button>
+          <button type="button" class="ic-btn ic-btn--primary js-next" onclick="nextStep()">Next <ic-icon name="arrow-right" size="16"></ic-icon></button>
+        </div>
+      </section>
+
+      <!-- Step 7: Generate -->
+      <section id="generate-section" class="ic-card fade-in" hidden>
+        <div class="ic-card-header step-head">
+          <h2 class="ic-section-title">Generate</h2>
+          <p class="ic-help">Build the Excel workbook from the configuration below.</p>
+        </div>
+        <div class="ic-card-body ic-stack">
+          <!-- Summary bar -->
+          <div class="ic-panel">
+            <p class="kv-key" style="margin-bottom:4px">Current configuration</p>
+            <div id="spec-summary" class="ic-code ic-muted">No configuration set &mdash; select banners above to start</div>
+          </div>
+
+          <button type="button" id="generate-btn" onclick="generate()" class="ic-btn ic-btn--primary ic-btn--lg ic-btn--block">
+            <ic-icon name="file-sheet" size="18"></ic-icon>
             Generate Excel
           </button>
-          <button onclick="editTicketManually()" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-            Edit manually ↓
-          </button>
-        </div>
-      </div>
 
-      <!-- Auto-Analyze quick action -->
-      <div id="auto-analyze-bar" class="hidden mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200 fade-in">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-indigo-900">One-click analysis</p>
-            <p class="text-xs text-indigo-600">AI auto-detects banners, nets, and MRS groups. Add a Reporting Ticket and Questionnaire above to enrich labels, detect skip logic, and match question specs.</p>
+          <div id="progress" class="hidden ic-panel fade-in">
+            <div class="ic-row">
+              <span class="ic-spinner"></span>
+              <p id="progress-text" class="ic-muted">Processing...</p>
+            </div>
           </div>
-          <button id="auto-analyze-btn" onclick="autoAnalyze()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors whitespace-nowrap flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            Auto-Analyze
-          </button>
-        </div>
-        <div id="auto-progress" class="hidden mt-3">
-          <div class="flex items-center gap-2">
-            <div class="spinner"></div>
-            <p class="text-xs text-indigo-600" id="auto-progress-text">Running auto-analysis...</p>
+
+          <div id="result" class="hidden ic-card fade-in">
+            <div class="ic-result">
+              <span class="ic-result-icon"><ic-icon name="check" size="22"></ic-icon></span>
+              <div>
+                <div class="ic-result-title" id="result-text"></div>
+                <div class="ic-result-meta" id="result-meta"></div>
+              </div>
+            </div>
+            <div class="result-next">
+              <p class="next-label">What would you like to do next?</p>
+              <div class="ic-next-actions">
+                <button type="button" onclick="downloadResult()" class="ic-btn ic-btn--primary">
+                  <ic-icon name="download" size="16"></ic-icon>
+                  Download .xlsx
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-        <div id="auto-result" class="hidden mt-3 p-3 bg-white rounded-lg border border-green-200">
-          <div class="flex items-center justify-between">
-            <p class="text-sm font-medium text-green-800" id="auto-result-text"></p>
-            <button onclick="downloadAutoResult()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-4 rounded-lg text-xs">Download .xlsx</button>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- Step 2: Review data (the /review page, embedded) -->
-    <section id="review-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
-      <div class="flex items-center justify-between gap-2 mb-4">
-        <div class="flex items-center gap-2">
-          <span class="section-badge bg-blue-600 text-white">2</span>
-          <h2 class="text-lg font-semibold text-gray-900">Review data <span class="text-sm font-normal text-gray-400">(how each column was read: fix anything, add derived variables)</span></h2>
-        </div>
-        <span id="review-state" class="text-xs text-gray-500 whitespace-nowrap"></span>
-      </div>
-      <iframe id="review-frame" src="/review?embed=1" title="Review data" class="w-full border-0 rounded-lg" style="height: 680px"></iframe>
-    </section>
-
-    <!-- Step 3: Banners -->
-    <section id="banners-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="section-badge bg-blue-600 text-white">3</span>
-        <h2 class="text-lg font-semibold text-gray-900">Select banners <span class="text-sm font-normal text-gray-400">(columns in your crosstab)</span></h2>
-      </div>
-      <p class="text-xs text-gray-500 mb-3">Banners are the demographic variables that appear as columns across the top of your table (e.g., Gender, Age, Region). Each banner category gets a letter for significance testing &mdash; e.g., Gender: Male (A), Female (B); Region: London (C), North (D), South (E).</p>
-      <div id="banner-chips" class="flex flex-wrap gap-2 mb-3"></div>
-      <div id="selected-banners" class="flex flex-wrap gap-2 min-h-[32px]"></div>
-    </section>
-
-    <!-- Step 4: Stubs + MRS -->
-    <section id="stubs-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="section-badge bg-blue-600 text-white">4</span>
-        <h2 class="text-lg font-semibold text-gray-900">Select stubs <span class="text-sm font-normal text-gray-400">(rows in your crosstab)</span></h2>
-      </div>
-      <p class="text-xs text-gray-500 mb-3">Stubs are the questions that appear as rows in your tables. Each stub generates one crosstab sheet (or one block in single-sheet mode).</p>
-      <div class="flex items-center gap-3 mb-3">
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="radio" name="stub-mode" value="all" checked class="text-blue-600"> All variables
-        </label>
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="radio" name="stub-mode" value="select" class="text-blue-600"> Select specific
-        </label>
-      </div>
-      <select id="stubs-select" multiple class="hidden w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"></select>
-
-      <!-- Open-end warning -->
-      <div id="open-end-warning" class="hidden mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-      </div>
-
-      <!-- MRS Groups -->
-      <div class="mt-4 pt-4 border-t border-gray-100">
-        <div class="flex items-center justify-between mb-2">
-          <label class="text-sm font-medium text-gray-700">Multiple Response Sets (MRS)</label>
-          <button onclick="toggleMrsPanel()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Add MRS group</button>
-        </div>
-        <p class="text-xs text-gray-400 mb-2"><strong>MRS = "select all that apply" questions</strong> (binary yes/no per option, e.g., brand awareness). Group the individual binary variables into one table where percentages can exceed 100%.</p>
-        <div id="mrs-groups" class="space-y-2"></div>
-        <div id="mrs-panel" class="hidden mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200 fade-in">
-          <div class="mb-3">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Group name</label>
-            <input type="text" id="mrs-name" placeholder="e.g. Brand Awareness" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
-          </div>
-          <div class="mb-1">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Select member variables <span id="mrs-count" class="text-gray-400">(0 selected)</span></label>
-            <input type="text" id="mrs-filter" placeholder="Type to filter variables..." class="w-full border border-gray-300 rounded px-3 py-1.5 text-xs mb-1" oninput="filterMrsMembers()">
-          </div>
-          <select id="mrs-members" multiple class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" style="min-height:140px" onchange="updateMrsCount()"></select>
-          <p class="text-xs text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple. Tip: filter by prefix (e.g. "AWARE" or "Q5")</p>
-          <div class="flex gap-2 mt-3">
-            <button onclick="addMrsGroup()" class="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Add group</button>
-            <button onclick="toggleMrsPanel()" class="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300">Cancel</button>
+          <div id="error" class="hidden ic-alert ic-alert--danger fade-in">
+            <ic-icon name="alert" size="18"></ic-icon>
+            <div>
+              <p style="font-weight:600" id="error-text"></p>
+              <p style="font-size:12px;margin-top:4px">Check that your .sav file is valid and not corrupted. If the problem persists, try with fewer stubs or a smaller file. <a href="/docs" target="_blank" rel="noopener" style="text-decoration:underline">API docs</a></p>
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- Grid/Battery Summary -->
-      <div class="mt-4 pt-4 border-t border-gray-100">
-        <div class="flex items-center justify-between mb-2">
-          <label class="text-sm font-medium text-gray-700">Grid / Battery Summary</label>
-          <button onclick="toggleGridPanel()" class="text-xs text-orange-600 hover:text-orange-800 font-medium" id="grid-add-btn">+ Add grid group</button>
+        <div class="ic-card-footer step-footer">
+          <button type="button" class="ic-btn ic-btn--ghost" onclick="prevStep()"><ic-icon name="arrow-left" size="16"></ic-icon>Back</button>
         </div>
-        <p class="text-xs text-gray-400 mb-2"><strong>Grid = rating scale questions with the same scale</strong> (e.g., 7 satisfaction questions all on 1-5). Shows Top 2 Box %, Bottom 2 Box %, and Mean in one compact summary sheet.</p>
-        <div id="grid-groups" class="space-y-2"></div>
-        <div id="grid-panel" class="hidden mt-3 p-4 bg-orange-50 rounded-lg border border-orange-200 fade-in">
-          <div class="mb-3">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Group name</label>
-            <input type="text" id="grid-name" placeholder="e.g. Satisfaction Battery" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
-          </div>
-          <div class="mb-1">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Select scale variables <span id="grid-count" class="text-gray-400">(0 selected)</span></label>
-            <input type="text" id="grid-filter" placeholder="Type to filter (e.g. sat_, Q20)..." class="w-full border border-gray-300 rounded px-3 py-1.5 text-xs mb-1" oninput="filterGridMembers()">
-          </div>
-          <select id="grid-members" multiple class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" style="min-height:140px" onchange="updateGridCount()"></select>
-          <p class="text-xs text-gray-400 mt-1">Select variables that share the same scale (e.g., all 1-5 satisfaction questions)</p>
-          <div class="flex flex-wrap gap-3 mt-3 mb-3">
-            <label class="text-xs font-medium text-gray-600">Show:</label>
-            <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="grid-show-t2b" checked class="rounded text-orange-600"> Top 2 Box</label>
-            <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="grid-show-b2b" checked class="rounded text-orange-600"> Bottom 2 Box</label>
-            <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="grid-show-mean" checked class="rounded text-orange-600"> Mean</label>
-          </div>
-          <div class="flex gap-2 pt-2 border-t border-orange-200">
-            <button onclick="addGridGroup()" class="px-4 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Add grid</button>
-            <button onclick="toggleGridPanel()" class="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Step 5: Options -->
-    <section id="options-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="section-badge bg-blue-600 text-white">5</span>
-        <h2 class="text-lg font-semibold text-gray-900">Options</h2>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Significance level</label>
-          <select id="sig-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            <option value="0.90">90%</option>
-            <option value="0.95" selected>95%</option>
-            <option value="0.99">99%</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Weight variable</label>
-          <div class="flex gap-2">
-            <select id="weight-select" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">None (unweighted)</option>
-            </select>
-            <button id="btn-create-weight" onclick="openWeightWizard()" class="px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 whitespace-nowrap" style="display:none">
-              Create Weight
-            </button>
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Report title</label>
-          <input type="text" id="title-input" placeholder="e.g. NPS Study Q1 2026" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-        </div>
-      </div>
-      <div class="mt-4 pt-4 border-t border-gray-100">
-        <label class="block text-sm font-medium text-gray-700 mb-3">Include in output</label>
-        <div class="flex flex-wrap gap-5">
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" id="opt-t2b" checked class="rounded text-blue-600 w-4 h-4"> Top 2 Box / Bottom 2 Box
-          </label>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" id="opt-means" checked class="rounded text-blue-600 w-4 h-4"> Means with T-test
-          </label>
-        </div>
-        <p class="text-xs text-gray-400 mt-2">Top 2 Box / Bottom 2 Box (T2B/B2B) and Means auto-apply to scale variables (4-11 point scales). Significance letters (A, B, C...) show which columns are statistically different.</p>
-      </div>
-      <div class="mt-4 pt-4 border-t border-gray-100">
-        <label class="block text-sm font-medium text-gray-700 mb-3">Output format</label>
-        <div class="flex flex-wrap gap-4">
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" name="output-mode" value="multi_sheet" checked class="text-blue-600"> One sheet per question
-          </label>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" name="output-mode" value="single_sheet" class="text-blue-600"> All questions in one sheet
-          </label>
-        </div>
-        <p class="text-xs text-gray-400 mt-2">Single sheet is ideal for scrolling, copy-paste to PPT, or comparing questions side by side.</p>
-      </div>
-    </section>
-
-    <!-- Step 6: Custom Groups -->
-    <section id="custom-groups-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 fade-in">
-      <div class="flex items-center gap-2 mb-1">
-        <span class="section-badge bg-purple-600 text-white">6</span>
-        <h2 class="text-lg font-semibold text-gray-900">Custom Groups <span class="text-sm font-normal text-gray-400">(optional)</span></h2>
-      </div>
-      <p class="text-xs text-gray-500 mb-4">Define custom banner columns by combining conditions. Example: "London + Uber users" = region is London AND aware of Uber. Each group becomes a column with significance testing.</p>
-
-      <div id="custom-groups-list" class="space-y-2 mb-3"></div>
-
-      <div id="cg-builder" class="hidden p-4 bg-gray-50 rounded-lg border border-gray-200 fade-in">
-        <div class="mb-3">
-          <label class="block text-xs font-medium text-gray-600 mb-1">Group name</label>
-          <input type="text" id="cg-name" placeholder="e.g. London Uber Users" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
-        </div>
-
-        <label class="block text-xs font-medium text-gray-600 mb-1">Conditions <span class="text-gray-400">(all must be true &mdash; AND logic)</span></label>
-        <div id="cg-conditions" class="space-y-2 mb-3"></div>
-        <button onclick="addConditionRow()" class="text-xs text-blue-600 hover:text-blue-800 font-medium mb-3">+ Add condition</button>
-
-        <div class="flex gap-2 pt-2 border-t border-gray-200">
-          <button onclick="saveCustomGroup()" class="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">Save group</button>
-          <button onclick="cancelCustomGroup()" class="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300">Cancel</button>
-        </div>
-      </div>
-
-      <button id="cg-add-btn" onclick="openCustomGroupBuilder()" class="text-sm text-purple-600 hover:text-purple-800 font-medium">+ Add custom group</button>
-    </section>
-
-    <!-- Generate -->
-    <section id="generate-section" class="hidden fade-in">
-      <!-- Summary bar -->
-      <div class="mb-3 p-3 bg-gray-100 rounded-lg">
-        <p class="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Current configuration</p>
-        <div id="spec-summary" class="text-xs text-gray-600 font-mono">No configuration set &mdash; select banners above to start</div>
-      </div>
-
-      <button id="generate-btn" onclick="generate()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-6 rounded-xl text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        Generate Excel
-      </button>
-
-      <div id="progress" class="hidden mt-4 p-4 bg-white rounded-xl border border-gray-200 fade-in">
-        <div class="flex items-center gap-3">
-          <div class="spinner"></div>
-          <p id="progress-text" class="text-sm text-gray-600">Processing...</p>
-        </div>
-      </div>
-
-      <div id="result" class="hidden mt-4 p-4 bg-green-50 rounded-xl border border-green-200 fade-in">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-green-800" id="result-text"></p>
-            <p class="text-xs text-green-600 mt-1" id="result-meta"></p>
-          </div>
-          <button onclick="downloadResult()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            Download .xlsx
-          </button>
-        </div>
-      </div>
-
-      <div id="error" class="hidden mt-4 p-4 bg-red-50 rounded-xl border border-red-200 fade-in">
-        <div class="flex items-start gap-2">
-          <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <div>
-            <p class="text-sm font-semibold text-red-800" id="error-text"></p>
-            <p class="text-xs text-red-600 mt-1">Check that your .sav file is valid and not corrupted. If the problem persists, try with fewer stubs or a smaller file. <a href="/docs" target="_blank" class="underline">API docs</a></p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- API Reference -->
-    <details class="bg-white rounded-xl border border-gray-200">
-      <summary class="px-6 py-4 cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900">
-        API Reference &mdash; curl / Python / Node
-      </summary>
-      <div class="px-6 pb-6 text-sm">
-        <h3 class="font-semibold text-gray-800 mt-2 mb-2">curl &mdash; multiple banners + means + MRS</h3>
-        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs"><code>curl -X POST https://crosstab.indicolabs.io/v1/tabulate \
+      <!-- API Reference -->
+      <details class="ic-card api-ref" style="margin-top:24px">
+        <summary><ic-icon name="code" size="16"></ic-icon>API Reference &mdash; curl / Python / Node<ic-icon name="chevron-down" size="16" style="margin-left:auto"></ic-icon></summary>
+        <div class="ic-card-body" style="padding-top:4px">
+          <h3>curl &mdash; multiple banners + means + MRS</h3>
+          <pre class="code-block"><code>curl -X POST https://crosstab.indicolabs.io/v1/tabulate \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@survey.sav" \
   -F 'spec={
@@ -413,8 +583,8 @@
     "mrs_groups": {"Brand_Awareness": ["AWARE_A","AWARE_B","AWARE_C"]}
   }' -o tabulation.xlsx</code></pre>
 
-        <h3 class="font-semibold text-gray-800 mt-4 mb-2">Python</h3>
-        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs"><code>import requests, json
+          <h3>Python</h3>
+          <pre class="code-block"><code>import requests, json
 
 resp = requests.post(
     "https://crosstab.indicolabs.io/v1/tabulate",
@@ -431,8 +601,8 @@ with open("tabulation.xlsx", "wb") as f:
     f.write(resp.content)
 print(f"{resp.headers['X-Stubs-Success']} tables generated")</code></pre>
 
-        <h3 class="font-semibold text-gray-800 mt-4 mb-2">Node.js</h3>
-        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs"><code>const fs = require("fs");
+          <h3>Node.js</h3>
+          <pre class="code-block"><code>const fs = require("fs");
 const FormData = require("form-data");
 
 const form = new FormData();
@@ -452,16 +622,13 @@ const resp = await fetch("https://crosstab.indicolabs.io/v1/tabulate", {
 fs.writeFileSync("tabulation.xlsx", Buffer.from(await resp.arrayBuffer()));
 console.log(`${resp.headers.get("X-Stubs-Success")} tables generated`);</code></pre>
 
-        <p class="mt-4 text-xs text-gray-500">Full interactive docs: <a href="/docs" target="_blank" class="text-blue-600 hover:underline">/docs</a> | <a href="/redoc" target="_blank" class="text-blue-600 hover:underline">/redoc</a></p>
-      </div>
-    </details>
-  </main>
+          <p class="ic-help" style="margin-top:16px">Full interactive docs: <a href="/docs" target="_blank" rel="noopener" class="ic-link">/docs</a> | <a href="/redoc" target="_blank" rel="noopener" class="ic-link">/redoc</a></p>
+        </div>
+      </details>
+    </main>
+  </div>
+</div>
 
-  <footer class="max-w-5xl mx-auto px-6 py-6 text-center text-xs text-gray-400">
-    Indico Crosstab &bull; Powered by QuantipyMRX &bull; Built by Indico Labs
-  </footer>
-
-<script src="/static/config.js"></script>
 <script>
 // ── State ──
 let savFile = null, docxFile = null, questFile = null, metadata = null, resultBlob = null, resultFilename = '';
@@ -476,14 +643,46 @@ function appendData(form) {
   if (reviewedCodebook) form.append('codebook', JSON.stringify(reviewedCodebook));
 }
 
+// ── Stepper: one step's card at a time ──
+const STEP_LABELS = ['Upload', 'Review data', 'Banners', 'Stubs', 'Options', 'Custom groups', 'Generate'];
+const STEP_PANELS = ['upload-section', 'review-section', 'banners-section', 'stubs-section', 'options-section', 'custom-groups-section', 'generate-section'];
+let currentStep = 0, furthestStep = 0;
+let metaReady = false;  // steps after Upload unlock once the file's metadata has loaded
+
+function canVisit(i) { return i === 0 || (metaReady && i <= furthestStep); }
+
+function renderStepper() {
+  const nav = document.getElementById('steps-nav');
+  IC.stepper(nav, STEP_LABELS, currentStep, { onSelect: goStep });
+  nav.querySelectorAll('.ic-step').forEach((b, i) => { b.disabled = i === currentStep || !canVisit(i); });
+  document.querySelectorAll('.js-next').forEach(b => { b.disabled = !metaReady; });
+}
+
+function goStep(i) {
+  if (i < 0 || i >= STEP_PANELS.length) return;
+  if (i > 0 && !metaReady) return;
+  currentStep = i;
+  furthestStep = Math.max(furthestStep, i);
+  STEP_PANELS.forEach((id, k) => { document.getElementById(id).hidden = k !== i; });
+  renderStepper();
+  // The review frame measured itself while hidden: ask it for its height again now it has a width
+  if (STEP_PANELS[i] === 'review-section') requestAnimationFrame(syncReviewHeight);
+  const nav = document.getElementById('steps-nav');
+  if (nav.getBoundingClientRect().top < 0) nav.scrollIntoView({ block: 'start' });
+}
+function nextStep() { goStep(currentStep + 1); }
+function prevStep() { goStep(currentStep - 1); }
+
 // ── Step 2: Review data (embedded /review page) ──
 const reviewFrame = document.getElementById('review-frame');
 let reviewFrameReady = false;
 reviewFrame.addEventListener('load', () => { reviewFrameReady = true; if (savFile) startReview(); });
 function startReview() {
-  document.getElementById('review-section').classList.remove('hidden');
   document.getElementById('review-state').textContent = 'Reading the file…';
   if (reviewFrameReady && reviewFrame.contentWindow.start) reviewFrame.contentWindow.start(savFile);
+}
+function syncReviewHeight() {
+  try { if (reviewFrame.contentWindow.notifyParent) reviewFrame.contentWindow.notifyParent('review-height'); } catch (_) { /* not loaded yet */ }
 }
 window.addEventListener('message', async (e) => {
   if (e.origin !== window.location.origin || e.source !== reviewFrame.contentWindow) return;
@@ -505,8 +704,7 @@ window.addEventListener('message', async (e) => {
     reviewedCodebook = msg.codebook;  // null when nothing was edited
     status.textContent = reviewedCodebook ? 'Edited coding applied' : 'Inferred coding';
     if (reviewedCodebook) await loadMetadata();  // banners/stubs now include edits + derived variables
-    // After the sections re-render (a smooth scroll started earlier gets cancelled)
-    requestAnimationFrame(() => document.getElementById('banners-section').scrollIntoView({ block: 'start' }));
+    goStep(STEP_PANELS.indexOf('banners-section'));
   }
 });
 
@@ -519,29 +717,34 @@ function setupDropZone(dropId, inputId, labelId, iconId, onFile) {
   const drop = document.getElementById(dropId), input = document.getElementById(inputId);
   const label = document.getElementById(labelId), icon = document.getElementById(iconId);
   drop.addEventListener('click', () => input.click());
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
   input.addEventListener('change', e => { if (e.target.files[0]) onFile(e.target.files[0], label, icon); });
   drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
   drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0], label, icon); });
 }
-setupDropZone('sav-drop', 'sav-input', 'sav-label', 'sav-icon', async (f, label, icon) => {
-  savFile = f; reviewedCodebook = null; icon.textContent = '\u2705';
+function _markFile(dropId, f, label, icon, size) {
+  document.getElementById(dropId).classList.add('has-file');
+  icon.replaceChildren(IC.icon('check-circle', size));
   label.textContent = `${f.name} (${(f.size/1024).toFixed(0)} KB)`;
-  label.className = 'text-sm text-blue-700 font-medium';
+  label.className = 'ic-dropzone-title';
+}
+setupDropZone('sav-drop', 'sav-input', 'sav-label', 'sav-icon', async (f, label, icon) => {
+  savFile = f; reviewedCodebook = null;
+  _markFile('sav-drop', f, label, icon, 30);
+  metaReady = false; furthestStep = 0; renderStepper();  // lock the later steps until this file's metadata loads
   startReview();
   await loadMetadata();
 });
 setupDropZone('docx-drop', 'docx-input', 'docx-label', 'docx-icon', async (f, label, icon) => {
-  docxFile = f; icon.textContent = '\u2705';
-  label.textContent = `${f.name} (${(f.size/1024).toFixed(0)} KB)`;
-  label.className = 'text-sm text-blue-700 font-medium';
+  docxFile = f;
+  _markFile('docx-drop', f, label, icon, 22);
   // Auto-parse when we have at least .sav + ticket
   if (savFile) await runSmartSpec();
 });
 setupDropZone('quest-drop', 'quest-input', 'quest-label', 'quest-icon', async (f, label, icon) => {
-  questFile = f; icon.textContent = '\u2705';
-  label.textContent = `${f.name} (${(f.size/1024).toFixed(0)} KB)`;
-  label.className = 'text-sm text-blue-700 font-medium';
+  questFile = f;
+  _markFile('quest-drop', f, label, icon, 22);
   // Auto-parse when we have .sav + at least one document
   if (savFile && (docxFile || questFile)) await runSmartSpec();
 });
@@ -559,7 +762,7 @@ async function loadMetadata() {
     const data = (await resp.json()).data;
     if (seq !== metadataSeq) return;
     metadata = data;
-    infoText.textContent = `${metadata.file_name} \u2014 ${metadata.n_cases.toLocaleString()} cases \u00d7 ${metadata.n_variables} variables`;
+    infoText.textContent = `${metadata.file_name} — ${metadata.n_cases.toLocaleString()} cases × ${metadata.n_variables} variables`;
     // Reset ALL state from previous file
     selectedBanners = []; mrsGroups = {}; gridGroups = {}; customGroups = [];
     resultBlob = null; resultFilename = '';
@@ -570,9 +773,9 @@ async function loadMetadata() {
     document.getElementById('result-section')?.classList.add('hidden');
     populateUI();
     document.getElementById('auto-analyze-bar').classList.remove('hidden');
-    ['banners-section','stubs-section','options-section','custom-groups-section','generate-section'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+    metaReady = true; renderStepper();  // unlock Review data → Generate
   } catch (e) {
-    infoText.textContent = `Error: ${e.message}`; info.className = 'mt-4 p-3 bg-red-50 rounded-lg';
+    infoText.textContent = `Error: ${e.message}`; info.className = 'ic-alert ic-alert--danger';
   }
 }
 
@@ -598,7 +801,7 @@ function populateUI() {
   // "Total" option — always first, always available
   const totalChip = document.createElement('button');
   totalChip.className = 'chip active';
-  totalChip.innerHTML = '<span class="font-medium">Total</span> <span class="text-gray-400 text-xs">(all respondents)</span>';
+  totalChip.innerHTML = '<span class="chip-label">Total</span> <span class="ic-help">(all respondents)</span>';
   totalChip.title = 'Total column — frequency of all respondents. Always included.';
   totalChip.style.cursor = 'default';
   totalChip.style.opacity = '0.8';
@@ -607,16 +810,16 @@ function populateUI() {
 
   if (suggested.length > 0) {
     const label = document.createElement('div');
-    label.className = 'w-full text-xs font-semibold text-green-700 mb-1 mt-2';
+    label.className = 'chip-group-label t-success';
     label.textContent = 'Recommended banners';
     chipsEl.appendChild(label);
     for (const v of suggested) { chipsEl.appendChild(_makeBannerChip(v, true)); }
     if (rest.length > 0) {
       const sep = document.createElement('div');
-      sep.className = 'w-full border-t border-gray-200 my-2';
+      sep.className = 'chip-sep';
       chipsEl.appendChild(sep);
       const lbl2 = document.createElement('div');
-      lbl2.className = 'w-full text-xs text-gray-400 mb-1';
+      lbl2.className = 'chip-group-label';
       lbl2.textContent = 'Other variables';
       chipsEl.appendChild(lbl2);
     }
@@ -626,7 +829,7 @@ function populateUI() {
   let openEndCount = 0;
   let openEndNames = [];
   for (const v of metadata.variables) {
-    const label = v.label ? `${v.name} \u2014 ${v.label}` : v.name;
+    const label = v.label ? `${v.name} — ${v.label}` : v.name;
     const vl = v.value_labels ? Object.keys(v.value_labels).length : 0;
 
     // Detect open-ends
@@ -659,7 +862,7 @@ function populateUI() {
   if (oeWarning) {
     if (openEndCount > 0) {
       oeWarning.classList.remove('hidden');
-      oeWarning.innerHTML = `<span class="font-semibold">${openEndCount} open-ended question${openEndCount > 1 ? 's' : ''} detected</span> (${openEndNames.join(', ')}${openEndCount > 5 ? '...' : ''}) — these are text responses and will be skipped in the export.`;
+      oeWarning.innerHTML = `<strong>${openEndCount} open-ended question${openEndCount > 1 ? 's' : ''} detected</strong> (${openEndNames.join(', ')}${openEndCount > 5 ? '...' : ''}) — these are text responses and will be skipped in the export.`;
     } else {
       oeWarning.classList.add('hidden');
     }
@@ -668,7 +871,7 @@ function populateUI() {
   // ── Auto-detect weights from backend ──
   const detectedWeights = metadata.detected_weights || [];
   for (const v of metadata.variables) {
-    const label = v.label ? `${v.name} \u2014 ${v.label}` : v.name;
+    const label = v.label ? `${v.name} — ${v.label}` : v.name;
     const lo = v.name.toLowerCase();
     if (lo.includes('weight') || lo.includes('wt') || lo.includes('pond') || detectedWeights.includes(v.name)) {
       const opt = document.createElement('option'); opt.value = v.name; opt.textContent = label;
@@ -726,9 +929,9 @@ function _makeBannerChip(v, isSuggested) {
   const chip = document.createElement('button');
   chip.className = 'chip';
   const shortLabel = v.label ? `${v.label.substring(0, 40)}${v.label.length > 40 ? '...' : ''}` : v.name;
-  const badge = isSuggested ? '<span class="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-semibold">AI</span>' : '';
-  chip.innerHTML = `<span class="font-mono text-[10px] text-gray-500 mr-1">${v.name}</span> <span class="font-medium">${shortLabel}</span> <span class="text-gray-400 text-xs">(${vl})</span>${badge}`;
-  chip.title = `${v.name}: ${v.label || ''} \u2014 ${vl} categories${isSuggested ? ' (recommended by AI)' : ''}`;
+  const badge = isSuggested ? '<span class="ic-badge ic-badge--success">AI</span>' : '';
+  chip.innerHTML = `<span class="chip-name">${v.name}</span> <span class="chip-label">${shortLabel}</span> <span class="ic-help">(${vl})</span>${badge}`;
+  chip.title = `${v.name}: ${v.label || ''} — ${vl} categories${isSuggested ? ' (recommended by AI)' : ''}`;
   chip.dataset.varname = v.name;
   chip.addEventListener('click', () => toggleBanner(v.name, chip));
   return chip;
@@ -738,8 +941,9 @@ function _showAutoDetectBadge(containerId, text) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const badge = document.createElement('div');
-  badge.className = 'text-xs text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 flex items-center gap-1.5 mb-2 fade-in';
-  badge.innerHTML = `<span class="font-semibold">Auto-detected:</span> ${text}. You can edit or remove these.`;
+  badge.className = 'ic-alert ic-alert--success is-block auto-badge fade-in';
+  badge.style.fontSize = '12.5px';
+  badge.innerHTML = `<strong>Auto-detected:</strong> ${text}. You can edit or remove these.`;
   container.parentNode.insertBefore(badge, container);
 }
 
@@ -759,12 +963,12 @@ function toggleBanner(varName, chipEl) {
 
 function renderSelectedBanners() {
   const el = document.getElementById('selected-banners');
-  if (selectedBanners.length === 0) { el.innerHTML = '<span class="text-xs text-gray-400">No banners selected</span>'; return; }
+  if (selectedBanners.length === 0) { el.innerHTML = '<span class="ic-help">No banners selected</span>'; return; }
   el.innerHTML = selectedBanners.map((b, i) => {
     const v = metadata.variables.find(v => v.name === b);
     const label = v?.label || b;
     const nCats = v?.value_labels ? Object.keys(v.value_labels).length : '?';
-    return `<span class="pill pill-blue">${label} <span class="text-blue-400 text-xs">(${nCats})</span> <span class="remove" onclick="removeBanner('${b}')">&times;</span></span>`;
+    return `<span class="pill pill-blue">${label} <span class="ic-help">(${nCats})</span> <span class="remove" onclick="removeBanner('${b}')">&times;</span></span>`;
   }).join('');
 }
 
@@ -817,7 +1021,7 @@ function renderMrsGroups() {
   const entries = Object.entries(mrsGroups);
   if (entries.length === 0) { el.innerHTML = ''; return; }
   el.innerHTML = entries.map(([name, members]) =>
-    `<div class="flex items-center gap-2"><span class="pill pill-purple">${name} (${members.length} vars) <span class="remove" onclick="removeMrsGroup('${name}')">&times;</span></span></div>`
+    `<div class="ic-row"><span class="pill pill-purple">${name} <span class="ic-help">(${members.length} vars)</span> <span class="remove" onclick="removeMrsGroup('${name}')">&times;</span></span></div>`
   ).join('');
 }
 
@@ -863,12 +1067,12 @@ function renderGridGroups() {
   if (entries.length === 0) { el.innerHTML = ''; return; }
   el.innerHTML = entries.map(([name, cfg]) => {
     const metrics = cfg.show.map(s => ({t2b:'T2B', b2b:'B2B', mean:'Mean', median:'Median'}[s] || s)).join(', ');
-    return `<div class="flex items-start gap-2 p-2 bg-orange-50 rounded-lg border border-orange-200">
-      <div class="flex-1">
-        <span class="text-sm font-medium text-orange-900">${name}</span>
-        <p class="text-xs text-orange-600 mt-0.5">${cfg.variables.length} variables | Metrics: ${metrics}</p>
+    return `<div class="group-row">
+      <div class="group-row-main">
+        <span class="group-row-title">${name}</span>
+        <p class="ic-help">${cfg.variables.length} variables | Metrics: ${metrics}</p>
       </div>
-      <button onclick="removeGridGroup('${name}')" class="text-orange-400 hover:text-orange-700 text-lg leading-none mt-0.5">&times;</button>
+      <button type="button" onclick="removeGridGroup('${name}')" class="ic-icon-btn" aria-label="Remove"><ic-icon name="x" size="16"></ic-icon></button>
     </div>`;
   }).join('');
 }
@@ -892,7 +1096,7 @@ function cancelCustomGroup() {
 function addConditionRow() {
   const container = document.getElementById('cg-conditions');
   const row = document.createElement('div');
-  row.className = 'flex gap-2 items-center';
+  row.className = 'cg-row';
 
   // Variable select
   let varOpts = '<option value="">-- Variable --</option>';
@@ -902,8 +1106,8 @@ function addConditionRow() {
   }
 
   row.innerHTML = `
-    <select class="cg-var flex-1 border border-gray-300 rounded px-2 py-1.5 text-xs" onchange="onCgVarChange(this)">${varOpts}</select>
-    <select class="cg-op w-20 border border-gray-300 rounded px-2 py-1.5 text-xs">
+    <select class="cg-var ic-select ic-select--sm" onchange="onCgVarChange(this)">${varOpts}</select>
+    <select class="cg-op ic-select ic-select--sm">
       <option value="eq">=</option>
       <option value="ne">!=</option>
       <option value="gt">&gt;</option>
@@ -912,10 +1116,10 @@ function addConditionRow() {
       <option value="lte">&lt;=</option>
       <option value="in">in</option>
     </select>
-    <select class="cg-val flex-1 border border-gray-300 rounded px-2 py-1.5 text-xs">
+    <select class="cg-val ic-select ic-select--sm">
       <option value="">-- Select variable first --</option>
     </select>
-    <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+    <button type="button" onclick="this.parentElement.remove()" class="ic-icon-btn" aria-label="Remove condition"><ic-icon name="x" size="16"></ic-icon></button>
   `;
   container.appendChild(row);
 }
@@ -938,7 +1142,7 @@ function onCgVarChange(selectEl) {
     }
   } else {
     // Numeric input fallback
-    valSelect.outerHTML = `<input type="number" step="any" class="cg-val flex-1 border border-gray-300 rounded px-2 py-1.5 text-xs" placeholder="Value">`;
+    valSelect.outerHTML = `<input type="number" step="any" class="cg-val ic-input ic-input--sm" placeholder="Value">`;
   }
 }
 
@@ -987,12 +1191,12 @@ function renderCustomGroups() {
       const opLabels = {eq:'=', ne:'!=', gt:'>', gte:'>=', lt:'<', lte:'<=', 'in':'in'};
       return `${varLabel} ${opLabels[c.operator]||c.operator} ${valLabel}`;
     }).join(' AND ');
-    return `<div class="flex items-start gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
-      <div class="flex-1">
-        <span class="text-sm font-medium text-purple-900">${g.name}</span>
-        <p class="text-xs text-purple-600 mt-0.5">${condStr}</p>
+    return `<div class="group-row">
+      <div class="group-row-main">
+        <span class="group-row-title">${g.name}</span>
+        <p class="ic-help">${condStr}</p>
       </div>
-      <button onclick="removeCustomGroup(${i})" class="text-purple-400 hover:text-purple-700 text-lg leading-none mt-0.5">&times;</button>
+      <button type="button" onclick="removeCustomGroup(${i})" class="ic-icon-btn" aria-label="Remove"><ic-icon name="x" size="16"></ic-icon></button>
     </div>`;
   }).join('');
 }
@@ -1035,7 +1239,7 @@ async function generate() {
   const progress = document.getElementById('progress'), progressText = document.getElementById('progress-text');
   const result = document.getElementById('result'), error = document.getElementById('error');
 
-  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Processing...';
+  btn.disabled = true; btn.innerHTML = '<span class="ic-spinner"></span> Processing...';
   progress.classList.remove('hidden'); result.classList.add('hidden'); error.classList.add('hidden');
   progressText.textContent = 'Uploading file and running crosstabs...';
 
@@ -1111,13 +1315,13 @@ async function generate() {
 
     progress.classList.add('hidden'); result.classList.remove('hidden');
     document.getElementById('result-text').textContent = `${success}/${total} tables generated` + (parseInt(failed) > 0 ? ` (${failed} failed)` : '');
-    document.getElementById('result-meta').textContent = `${(resultBlob.size/1024).toFixed(0)} KB \u2014 ${serverMs}ms server / ${elapsed}ms total \u2014 ${selectedBanners.length} banner(s)`;
+    document.getElementById('result-meta').textContent = `${resultFilename} • ${(resultBlob.size/1024).toFixed(0)} KB • ${serverMs}ms server / ${elapsed}ms total • ${selectedBanners.length} banner(s)`;
   } catch (e) {
     progress.classList.add('hidden'); error.classList.remove('hidden');
     document.getElementById('error-text').textContent = `Error: ${e.message}`;
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Generate Excel';
+    btn.innerHTML = '<ic-icon name="file-sheet" size="18"></ic-icon> Generate Excel';
   }
 }
 
@@ -1155,7 +1359,7 @@ async function runSmartSpec() {
       smartSpec = data.data;
       const d = data.data;
       const conf = d.confidence || 0;
-      const confColor = conf >= 0.8 ? 'green' : conf >= 0.5 ? 'yellow' : 'red';
+      const confTone = conf >= 0.8 ? 'success' : conf >= 0.5 ? 'warning' : 'danger';
 
       // Populate card
       document.getElementById('ticket-banners').textContent =
@@ -1184,7 +1388,7 @@ async function runSmartSpec() {
       // Confidence badge
       const confEl = document.getElementById('ticket-confidence');
       confEl.textContent = `${(conf * 100).toFixed(0)}% confidence`;
-      confEl.className = `text-xs px-2 py-0.5 rounded-full bg-${confColor}-100 text-${confColor}-700`;
+      confEl.className = `ic-badge ic-badge--${confTone}`;
 
       // Decisions
       const notesEl = document.getElementById('ticket-notes');
@@ -1216,10 +1420,10 @@ async function runSmartSpec() {
         document.getElementById('label-enrich-export-text').textContent =
           `${nOverrides} truncated labels enriched from questionnaire`;
         const preview = Object.entries(overrides).slice(0, 3).map(([k, v]) =>
-          `<span class="line-through text-red-300">${k.split('_').pop()}</span> → ${v.substring(0, 50)}${v.length > 50 ? '...' : ''}`
+          `<s class="t-danger">${k.split('_').pop()}</s> → ${v.substring(0, 50)}${v.length > 50 ? '...' : ''}`
         ).join('<br>');
         document.getElementById('label-enrich-export-preview').innerHTML = preview +
-          (nOverrides > 3 ? `<br><span class="text-gray-400">+${nOverrides - 3} more</span>` : '');
+          (nOverrides > 3 ? `<br><span class="ic-help">+${nOverrides - 3} more</span>` : '');
       }
 
       // Matched variables count
@@ -1251,7 +1455,7 @@ async function generateFromTicket() {
 
 function editTicketManually() {
   document.getElementById('ticket-confirm').classList.add('hidden');
-  document.getElementById('section-banners')?.scrollIntoView({ behavior: 'smooth' });
+  goStep(STEP_PANELS.indexOf('banners-section'));
 }
 
 // ── Auto-Analyze ──
@@ -1293,13 +1497,13 @@ async function autoAnalyze() {
 
     prog.classList.add('hidden'); res.classList.remove('hidden');
     document.getElementById('auto-result-text').textContent =
-      `${success}/${total} tables | Banners: ${banners} | MRS: ${mrs} | Grids: ${grids} | ${(autoResultBlob.size/1024).toFixed(0)}KB | ${elapsed}ms`;
+      `${success}/${total} tables • Banners: ${banners} • MRS: ${mrs} • Grids: ${grids} • ${(autoResultBlob.size/1024).toFixed(0)}KB • ${elapsed}ms`;
   } catch (e) {
     prog.classList.add('hidden');
     alert(`Auto-analyze error: ${e.message}`);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Auto-Analyze';
+    btn.innerHTML = '<ic-icon name="zap" size="16"></ic-icon> Auto-Analyze';
   }
 }
 
@@ -1338,9 +1542,9 @@ function renderWeightWizard() {
     const checked = v.name in weightWizardSelected ? 'checked' : '';
     const label = v.label || v.name;
     const nCats = Object.keys(v.value_labels).length;
-    return `<label class="flex items-center gap-2 text-sm cursor-pointer">
-      <input type="checkbox" ${checked} onchange="toggleWeightVar('${v.name}')" class="rounded text-blue-600 w-4 h-4">
-      <span>${v.name}</span><span class="text-gray-400">${label} (${nCats})</span>
+    return `<label class="ic-check">
+      <input type="checkbox" ${checked} onchange="toggleWeightVar('${v.name}')">
+      <span class="ic-code">${v.name}</span><span class="ic-help">${label} (${nCats})</span>
     </label>`;
   }).join('');
 
@@ -1351,37 +1555,39 @@ function renderWeightWizard() {
     const totalTarget = rows.reduce((s, r) => s + (parseFloat(r.target) || 0), 0);
     const sumOk = Math.abs(totalTarget - 100) < 1;
     tables.innerHTML += `
-      <div class="border rounded-lg p-3 mb-3">
-        <div class="flex justify-between items-center mb-2">
-          <h4 class="font-medium text-sm">${varName}</h4>
-          <span class="text-xs ${sumOk ? 'text-green-600' : 'text-red-600'}">Sum: ${totalTarget.toFixed(1)}% ${sumOk ? '✓' : '✗'}</span>
+      <div class="ww-dist">
+        <div class="ww-dist-head">
+          <h4 class="ic-section-title" style="font-size:13.5px">${varName}</h4>
+          <span class="ic-badge ${sumOk ? 'ic-badge--success' : 'ic-badge--danger'}">Sum: ${totalTarget.toFixed(1)}% ${sumOk ? '✓' : '✗'}</span>
         </div>
-        <table class="w-full text-xs">
-          <thead><tr class="text-gray-500 border-b">
-            <th class="text-left py-1">Category</th><th class="text-right">N</th>
-            <th class="text-right">Current %</th><th class="text-right">Target %</th>
-            <th class="w-32">Visual</th>
+        <div class="ic-table-wrap">
+        <table class="ic-table">
+          <thead><tr>
+            <th>Category</th><th class="num">N</th>
+            <th class="num">Current %</th><th class="num">Target %</th>
+            <th>Visual</th>
           </tr></thead>
           <tbody>${rows.map((r, i) => `
-            <tr class="border-b border-gray-50">
-              <td class="py-1">${r.label}</td>
-              <td class="text-right text-gray-500">${r.count}</td>
-              <td class="text-right">${r.pct}%</td>
-              <td class="text-right"><input type="number" step="0.1" min="0" max="100" value="${r.target}"
+            <tr>
+              <td>${r.label}</td>
+              <td class="num ic-muted">${r.count}</td>
+              <td class="num">${r.pct}%</td>
+              <td class="num"><input type="number" step="0.1" min="0" max="100" value="${r.target}"
                 onchange="updateTarget('${varName}',${i},this.value)"
-                class="w-16 text-right border rounded px-1 py-0.5"></td>
+                class="ic-input ic-input--sm"></td>
               <td>
-                <div class="flex gap-0.5 items-center h-4">
-                  <div class="h-3 bg-gray-300 rounded-sm" style="width:${r.pct}%"></div>
-                  <div class="h-3 bg-blue-500 rounded-sm" style="width:${r.target}%"></div>
+                <div class="ww-bars">
+                  <div class="ww-bar-cur" style="width:${r.pct}%"></div>
+                  <div class="ww-bar-tgt" style="width:${r.target}%"></div>
                 </div>
               </td>
             </tr>
           `).join('')}</tbody>
         </table>
-        <div class="flex gap-2 mt-2">
-          <button onclick="setEqualTargets('${varName}')" class="text-xs text-blue-600 hover:underline">Equal split</button>
-          <button onclick="setCensusTargets('${varName}')" class="text-xs text-blue-600 hover:underline">Keep current</button>
+        </div>
+        <div class="ww-dist-actions">
+          <button type="button" onclick="setEqualTargets('${varName}')" class="ic-btn ic-btn--ghost ic-btn--sm">Equal split</button>
+          <button type="button" onclick="setCensusTargets('${varName}')" class="ic-btn ic-btn--ghost ic-btn--sm">Keep current</button>
         </div>
       </div>`;
   }
@@ -1471,39 +1677,39 @@ async function computeWeight() {
     const data = await resp.json();
     if (data.success) {
       const r = data.data;
-      const effColor = r.efficiency >= 70 ? 'text-green-600' : r.efficiency >= 50 ? 'text-yellow-600' : 'text-red-600';
+      const effColor = r.efficiency >= 70 ? 't-success' : r.efficiency >= 50 ? 't-warning' : 't-danger';
       document.getElementById('ww-result').innerHTML = `
-        <div class="border rounded-lg p-4 mt-4 ${r.converged ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-lg">${r.converged ? '✓' : '⚠'}</span>
+        <div class="ic-alert ${r.converged ? 'ic-alert--success' : 'ic-alert--warning'} is-block" style="margin-top:16px">
+          <div class="ic-row" style="gap:8px">
+            <ic-icon name="${r.converged ? 'check-circle' : 'alert'}" size="18"></ic-icon>
             <strong>${r.converged ? 'Converged' : 'Did not converge'}</strong>
-            <span class="text-gray-500 text-sm">in ${r.iterations} iterations</span>
+            <span class="ic-muted">in ${r.iterations} iterations</span>
           </div>
-          <div class="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <div class="text-gray-500">Effective N</div>
-              <div class="font-medium">${r.effective_n} / ${r.actual_n}</div>
+          <div class="ww-stats">
+            <div class="ic-stat">
+              <div class="ic-stat-label">Effective N</div>
+              <div class="ic-stat-value">${r.effective_n} / ${r.actual_n}</div>
             </div>
-            <div>
-              <div class="text-gray-500">Efficiency</div>
-              <div class="font-medium ${effColor}">${r.efficiency}%</div>
+            <div class="ic-stat">
+              <div class="ic-stat-label">Efficiency</div>
+              <div class="ic-stat-value ${effColor}">${r.efficiency}%</div>
             </div>
-            <div>
-              <div class="text-gray-500">Weight range</div>
-              <div class="font-medium">${r.weight_stats.min} — ${r.weight_stats.max}</div>
+            <div class="ic-stat">
+              <div class="ic-stat-label">Weight range</div>
+              <div class="ic-stat-value">${r.weight_stats.min} — ${r.weight_stats.max}</div>
             </div>
           </div>
-          ${r.efficiency < 70 ? '<p class="text-yellow-700 text-xs mt-2">⚠ Low efficiency may reduce statistical power. Consider relaxing targets.</p>' : ''}
-          <button onclick="applyComputedWeight()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          ${r.efficiency < 70 ? '<p class="t-warning" style="font-size:12px;margin-top:10px">Low efficiency may reduce statistical power. Consider relaxing targets.</p>' : ''}
+          <button type="button" onclick="applyComputedWeight()" class="ic-btn ic-btn--primary ic-btn--sm" style="margin-top:12px">
             Apply Weight
           </button>
         </div>`;
       window._lastComputedWeight = r;
     } else {
-      document.getElementById('ww-result').innerHTML = `<div class="text-red-600 text-sm mt-2">Error: ${data.error?.message || JSON.stringify(data.error)}</div>`;
+      document.getElementById('ww-result').innerHTML = `<div class="ic-error-text" style="margin-top:8px">Error: ${data.error?.message || JSON.stringify(data.error)}</div>`;
     }
   } catch (e) {
-    document.getElementById('ww-result').innerHTML = `<div class="text-red-600 text-sm mt-2">Error: ${e.message}</div>`;
+    document.getElementById('ww-result').innerHTML = `<div class="ic-error-text" style="margin-top:8px">Error: ${e.message}</div>`;
   }
   btn.disabled = false; btn.textContent = 'Compute Weight';
 }
@@ -1524,30 +1730,31 @@ function applyComputedWeight() {
   sel.value = 'rim_weight';
   closeWeightWizard();
 }
+
+renderStepper();
 </script>
 
 <!-- Weight Wizard Modal -->
-<div id="weight-wizard-modal" style="display:none" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col">
-    <div class="flex items-center justify-between p-5 border-b">
+<div id="weight-wizard-modal" style="display:none" class="ic-modal-backdrop">
+  <div class="ic-modal" role="dialog" aria-modal="true" aria-labelledby="ww-title" style="max-width:720px">
+    <div class="ic-modal-header">
       <div>
-        <h2 class="text-lg font-bold text-gray-900">Create Weight</h2>
-        <p class="text-sm text-gray-500">Adjust sample distribution to match population targets</p>
+        <h2 id="ww-title" class="ic-section-title">Create Weight</h2>
+        <p class="ic-help">Adjust sample distribution to match population targets</p>
       </div>
-      <button onclick="closeWeightWizard()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+      <button type="button" onclick="closeWeightWizard()" class="ic-icon-btn" aria-label="Close"><ic-icon name="x" size="18"></ic-icon></button>
     </div>
-    <div class="overflow-y-auto flex-1 p-5">
-      <div class="mb-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-2">Select variables to weight by</h3>
-        <div id="ww-var-list" class="flex flex-wrap gap-3"></div>
+    <div class="ic-modal-body">
+      <div class="ic-field">
+        <h3 class="ic-label" style="margin-bottom:10px">Select variables to weight by</h3>
+        <div id="ww-var-list" class="ww-vars"></div>
       </div>
       <div id="ww-distributions"></div>
       <div id="ww-result"></div>
     </div>
-    <div class="border-t p-4 flex justify-between">
-      <button onclick="closeWeightWizard()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-      <button id="ww-compute-btn" onclick="computeWeight()" style="display:none"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+    <div class="ic-modal-footer">
+      <button type="button" onclick="closeWeightWizard()" class="ic-btn ic-btn--ghost">Cancel</button>
+      <button type="button" id="ww-compute-btn" onclick="computeWeight()" style="display:none" class="ic-btn ic-btn--primary">
         Compute Weight
       </button>
     </div>
