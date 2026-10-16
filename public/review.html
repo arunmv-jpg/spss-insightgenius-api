@@ -1,250 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Review data — Indico Crosstab</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .ambient { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06); }
-    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-    .role-single { background: #dbeafe; color: #1e40af; }
-    .role-multi { background: #f3e8ff; color: #6b21a8; }
-    .role-numeric, .role-rating { background: #dcfce7; color: #166534; }
-    .role-text, .role-date { background: #f1f5f9; color: #475569; }
-    .role-ignore { background: #f8fafc; color: #94a3b8; }
-    .role-derived { background: #fef3c7; color: #92400e; }
-    .bar-track { height: 6px; border-radius: 3px; background: #f1f5f9; }
-    .bar { height: 6px; border-radius: 3px; background: #3b82f6; min-width: 2px; }
-    .bar.missing { background: #cbd5e1; }
-    .item { cursor: pointer; transition: background 0.12s; }
-    .item:hover { background: #f8fafc; }
-    .item.selected { background: #eff6ff; box-shadow: inset 3px 0 0 #2563eb; }
-    .sig { color: #b91c1c; font-weight: 600; }
-    .spinner { border: 3px solid #e5e7eb; border-top: 3px solid #2563eb; border-radius: 50%; width: 16px; height: 16px; animation: spin 0.8s linear infinite; display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #xtab tbody tr:nth-child(even) { background: #f8fafc; }
-    .edit-only { display: none !important; }
-    .editable .edit-only { display: inline-flex !important; }
-    .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; color: #64748b; font-size: 12px; }
-    .icon-btn:hover { background: #e2e8f0; color: #0f172a; }
-    /* Answer actions float over the row's right side on hover, so they never squeeze the label */
-    .answer { position: relative; }
-    .answer-tools { position: absolute; right: 0; top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none;
-                    transition: opacity 0.12s; background: #fff; border-radius: 8px; padding: 1px 2px;
-                    box-shadow: 0 0 0 1px #e2e8f0, 0 4px 12px rgba(15, 23, 42, 0.08); }
-    .answer:hover .answer-tools, .answer:focus-within .answer-tools { opacity: 1; pointer-events: auto; }
-    .btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 8px; }
-    .btn-ghost { color: #334155; } .btn-ghost:hover { background: #f1f5f9; }
-    .btn-ghost:disabled { opacity: 0.4; cursor: default; background: none; }
-    .btn-primary { background: #2563eb; color: #fff; font-weight: 600; padding: 8px 14px; }
-    .btn-primary:hover { background: #1d4ed8; }
-    .section-head { position: sticky; top: 0; z-index: 1; background: #fff; }
-    dialog::backdrop { background: rgba(15, 23, 42, 0.35); }
-    .drawer { margin: 0 0 0 auto; height: 100vh; max-height: 100vh; width: min(600px, 100vw); border-radius: 0; }
-    .rc-tab[aria-selected="true"] { background: #1e293b; color: #fff; }
-    .rc-tab[aria-selected="false"] { color: #475569; }
-    .rc-tab[aria-selected="false"]:hover { background: #f1f5f9; }
-    .rc-table td, .rc-table th { padding: 4px 6px; }
-    .rc-table tr.dragging { opacity: 0.4; }
-    .rc-table tr.drop-target td { box-shadow: inset 0 2px 0 #2563eb; }
-    .rc-input { width: 100%; font-size: 13px; padding: 4px 6px; border-radius: 6px; box-shadow: 0 0 0 1px #e2e8f0; background: #fff; }
-    .rc-input:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
-    .rc-handle { cursor: grab; color: #94a3b8; user-select: none; }
-    /* Embedded as a step of /app: no page chrome, fixed-height panels */
-    /* min-height must not follow the frame's height, or auto-sizing grows it forever */
-    .embed { background: transparent; min-height: 0 !important; }
-    @media (min-width: 700px) {
-      .embed #workspace { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
-    }
-    .embed .page-chrome { display: none !important; }
-    .embed main { padding: 0; max-width: none; }
-    .embed #var-list { max-height: 560px !important; }
-    .embed .lg\:sticky { position: static; }
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transformations · Indico Crosstab</title>
+<script>
+  // Embedded as a step of /app (?embed=1): no sidebar, top bar or page padding (ic.css .is-embed)
+  if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('is-embed');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ui/ic.css">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="/static/ui/tw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="/static/config.js"></script>
+<script src="/static/ui/ic.js"></script>
+<style>
+  /* Scripts toggle visibility with the "hidden" class; keep it stronger than any component display */
+  .hidden { display: none !important; }
+  dialog.ic-modal:not([open]) { display: none; }
+  summary { list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  .text-danger { color: var(--ic-danger); }
+  .text-warn { color: var(--ic-warning); }
+
+  /* Chips (answers, categories, toggles) and type/role colours */
+  .chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px;
+          font-size: 11.5px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+  button.chip { cursor: pointer; }
+  .role-single { background: var(--ic-info-bg); color: var(--ic-info); border-color: transparent; }
+  .role-multi { background: var(--ic-blue-50); color: var(--ic-navy-700); border-color: var(--ic-blue-100); }
+  .role-numeric, .role-rating { background: var(--ic-success-bg); color: var(--ic-success); border-color: transparent; }
+  .role-text, .role-date { background: var(--ic-surface-muted); color: var(--ic-text-muted); border-color: var(--ic-border); }
+  .role-ignore { background: var(--ic-surface); color: var(--ic-text-subtle); border-color: var(--ic-border); }
+  .role-derived { background: var(--ic-warning-bg); color: var(--ic-warning); border-color: transparent; }
+
+  /* Answer distribution bars */
+  .bar-track { height: 6px; border-radius: 3px; background: var(--ic-blue-50); }
+  .bar { height: 6px; border-radius: 3px; background: var(--ic-blue-600); min-width: 2px; }
+  .bar.missing { background: var(--ic-border-strong); }
+
+  /* Variable list: section headers like the design's table headers, rows like its option rows */
+  .section-head { position: sticky; top: 0; z-index: 1; background: var(--ic-surface-muted);
+                  border-bottom: 1px solid var(--ic-border); color: var(--ic-text-subtle); }
+  .section-head:hover { color: var(--ic-text); }
+  .item { cursor: pointer; transition: background .12s; border-bottom: 1px solid var(--ic-border); }
+  .item:hover { background: var(--ic-surface-muted); }
+  .item.selected { background: var(--ic-blue-50); box-shadow: inset 3px 0 0 var(--ic-navy-800); }
+  .item.selected:hover { background: var(--ic-blue-50); }
+
+  .sig { color: var(--ic-danger); font-weight: 600; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--ic-border-strong);
+             border-top-color: var(--ic-navy-800); border-radius: 50%; animation: ic-spin .7s linear infinite; }
+  .ic-btn--primary .spinner { border-color: rgba(255, 255, 255, .35); border-top-color: #fff; }
+
+  /* Crosstab preview */
+  #xtab { border-collapse: collapse; }
+  #xtab thead th { color: var(--ic-text-subtle); border-bottom: 1px solid var(--ic-border); white-space: nowrap; }
+  #xtab thead tr:first-child th { color: var(--ic-text-muted); }
+  #xtab thead tr:last-child th { background: var(--ic-surface-muted); color: var(--ic-text); }
+  #xtab tbody td { border-bottom: 1px solid var(--ic-border); }
+  #xtab tbody tr:nth-child(even) { background: var(--ic-surface-muted); }
+  #xtab tbody tr.net-row { background: var(--ic-success-bg); color: var(--ic-success); }
+  .seg { display: inline-flex; border: 1px solid var(--ic-border-strong); border-radius: 8px; overflow: hidden; background: var(--ic-surface); }
+  .seg button { height: 30px; padding: 0 12px; font-size: 12.5px; font-weight: 500; color: var(--ic-text-muted); }
+  .seg button + button { border-left: 1px solid var(--ic-border-strong); }
+  .seg button[aria-pressed="true"] { background: var(--ic-navy-800); color: #fff; }
+  @media (min-width: 1024px) { .preview-top { top: calc(var(--ic-topbar-h) + 16px); } }
+
+  .edit-only { display: none !important; }
+  .editable .edit-only { display: inline-flex !important; }
+  .ic-icon-btn:disabled { opacity: .35; cursor: default; background: none; }
+  .ic-icon-btn { font-size: 12px; }
+  /* Answer actions float over the row's right side on hover, so they never squeeze the label */
+  .answer { position: relative; }
+  .answer-tools { position: absolute; right: 0; top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none;
+                  transition: opacity .12s; background: var(--ic-surface); border-radius: 8px; padding: 1px 2px;
+                  box-shadow: 0 0 0 1px var(--ic-border), var(--ic-shadow); }
+  .answer:hover .answer-tools, .answer:focus-within .answer-tools { opacity: 1; pointer-events: auto; }
+
+  /* Setup menu (a <details> dropdown) */
+  #setup-menu .ic-menu { min-width: 264px; }
+  #setup-menu .ic-menu-item { flex-direction: column; align-items: flex-start; gap: 0; }
+
+  /* Drawers: native <dialog class="ic-modal"> pinned to the right edge */
+  .drawer { margin: 0 0 0 auto; height: 100vh; max-height: 100vh; width: min(600px, 100vw); max-width: 100vw; border-radius: 0; }
+  .drawer .ic-modal-body { flex: 1; min-height: 0; }
+  .modal-kicker { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ic-text-subtle); }
+  .rc-head { flex-direction: column; align-items: stretch; gap: 10px; padding-bottom: 0; }
+  .rc-head .ic-tabs { margin-bottom: 0; border-bottom: 0; }
+  #builder { max-width: min(640px, calc(100vw - 32px)); }
+  #builder form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+
+  /* Pills for the builder's modes (the drawer's own tabs use .ic-tab) */
+  .rc-tab:not(.ic-tab) { height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
+                         border: 1px solid var(--ic-border-strong); background: var(--ic-surface); color: var(--ic-text-muted); }
+  .rc-tab:not(.ic-tab):hover { background: var(--ic-surface-muted); color: var(--ic-text); }
+  .rc-tab:not(.ic-tab)[aria-selected="true"] { background: var(--ic-navy-800); border-color: var(--ic-navy-800); color: #fff; }
+  .rc-table th { padding: 6px; color: var(--ic-text-subtle); font-weight: 500; }
+  .rc-table td { padding: 4px 6px; border-top: 1px solid var(--ic-border); }
+  .rc-table tr.dragging { opacity: .4; }
+  .rc-table tr.drop-target td { box-shadow: inset 0 2px 0 var(--ic-blue-600); }
+  .rc-input { width: 100%; font-size: 13px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--ic-border-strong);
+              background: var(--ic-surface); color: var(--ic-text); }
+  .rc-input:focus { outline: none; border-color: var(--ic-blue-500); box-shadow: 0 0 0 3px var(--ic-blue-100); }
+  .rc-handle { cursor: grab; color: var(--ic-text-subtle); user-select: none; }
+
+  #toast { position: fixed; right: 24px; bottom: 24px; z-index: 60; max-width: calc(100vw - 32px); }
+
+  /* Embedded as a step of /app: no page chrome, fixed-height panels */
+  /* min-height must not follow the frame's height, or auto-sizing grows it forever */
+  body.embed { background: transparent; min-height: 0 !important; }
+  .is-embed .ic-app { min-height: 0; }
+  @media (min-width: 700px) {
+    .embed #workspace { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+  }
+  .embed .page-chrome { display: none !important; }
+  .embed main { padding: 0; max-width: none; }
+  .embed #var-list { max-height: 560px !important; }
+  .embed .lg\:sticky { position: static; }
+
+  @media (max-width: 640px) {
+    #summary-actions { width: 100%; }
+    #toast { right: 16px; left: 16px; bottom: 16px; }
+  }
+</style>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-900">
+<body class="ic-body">
+<div class="ic-app">
+  <ic-sidebar></ic-sidebar>
+  <div class="ic-main">
+    <ic-topbar></ic-topbar>
+    <main class="ic-page space-y-4">
 
-  <header class="page-chrome bg-white ring-1 ring-gray-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
-      <div class="min-w-0">
-        <h1 class="text-lg font-bold">Review your data</h1>
-        <p class="text-sm text-gray-500 truncate">Check how each column was read, fix anything, then continue.</p>
-      </div>
-      <a href="/app" class="text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">&larr; Back to app</a>
-    </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-
-    <!-- Upload -->
-    <section id="upload" class="page-chrome bg-white rounded-xl ambient p-6">
-      <div id="drop" class="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-blue-400 transition-colors">
-        <p class="text-base font-medium">Drop a data file here, or click to choose</p>
-        <p class="text-sm text-gray-500 mt-1">SPSS (.sav), Excel (.xlsx, .xls) or CSV / TSV — including survey platform exports</p>
-        <input type="file" id="file-input" accept=".sav,.zsav,.por,.xlsx,.xls,.csv,.tsv" class="hidden">
-      </div>
-      <p id="upload-status" class="text-sm text-gray-600 mt-3 hidden"></p>
-    </section>
-
-    <!-- Summary: what we found + the one next step -->
-    <section id="summary" class="hidden bg-white rounded-xl ambient px-5 py-4">
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2 min-w-0">
-            <p id="file-name" class="font-semibold truncate"></p>
-            <span id="edited-badge" class="hidden chip role-derived">Edited</span>
-          </div>
-          <p id="summary-line" class="text-sm text-gray-500 mt-0.5"></p>
-        </div>
-        <div class="flex items-center gap-1">
-          <button id="undo" class="edit-only btn btn-ghost" disabled title="Undo the last change">&#8630; Undo</button>
-          <details id="setup-menu" class="edit-only relative">
-            <summary class="btn btn-ghost list-none cursor-pointer" title="Reuse recodes on the next wave">Setup &#9662;</summary>
-            <div class="absolute right-0 z-20 mt-1 w-64 rounded-lg bg-white ambient ring-1 ring-gray-200 p-1 text-sm">
-              <button id="setup-save" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50">
-                Save my changes as a setup&hellip;<span class="block text-xs text-gray-400">A file you can apply to the next wave</span></button>
-              <button id="setup-load" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50">
-                Apply a setup file&hellip;<span class="block text-xs text-gray-400">Recodes saved from an earlier wave</span></button>
-              <div id="setup-builtins"></div>
-            </div>
-          </details>
-          <input id="setup-file" type="file" accept=".json,application/json" class="hidden">
-          <button id="open-data-sheets" class="edit-only btn btn-ghost" title="FULL DATA sheet + one sheet per category">Data sheets</button>
-          <button id="download-codebook" class="btn btn-ghost" title="Download how each column is coded (JSON)">Export codebook</button>
-          <button id="approve" class="btn btn-primary ml-2">
-            <span id="approve-label">Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
-          </button>
+      <div class="ic-page-header page-chrome" style="margin-bottom:8px">
+        <div>
+          <h1 class="ic-title">Transformations</h1>
+          <p class="ic-subtitle">Check how each column was read, recode answers and build new variables, then run the analysis.</p>
         </div>
       </div>
-      <div id="setup-banner" class="hidden mt-3 text-sm rounded-lg px-3 py-2"></div>
-      <p id="unmatched-note" class="hidden mt-3 text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2"></p>
-      <p id="approve-status" class="text-sm text-gray-600 mt-2 hidden"></p>
-    </section>
 
-    <!-- Workspace -->
-    <section id="workspace" class="hidden grid grid-cols-1 lg:grid-cols-5 gap-4">
-
-      <!-- Questions -->
-      <div class="lg:col-span-2 bg-white rounded-xl ambient flex flex-col min-h-0 overflow-hidden">
-        <div class="p-3 flex items-center gap-2 ring-1 ring-gray-100">
-          <input id="search" type="search" placeholder="Search questions or answers"
-                 class="flex-1 min-w-0 text-sm px-3 py-2 rounded-lg ring-1 ring-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
-          <button id="add-derived" class="edit-only btn btn-ghost whitespace-nowrap" title="Create a variable from others (groups, bands, counts…)">+ New variable</button>
+      <!-- Upload -->
+      <section id="upload" class="page-chrome ic-card ic-card-body">
+        <div id="drop" class="ic-dropzone" style="padding:56px 24px">
+          <span class="ic-dropzone-icon"><ic-icon name="upload-cloud" size="36"></ic-icon></span>
+          <span class="ic-dropzone-title">Drag and drop your data file here</span>
+          <span class="ic-help">or</span>
+          <span class="ic-btn ic-btn--primary" style="margin:6px 0 10px">Browse Files</span>
+          <span class="ic-dropzone-hint">SPSS (.sav), Excel (.xlsx, .xls) or CSV / TSV — including survey platform exports</span>
+          <input type="file" id="file-input" accept=".sav,.zsav,.por,.xlsx,.xls,.csv,.tsv" class="hidden">
         </div>
-        <div id="var-list" class="overflow-y-auto" style="max-height: 70vh"></div>
-      </div>
+        <p id="upload-status" class="ic-row text-sm ic-muted mt-4 hidden"></p>
+      </section>
 
-      <!-- Preview -->
-      <div class="lg:col-span-3">
-        <div class="bg-white rounded-xl ambient p-5 space-y-4 lg:sticky lg:top-4">
-          <div class="flex flex-wrap items-center gap-2 text-sm">
-            <span class="text-gray-500">Showing</span>
-            <select id="row-select" class="max-w-[16rem] text-sm font-medium px-2 py-1.5 rounded-lg ring-1 ring-gray-200 bg-white"></select>
-            <span class="text-gray-500">by</span>
-            <select id="col-select" class="max-w-[14rem] text-sm font-medium px-2 py-1.5 rounded-lg ring-1 ring-gray-200 bg-white"></select>
-            <div class="ml-auto flex rounded-lg ring-1 ring-gray-200 overflow-hidden text-xs">
-              <button data-view="table" class="view-btn px-3 py-1.5 bg-gray-900 text-white">Table</button>
-              <button data-view="chart" class="view-btn px-3 py-1.5">Chart</button>
+      <!-- Summary: what we found + the one next step -->
+      <section id="summary" class="hidden ic-card" style="padding:16px 20px">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div class="min-w-0 flex-1 flex items-center gap-3">
+            <span class="ic-option-icon"><ic-icon name="file-sheet" size="18"></ic-icon></span>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 min-w-0">
+                <p id="file-name" class="font-semibold truncate"></p>
+                <span id="edited-badge" class="hidden ic-badge ic-badge--warning">Edited</span>
+              </div>
+              <p id="summary-line" class="ic-help mt-0.5"></p>
             </div>
           </div>
-          <div id="xtab-status" class="text-xs text-gray-500"></div>
-          <div id="xtab-wrap" class="overflow-x-auto"><table id="xtab" class="w-full text-sm"></table></div>
-          <div id="chart-wrap" class="hidden" style="height: 340px"><canvas id="chart"></canvas></div>
-          <p class="text-xs text-gray-400">
-            Column %. <span class="sig">B</span> = higher than column B (95% confidence), <span class="sig">b</span> = at 90%.
-            Small bases: ** under 30, * under 100.
-          </p>
+          <div id="summary-actions" class="flex flex-wrap items-center gap-1">
+            <button id="undo" class="edit-only ic-btn ic-btn--ghost ic-btn--sm" disabled title="Undo the last change"><ic-icon name="undo" size="14"></ic-icon>Undo</button>
+            <details id="setup-menu" class="edit-only relative">
+              <summary class="ic-btn ic-btn--ghost ic-btn--sm" title="Reuse recodes on the next wave">Setup <ic-icon name="chevron-down" size="14"></ic-icon></summary>
+              <div class="ic-menu">
+                <button id="setup-save" class="ic-menu-item">
+                  Save my changes as a setup&hellip;<span class="block ic-help">A file you can apply to the next wave</span></button>
+                <button id="setup-load" class="ic-menu-item">
+                  Apply a setup file&hellip;<span class="block ic-help">Recodes saved from an earlier wave</span></button>
+                <div id="setup-builtins"></div>
+              </div>
+            </details>
+            <input id="setup-file" type="file" accept=".json,application/json" class="hidden">
+            <button id="open-data-sheets" class="edit-only ic-btn ic-btn--ghost ic-btn--sm" title="FULL DATA sheet + one sheet per category"><ic-icon name="table" size="14"></ic-icon>Data sheets</button>
+            <button id="download-codebook" class="ic-btn ic-btn--ghost ic-btn--sm" title="Download how each column is coded (JSON)"><ic-icon name="download" size="14"></ic-icon>Export codebook</button>
+            <button id="approve" class="ic-btn ic-btn--primary ml-2">
+              <span id="approve-label">Approve &amp; run analysis</span><span id="approve-spin" class="spinner hidden"></span>
+            </button>
+          </div>
         </div>
-      </div>
-    </section>
-  </main>
+        <div id="setup-banner" class="hidden"></div>
+        <p id="unmatched-note" class="hidden ic-alert ic-alert--warning mt-3"></p>
+        <p id="approve-status" class="text-sm ic-muted mt-2 hidden"></p>
+      </section>
+
+      <!-- Workspace -->
+      <section id="workspace" class="hidden grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+        <!-- Questions -->
+        <div class="lg:col-span-2 ic-card flex flex-col min-h-0 overflow-hidden">
+          <div class="flex items-center gap-2" style="padding:12px;border-bottom:1px solid var(--ic-border)">
+            <div class="ic-search flex-1 min-w-0" style="max-width:none">
+              <ic-icon name="search" size="16"></ic-icon>
+              <input id="search" type="search" placeholder="Search questions or answers" aria-label="Search questions or answers">
+            </div>
+            <button id="add-derived" class="edit-only ic-btn ic-btn--secondary ic-btn--sm" title="Create a variable from others (groups, bands, counts…)"><ic-icon name="plus" size="14"></ic-icon>New variable</button>
+          </div>
+          <div id="var-list" class="overflow-y-auto" style="max-height: 70vh"></div>
+        </div>
+
+        <!-- Preview -->
+        <div class="lg:col-span-3">
+          <div class="ic-card ic-card-body space-y-4 lg:sticky preview-top">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="ic-muted">Showing</span>
+              <select id="row-select" class="ic-select ic-select--sm font-medium" style="width:auto;max-width:16rem" aria-label="Question"></select>
+              <span class="ic-muted">by</span>
+              <select id="col-select" class="ic-select ic-select--sm font-medium" style="width:auto;max-width:14rem" aria-label="Banner"></select>
+              <div class="seg ml-auto" role="group" aria-label="View">
+                <button data-view="table" class="view-btn" aria-pressed="true">Table</button>
+                <button data-view="chart" class="view-btn" aria-pressed="false">Chart</button>
+              </div>
+            </div>
+            <div id="xtab-status" class="ic-help"></div>
+            <div id="xtab-wrap" class="ic-table-wrap"><table id="xtab" class="w-full text-sm"></table></div>
+            <div id="chart-wrap" class="hidden" style="height: 340px"><canvas id="chart"></canvas></div>
+            <p class="ic-help">
+              Column %. <span class="sig">B</span> = higher than column B (95% confidence), <span class="sig">b</span> = at 90%.
+              Small bases: ** under 30, * under 100.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
 
   <!-- Data sheets (FULL DATA + category tabs) -->
-  <dialog id="dwb" class="drawer p-0 ambient" aria-labelledby="dwb-title">
-    <div class="h-full flex flex-col">
-      <div class="px-5 pt-4 pb-3 ring-1 ring-gray-100 flex items-start justify-between gap-3">
-        <div>
-          <p class="text-xs uppercase tracking-wide text-gray-400">Output</p>
-          <h3 id="dwb-title" class="font-semibold">Respondent data sheets</h3>
-        </div>
-        <button id="dwb-close" class="icon-btn" aria-label="Close">&#x2715;</button>
+  <dialog id="dwb" class="ic-modal drawer" aria-labelledby="dwb-title">
+    <div class="ic-modal-header">
+      <div>
+        <p class="modal-kicker">Output</p>
+        <h3 id="dwb-title" class="ic-section-title">Respondent data sheets</h3>
       </div>
-      <div id="dwb-body" class="flex-1 overflow-y-auto px-5 py-4 space-y-4"></div>
-      <div class="px-5 py-3 ring-1 ring-gray-100 flex flex-wrap items-center gap-2">
-        <p id="dwb-status" class="text-xs text-gray-500 flex-1 min-w-0"></p>
-        <button id="dwb-download" class="btn btn-ghost ring-1 ring-gray-200">Download now</button>
-        <button id="dwb-cancel" class="btn btn-ghost">Cancel</button>
-        <button id="dwb-save" class="btn btn-primary">Save</button>
-      </div>
+      <button id="dwb-close" class="ic-icon-btn" aria-label="Close"><ic-icon name="x" size="16"></ic-icon></button>
+    </div>
+    <div id="dwb-body" class="ic-modal-body space-y-4"></div>
+    <div class="ic-modal-footer flex-wrap items-center">
+      <p id="dwb-status" class="ic-help flex-1 min-w-0"></p>
+      <button id="dwb-download" class="ic-btn ic-btn--secondary"><ic-icon name="download" size="16"></ic-icon>Download now</button>
+      <button id="dwb-cancel" class="ic-btn ic-btn--ghost">Cancel</button>
+      <button id="dwb-save" class="ic-btn ic-btn--primary">Save</button>
     </div>
   </dialog>
 
   <!-- Recode drawer -->
-  <dialog id="recoder" class="drawer p-0 ambient" aria-labelledby="rc-title">
-    <div class="h-full flex flex-col">
-      <div class="px-5 pt-4 pb-3 ring-1 ring-gray-100 space-y-3">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <p class="text-xs uppercase tracking-wide text-gray-400">Recode</p>
-            <h3 id="rc-title" class="font-semibold truncate"></h3>
-          </div>
-          <button id="rc-close" class="icon-btn" aria-label="Close">&#x2715;</button>
+  <dialog id="recoder" class="ic-modal drawer" aria-labelledby="rc-title">
+    <div class="ic-modal-header rc-head">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="modal-kicker">Recode</p>
+          <h3 id="rc-title" class="ic-section-title truncate"></h3>
         </div>
-        <div class="flex gap-1 text-sm" role="tablist">
-          <button data-rc-tab="edit" class="rc-tab px-3 py-1.5 rounded-lg" role="tab">Edit this question</button>
-          <button data-rc-tab="new" class="rc-tab px-3 py-1.5 rounded-lg" role="tab">Create new variable</button>
-        </div>
+        <button id="rc-close" class="ic-icon-btn" aria-label="Close"><ic-icon name="x" size="16"></ic-icon></button>
       </div>
-      <div id="rc-body" class="flex-1 overflow-y-auto px-5 py-4 space-y-3"></div>
-      <div class="px-5 py-3 ring-1 ring-gray-100 flex items-center gap-2">
-        <p id="rc-status" class="text-xs text-gray-500 flex-1 min-w-0"></p>
-        <button id="rc-cancel" class="btn btn-ghost">Cancel</button>
-        <button id="rc-apply" class="btn btn-primary">Apply changes</button>
+      <div class="ic-tabs" role="tablist">
+        <button data-rc-tab="edit" class="rc-tab ic-tab" role="tab">Edit this question</button>
+        <button data-rc-tab="new" class="rc-tab ic-tab" role="tab">Create new variable</button>
       </div>
+    </div>
+    <div id="rc-body" class="ic-modal-body space-y-3"></div>
+    <div class="ic-modal-footer items-center">
+      <p id="rc-status" class="ic-help flex-1 min-w-0"></p>
+      <button id="rc-cancel" class="ic-btn ic-btn--ghost">Cancel</button>
+      <button id="rc-apply" class="ic-btn ic-btn--primary">Apply changes</button>
     </div>
   </dialog>
 
   <!-- Derived variable builder -->
-  <dialog id="builder" class="rounded-xl ambient p-0 w-[min(640px,calc(100vw-32px))]">
-    <form method="dialog" class="p-5 space-y-4">
-      <div class="flex items-center justify-between">
+  <dialog id="builder" class="ic-modal">
+    <form method="dialog">
+      <div class="ic-modal-header">
         <div>
-          <h3 class="font-semibold">New variable</h3>
-          <p class="text-xs text-gray-500">Built from other questions — e.g. groups, bands or counts.</p>
+          <h3 class="ic-section-title">New variable</h3>
+          <p class="ic-help">Built from other questions — e.g. groups, bands or counts.</p>
         </div>
-        <button value="cancel" class="icon-btn" aria-label="Close">&#x2715;</button>
+        <button value="cancel" class="ic-icon-btn" aria-label="Close"><ic-icon name="x" size="16"></ic-icon></button>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label class="text-sm"><span class="block text-gray-500 mb-1">Name</span>
-          <input id="b-label" required class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300" placeholder="e.g. Role group"></label>
-        <label class="text-sm"><span class="block text-gray-500 mb-1">How to build it</span>
-          <select id="b-rule" class="w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 bg-white">
-            <option value="bands">Number bands (e.g. NPS 0-6 / 7-8 / 9-10)</option>
-            <option value="recode">Group answers (e.g. Top 2 Box)</option>
-            <option value="count">Count options ticked (e.g. Single / Dual / Triple)</option>
-            <option value="flags">One column per answer</option>
-            <option value="coalesce">Combine multi-select questions</option>
-            <option value="priority">Priority groups — first match wins (advanced)</option>
-            <option value="combination">Exact combinations of options (advanced)</option>
-          </select></label>
+      <div class="ic-modal-body space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label><span class="ic-label">Name</span>
+            <input id="b-label" required class="ic-input" placeholder="e.g. Role group"></label>
+          <label><span class="ic-label">How to build it</span>
+            <select id="b-rule" class="ic-select">
+              <option value="bands">Number bands (e.g. NPS 0-6 / 7-8 / 9-10)</option>
+              <option value="recode">Group answers (e.g. Top 2 Box)</option>
+              <option value="count">Count options ticked (e.g. Single / Dual / Triple)</option>
+              <option value="flags">One column per answer</option>
+              <option value="coalesce">Combine multi-select questions</option>
+              <option value="priority">Priority groups — first match wins (advanced)</option>
+              <option value="combination">Exact combinations of options (advanced)</option>
+            </select></label>
+        </div>
+        <div id="b-form" class="space-y-3"></div>
+        <div id="b-preview" class="text-sm"></div>
       </div>
-      <div id="b-form" class="space-y-3"></div>
-      <div id="b-preview" class="text-sm"></div>
-      <div class="flex justify-end gap-2">
-        <button type="button" id="b-test" class="btn btn-ghost ring-1 ring-gray-200">Preview</button>
-        <button type="button" id="b-add" class="btn btn-primary">Add variable</button>
+      <div class="ic-modal-footer">
+        <button type="button" id="b-test" class="ic-btn ic-btn--secondary">Preview</button>
+        <button type="button" id="b-add" class="ic-btn ic-btn--primary">Add variable</button>
       </div>
     </form>
   </dialog>
 
-  <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 max-w-[calc(100vw-32px)] text-sm px-4 py-2.5 rounded-lg bg-gray-900 text-white ambient z-50"></div>
+  <div id="toast" class="hidden ic-toast" role="status" aria-live="polite"></div>
 
-<script src="/static/config.js"></script>
 <script>
 const API_KEY = window.__INDICO_CROSSTAB_DEMO_KEY__ || 'demo';
 const SIG_LEVELS = [0.95, 0.90];
@@ -309,9 +375,9 @@ async function api(path, form) {
 // ── Upload ──
 const drop = $('drop'), input = $('file-input');
 drop.addEventListener('click', () => input.click());
-drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('border-blue-500', 'bg-blue-50'); });
-drop.addEventListener('dragleave', () => drop.classList.remove('border-blue-500', 'bg-blue-50'));
-drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('border-blue-500', 'bg-blue-50'); if (e.dataTransfer.files[0]) start(e.dataTransfer.files[0]); });
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('is-over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
+drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-over'); if (e.dataTransfer.files[0]) start(e.dataTransfer.files[0]); });
 input.addEventListener('change', () => input.files[0] && start(input.files[0]));
 
 async function start(file) {
@@ -340,7 +406,7 @@ async function start(file) {
     notifyParent('review-loaded');
     if (state.editable) checkSetups();
   } catch (e) {
-    status.replaceChildren(el('span', { class: 'text-red-600' }, `Couldn't read the file: ${e.message}`));
+    status.replaceChildren(el('span', { class: 'text-danger' }, `Couldn't read the file: ${e.message}`));
     $('summary').classList.add('hidden'); $('workspace').classList.add('hidden');  // not the previous file's data
     $('upload').classList.remove('hidden');
     if (EMBED) { $('upload').classList.remove('page-chrome'); notifyParent('review-error'); }
@@ -423,7 +489,7 @@ let toastTimer;
 function toast(message, isError = false) {
   const t = $('toast');
   t.textContent = message;
-  t.className = `fixed bottom-4 left-1/2 -translate-x-1/2 max-w-[calc(100vw-32px)] text-sm px-4 py-2.5 rounded-lg ambient z-50 ${isError ? 'bg-red-700' : 'bg-gray-900'} text-white`;
+  t.className = `ic-toast${isError ? ' ic-toast--danger' : ''}`;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), isError ? 6000 : 2500);
 }
 
@@ -535,11 +601,11 @@ function renderList() {
     const open = q ? true : state.open[sec.id];
     const nVars = items.filter(i => !i.child).length;
     list.append(el('button', {
-      class: 'section-head w-full flex items-center gap-2 px-4 py-2.5 text-left ring-1 ring-gray-100',
+      class: 'section-head w-full flex items-center gap-2 px-4 py-2.5 text-left',
       'aria-expanded': String(open),
       onclick: () => { state.open[sec.id] = !state.open[sec.id]; renderList(); } },
-      el('span', { class: 'text-gray-400 text-xs w-3' }, open ? '▾' : '▸'),
-      el('span', { class: 'text-xs font-semibold uppercase tracking-wide text-gray-600' }, sec.title),
+      el('ic-icon', { name: open ? 'chevron-down' : 'chevron-right', size: '14' }),
+      el('span', { class: 'text-xs font-semibold uppercase tracking-wide text-gray-700' }, sec.title),
       el('span', { class: 'text-xs text-gray-400' }, `${nVars} · ${sec.hint}`)));
     if (open) items.forEach(item => list.append(row(item)));
   }
@@ -573,10 +639,10 @@ function row(item) {
     el('div', { class: 'min-w-0 flex-1' },
       el('p', { class: 'text-sm font-medium truncate', title: label }, item.child ? '↳ ' : '', label),
       el('p', { class: 'text-xs text-gray-500 truncate' }, meta(item))),
-    excluded ? el('span', { class: 'chip bg-gray-100 text-gray-500', title: '"Don\'t know"-type answers left out of bases' }, `${excluded} excluded`) : null,
+    excluded ? el('span', { class: 'ic-badge', title: '"Don\'t know"-type answers left out of bases' }, `${excluded} excluded`) : null,
     item.kind === 'var' && recodesOf(item.v).length
-      ? el('span', { class: 'chip role-derived', title: 'Variables built from this question' }, plural(recodesOf(item.v).length, 'recode')) : null,
-    el('span', { class: `chip role-${t}` }, t === 'derived' ? 'Added' : TYPE_NAMES[t]));
+      ? el('span', { class: 'ic-badge ic-badge--warning', title: 'Variables built from this question' }, plural(recodesOf(item.v).length, 'recode')) : null,
+    el('span', { class: `ic-type role-${t}` }, t === 'derived' ? 'Added' : TYPE_NAMES[t]));
   const node = el('div', { class: `item ${selected ? 'selected' : ''}`, onclick: () => select(item) }, head);
   if (selected) node.append(details(item));
   return node;
@@ -605,8 +671,8 @@ function details(item) {
     box.append(el('div', { class: 'space-y-1.5' }, bars(d.outputs.length ? d.outputs : d.codes, base)));
     const src = derivedSourceVar(d);
     box.append(el('div', { class: 'edit-only gap-1' },
-      src ? el('button', { class: 'btn btn-primary', onclick: () => openRecoder(src, 'new', d) }, 'Edit…') : null,
-      el('button', { class: 'btn btn-ghost text-red-700', onclick: () => edit([{ op: 'remove_derived', name: d.name }]) }, 'Remove variable')));
+      src ? el('button', { class: 'ic-btn ic-btn--primary ic-btn--sm', onclick: () => openRecoder(src, 'new', d) }, 'Edit…') : null,
+      el('button', { class: 'ic-btn ic-btn--danger ic-btn--sm', onclick: () => edit([{ op: 'remove_derived', name: d.name }]) }, 'Remove variable')));
     return box;
   }
   const v = item.v;
@@ -626,16 +692,16 @@ function details(item) {
 function toolbar(v) {
   const roles = v.role === 'multi' ? { multi: 'Multi-select', ignore: 'Not used' } : ROLE_CHOICES;
   const current = v.role === 'numeric' && !v.codes.length ? 'numeric' : v.role;
-  const select = el('select', { class: 'text-sm px-2 py-1 rounded-lg ring-1 ring-gray-200 bg-white',
+  const select = el('select', { class: 'ic-select ic-select--sm', style: 'width:auto',
     onchange: (e) => edit([{ op: 'set_role', var: ref(v), role: e.target.value }]) },
     ...Object.entries(roles).map(([value, label]) => { const o = el('option', { value }, label); if (value === current) o.selected = true; return o; }));
   return el('div', { class: 'flex flex-wrap items-center gap-2' },
-    isTabulable(v) || v.role === 'multi' ? el('button', { class: 'btn btn-primary', onclick: () => openRecoder(v) }, 'Recode…') : null,
-    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+    isTabulable(v) || v.role === 'multi' ? el('button', { class: 'ic-btn ic-btn--primary ic-btn--sm', onclick: () => openRecoder(v) }, 'Recode…') : null,
+    el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
       const label = prompt('Question label', v.label);
       if (label && label.trim() && label !== v.label) edit([{ op: 'set_label', var: ref(v), label: label.trim() }]);
     } }, '✎ Rename'),
-    el('label', { class: 'text-sm text-gray-500 flex items-center gap-1.5' }, 'Treat as', select));
+    el('label', { class: 'text-sm text-gray-500 flex items-center gap-1.5 whitespace-nowrap' }, 'Treat as', select));
 }
 
 // Derived variables built from a question (shown as a badge, like Forsta's "(2R)")
@@ -668,8 +734,7 @@ $('row-select').addEventListener('change', () => { syncSelectionFromRow(); previ
 $('col-select').addEventListener('change', preview);
 document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => {
   state.view = b.dataset.view;
-  document.querySelectorAll('.view-btn').forEach(x => x.classList.toggle('bg-gray-900', x === b));
-  document.querySelectorAll('.view-btn').forEach(x => x.classList.toggle('text-white', x === b));
+  document.querySelectorAll('.view-btn').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   $('xtab-wrap').classList.toggle('hidden', state.view !== 'table');
   $('chart-wrap').classList.toggle('hidden', state.view !== 'chart');
 }));
@@ -689,7 +754,7 @@ async function preview() {
       (ct.is_mrs ? ' · select all that apply: % of respondents who ticked each option (can add up to more than 100%)' : '');
     drawTable(ct); drawChart(ct);
   } catch (e) {
-    if (seq === previewSeq) $('xtab-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message));
+    if (seq === previewSeq) $('xtab-status').replaceChildren(el('span', { class: 'text-danger' }, e.message));
   }
 }
 
@@ -710,7 +775,7 @@ function drawTable(ct) {
     el('tr', { class: 'text-xs text-gray-500' }, th('', 'text-left'), th('Total'), ...cols.map(c => th(c.label))),
     el('tr', { class: 'text-xs text-gray-400' }, th(''), th(''), ...cols.map(c => th(c.letter))),
     el('tr', { class: 'text-xs' }, th('Base', 'text-left text-gray-500'), th(total.toLocaleString()),
-       ...cols.map(c => th(`${c.base.toLocaleString()}${c.marker ? ' ' + c.marker : ''}`, c.marker ? 'text-amber-700' : ''))));
+       ...cols.map(c => th(`${c.base.toLocaleString()}${c.marker ? ' ' + c.marker : ''}`, c.marker ? 'text-warn' : ''))));
   const body = el('tbody', {}, ...ct.table.map(r => {
     const rowTotal = cols.reduce((t, c) => t + (r[c.value]?.count || 0), 0);
     return el('tr', {},
@@ -727,7 +792,7 @@ function drawTable(ct) {
   for (const n of v?.nets || []) {
     const inNet = ct.table.filter(r => n.codes.includes(Number(r.row_value)));
     const netTotal = inNet.reduce((s, r) => s + cols.reduce((t, c) => t + (r[c.value]?.count || 0), 0), 0);
-    body.append(el('tr', { class: 'bg-green-50/60 font-medium text-green-900' },
+    body.append(el('tr', { class: 'net-row font-medium' },
       el('td', { class: 'px-2 py-1.5 text-left' }, n.label),
       el('td', { class: 'px-2 py-1.5 text-right tabular-nums' }, total ? `${(100 * netTotal / total).toFixed(1)}%` : '-'),
       ...cols.map(c => {
@@ -791,26 +856,26 @@ async function applySetup(extra, { auto = false } = {}) {
 
 function renderSetupBanner() {
   const box = $('setup-banner');
-  const hide = (fn) => el('button', { class: 'icon-btn shrink-0', 'aria-label': 'Hide', onclick: fn }, '✕');
+  const hide = (fn) => el('button', { class: 'ic-icon-btn shrink-0', 'aria-label': 'Hide', onclick: fn }, '✕');
   if (state.setup) {
     const r = state.setup;
-    box.className = 'mt-3 text-sm rounded-lg px-3 py-2 bg-violet-50 text-violet-900 space-y-1';
+    box.className = 'ic-alert ic-alert--success flex-col gap-1 mt-3';
     box.replaceChildren(
       el('div', { class: 'flex items-start gap-2' },
         el('p', { class: 'flex-1' }, el('span', { class: 'font-medium' }, `Applied the "${r.name}" setup`),
           r.applied.length ? `: ${r.applied.join(', ')}. ` : ': nothing in it fits this file. ',
           r.applied.length ? 'New variables are under Added variables, where you can edit them. Undo takes the setup off.' : ''),
         hide(() => { state.setup = null; renderSetupBanner(); })),
-      ...r.skipped.map(x => el('p', { class: 'text-amber-800' }, `Not applied: ${x.edit} (${x.reason})`)),
-      ...r.notes.map(n => el('p', { class: 'text-xs text-violet-700' }, n)));
+      ...r.skipped.map(x => el('p', { class: 'text-warn' }, `Not applied: ${x.edit} (${x.reason})`)),
+      ...r.notes.map(n => el('p', { class: 'text-xs' }, n)));
   } else if (state.suggest) {
     const m = state.suggest;
-    box.className = 'mt-3 text-sm rounded-lg px-3 py-2 bg-blue-50 text-blue-900 flex flex-wrap items-center gap-2';
+    box.className = 'ic-alert ic-alert--info flex-wrap items-center gap-2 mt-3';
     box.replaceChildren(
       el('p', { class: 'flex-1 min-w-[12rem]' }, `This looks like a ${m.name} export (missing: ${m.missing_columns.join(', ')}). `,
         'Apply its recodes?'),
-      el('button', { class: 'btn btn-primary', onclick: () => applySetup({ setup_id: m.id }) }, 'Apply setup'),
-      el('button', { class: 'btn btn-ghost', onclick: () => { state.suggest = null; renderSetupBanner(); } }, 'Not now'));
+      el('button', { class: 'ic-btn ic-btn--primary ic-btn--sm', onclick: () => applySetup({ setup_id: m.id }) }, 'Apply setup'),
+      el('button', { class: 'ic-btn ic-btn--ghost ic-btn--sm', onclick: () => { state.suggest = null; renderSetupBanner(); } }, 'Not now'));
   } else {
     box.className = 'hidden';
     box.replaceChildren();
@@ -855,8 +920,8 @@ $('setup-menu').addEventListener('toggle', async () => {
   try {
     const res = await fetch('/v1/setups', { headers: { Authorization: `Bearer ${API_KEY}` } });
     const { setups } = (await res.json()).data;
-    $('setup-builtins').replaceChildren(el('p', { class: 'px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-400' }, 'Built-in'),
-      ...setups.map(x => el('button', { class: 'w-full text-left px-3 py-2 rounded-md hover:bg-gray-50', title: x.description,
+    $('setup-builtins').replaceChildren(el('p', { class: 'ic-menu-label', style: 'border-top:1px solid var(--ic-border);border-bottom:0;margin:4px 0 0' }, 'Built-in'),
+      ...setups.map(x => el('button', { class: 'ic-menu-item', title: x.description,
                                         onclick: () => applySetup({ setup_id: x.id }) }, `Apply ${x.name}`)));
   } catch (_) { /* optional */ }
 });
@@ -975,7 +1040,7 @@ function dwSettings() {
 
 $('dwb-save').addEventListener('click', async () => {
   let settings;
-  try { settings = dwSettings(); } catch (e) { $('dwb-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  try { settings = dwSettings(); } catch (e) { $('dwb-status').replaceChildren(el('span', { class: 'text-danger' }, e.message)); return; }
   if (JSON.stringify(settings) === JSON.stringify(state.codebook.data_workbook ?? null)) { $('dwb').close(); return; }
   if (await edit([{ op: 'set_data_workbook', settings }])) {
     $('dwb').close();
@@ -984,7 +1049,7 @@ $('dwb-save').addEventListener('click', async () => {
 });
 $('dwb-download').addEventListener('click', async () => {
   let settings;
-  try { settings = dwSettings() || dw.s; } catch (e) { $('dwb-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  try { settings = dwSettings() || dw.s; } catch (e) { $('dwb-status').replaceChildren(el('span', { class: 'text-danger' }, e.message)); return; }
   $('dwb-status').replaceChildren(el('span', { class: 'spinner mr-2 align-middle' }), 'Building…');
   try {
     const res = await fetch('/v1/exports/data-workbook', { method: 'POST', headers: { Authorization: `Bearer ${API_KEY}` },
@@ -996,10 +1061,10 @@ $('dwb-download').addEventListener('click', async () => {
     const a = el('a', { href: URL.createObjectURL(blob), download: name });
     a.click(); URL.revokeObjectURL(a.href);
     $('dwb-status').replaceChildren(warnings.length
-      ? el('span', { class: 'text-amber-700', title: warnings.join('\n') }, `Downloaded; ${plural(warnings.length, 'item')} left out (hover for why)`)
+      ? el('span', { class: 'text-warn', title: warnings.join('\n') }, `Downloaded; ${plural(warnings.length, 'item')} left out (hover for why)`)
       : 'Downloaded');
   } catch (e) {
-    $('dwb-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message));
+    $('dwb-status').replaceChildren(el('span', { class: 'text-danger' }, e.message));
   }
 });
 $('dwb-cancel').addEventListener('click', () => $('dwb').close());
@@ -1026,7 +1091,7 @@ $('approve').addEventListener('click', async () => {
     const a = el('a', { href: URL.createObjectURL(blob), download: name }); a.click(); URL.revokeObjectURL(a.href);
     status.textContent = `Done: ${name} downloaded.`;
   } catch (e) {
-    status.replaceChildren(el('span', { class: 'text-red-600' }, `Analysis failed: ${e.message}`));
+    status.replaceChildren(el('span', { class: 'text-danger' }, `Analysis failed: ${e.message}`));
   } finally {
     $('approve-spin').classList.add('hidden'); $('approve').disabled = false;
   }
@@ -1078,10 +1143,10 @@ function renderRecodeEdit() {
   const base = rcValid().reduce((s, r) => s + r.count, 0);
   const selected = rc.rows.filter(r => r.sel);
   const tools = el('div', { class: 'flex flex-wrap items-center gap-2' },
-    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', disabled: selected.length < 2 ? '' : null,
+    el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', disabled: selected.length < 2 ? '' : null,
       title: 'Combine the ticked answers into the first of them', onclick: rcMerge }, `Merge selected${selected.length > 1 ? ` (${selected.length})` : ''}`),
-    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', title: 'Highest value becomes lowest (e.g. 1-5 → 5-1)', onclick: rcReverse }, '⇅ Reverse values'),
-    el('button', { class: 'btn btn-ghost', title: 'Undo the changes made here', onclick: () => openRecoder(rc.v, 'edit') }, 'Reset'));
+    el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', title: 'Highest value becomes lowest (e.g. 1-5 → 5-1)', onclick: rcReverse }, '⇅ Reverse values'),
+    el('button', { class: 'ic-btn ic-btn--ghost ic-btn--sm', title: 'Undo the changes made here', onclick: () => openRecoder(rc.v, 'edit') }, 'Reset'));
 
   const th = (t, cls = '') => el('th', { class: `text-left text-xs font-medium text-gray-500 ${cls}` }, t);
   const table = el('table', { class: 'rc-table w-full text-sm' },
@@ -1123,7 +1188,7 @@ function rcRow(r, i, base) {
 function rcNetsSection(base) {
   const valid = rcValid();
   const byValue = [...valid].sort((a, b) => a.value - b.value);
-  const quick = (label, rows) => el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', disabled: rows.length ? null : '',
+  const quick = (label, rows) => el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', disabled: rows.length ? null : '',
     onclick: () => { rc.nets.push({ label, codes: new Set(rows.map(r => r.orig)) }); renderRecodeEdit(); } }, `+ ${label}`);
   const card = (n, i) => {
     const people = valid.filter(r => n.codes.has(r.orig)).reduce((t, r) => t + r.count, 0);
@@ -1144,7 +1209,7 @@ function rcNetsSection(base) {
     el('div', { class: 'flex flex-wrap gap-2' },
       quick('Top 2 Box', valid.length >= 4 ? byValue.slice(-2) : []),
       quick('Bottom 2 Box', valid.length >= 4 ? byValue.slice(0, 2) : []),
-      el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
         rc.nets.push({ label: '', codes: new Set() }); renderRecodeEdit(); } }, '+ Net')));
 }
 
@@ -1201,7 +1266,7 @@ function rcOps() {
 $('rc-apply').addEventListener('click', async () => {
   if (rc.tab === 'new') return nwCreate();
   let ops;
-  try { ops = rcOps(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  try { ops = rcOps(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-danger' }, e.message)); return; }
   if (!ops.length) { $('recoder').close(); return; }
   $('rc-apply').disabled = true;
   const ok = await edit(ops);
@@ -1271,7 +1336,7 @@ function renderRecodeNew() {
     el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, rc.editing ? 'Name' : 'Name of the new variable'),
       el('input', { class: 'rc-input', value: nw.name, oninput: (e) => { nw.name = e.target.value; } })),
     el('div', { class: 'flex flex-wrap gap-1 text-sm', role: 'tablist' }, ...modes.map(([key, label]) =>
-      el('button', { class: 'rc-tab px-3 py-1.5 rounded-lg ring-1 ring-gray-200', 'aria-selected': String(nw.mode === key),
+      el('button', { class: 'rc-tab', 'aria-selected': String(nw.mode === key),
                      onclick: () => {
                        if (nw.name === nwDefaultName(v, nw.mode)) nw.name = nwDefaultName(v, key);
                        nw.mode = key; renderRecodeNew();
@@ -1306,16 +1371,16 @@ function nwGroupForm(v) {
         el('span', { class: 'text-xs text-gray-400 w-4 text-right' }, i + 1),
         el('input', { class: 'rc-input', value: cat.label, placeholder: 'Category name',
                       oninput: (e) => { cat.label = e.target.value; nwSchedulePreview(); } }),
-        el('button', { class: 'btn btn-ghost ring-1 ring-gray-200 whitespace-nowrap', title: 'Put the ticked answers in this category',
+        el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', title: 'Put the ticked answers in this category',
                        disabled: nw.picked.size ? null : '', onclick: () => nwAssign(i, v) }, '» Add'),
-        el('button', { class: 'icon-btn', title: 'Remove category', onclick: () => { nw.cats.splice(i, 1); nwGroupForm(v); } }, '✕')),
+        el('button', { class: 'ic-icon-btn', title: 'Remove category', onclick: () => { nw.cats.splice(i, 1); nwGroupForm(v); } }, '✕')),
       el('div', { class: 'flex flex-wrap gap-1 pl-5' }, ...[...cat.values].map(code => {
         const a = answers.find(x => x.code === code);
         return el('span', { class: 'chip bg-gray-100 text-gray-700' }, a?.label ?? code,
           el('button', { class: 'ml-0.5 text-gray-400 hover:text-gray-700', title: 'Take out of this category',
                          onclick: () => { cat.values.delete(code); nwGroupForm(v); } }, '×'));
       }), cat.values.size ? null : el('span', { class: 'text-xs text-gray-400' }, 'Tick answers on the left, then » Add')))),
-    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+    el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
       nw.cats.push({ label: '', values: new Set() });
       if (nw.picked.size) nwAssign(nw.cats.length - 1, v); else nwGroupForm(v);
     } }, '+ Category'));
@@ -1323,8 +1388,8 @@ function nwGroupForm(v) {
   const scale = v.codes.length >= 4;
   const quick = scale ? el('div', { class: 'flex flex-wrap items-center gap-2 text-sm' },
     el('span', { class: 'text-gray-500' }, 'Quick:'),
-    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => nwTemplate(v, 'top2') }, 'Top 2 / rest'),
-    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => nwTemplate(v, 'tmb') }, 'Top / Middle / Bottom')) : null;
+    el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => nwTemplate(v, 'top2') }, 'Top 2 / rest'),
+    el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => nwTemplate(v, 'tmb') }, 'Top / Middle / Bottom')) : null;
 
   const elseRow = el('div', { class: 'text-sm space-y-1' },
     el('p', { class: 'text-gray-500' }, 'Answers not in any category:'),
@@ -1377,22 +1442,22 @@ function nwRangesForm(v) {
       onchange: (e) => { r.max = e.target.value === '' ? null : +e.target.value; nwSchedulePreview(); } })),
     el('td', { class: 'text-center' }, el('input', { type: 'checkbox', title: 'Mask: leave this range out', ...(r.mask ? { checked: '' } : {}),
       onchange: (e) => { r.mask = e.target.checked; nwRangesForm(v); } })),
-    el('td', {}, el('button', { class: 'icon-btn', title: 'Remove', onclick: () => { nw.ranges.splice(i, 1); nwRangesForm(v); } }, '✕'))));
+    el('td', {}, el('button', { class: 'ic-icon-btn', title: 'Remove', onclick: () => { nw.ranges.splice(i, 1); nwRangesForm(v); } }, '✕'))));
   const th = t => el('th', { class: 'text-left text-xs font-medium text-gray-500' }, t);
   $('nw-form').replaceChildren(
     el('div', { class: 'flex flex-wrap items-center gap-2 text-sm' },
       el('span', { class: 'text-gray-500' }, `Values run from ${fmtCode(lo)} to ${fmtCode(hi)}. Split into`), n,
       el('span', { class: 'text-gray-500' }, 'equal groups'),
-      el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
         nw.ranges = nwEqualRanges(lo, hi, Math.max(2, Math.min(20, +n.value || 3))); nwRangesForm(v); } }, 'Go'),
-      lo >= 0 && hi <= 10 && hi >= 9 ? el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      lo >= 0 && hi <= 10 && hi >= 9 ? el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
         nw.ranges = [{ label: 'Detractors (0-6)', min: 0, max: 6 }, { label: 'Passives (7-8)', min: 7, max: 8 },
                      { label: 'Promoters (9-10)', min: 9, max: 10 }];
         nw.name = `${v.label}: NPS group`; renderRecodeNew(); } }, 'NPS groups') : null),
     el('table', { class: 'rc-table w-full text-sm' },
       el('thead', {}, el('tr', {}, th('Label'), th('From'), th('To'), el('th', { class: 'text-xs font-medium text-gray-500' }, 'Mask'), th(''))),
       el('tbody', {}, ...rows)),
-    el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+    el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
       nw.ranges.push({ label: '', min: null, max: null, mask: false }); nwRangesForm(v); } }, '+ Range'),
     el('p', { class: 'text-xs text-gray-400' }, 'From and To are included. Masked ranges and values outside every range are left out (missing). Blank = no limit.'));
   nwSchedulePreview();
@@ -1406,7 +1471,7 @@ function nwCountForm(v) {
       onchange: (e) => { b.min = e.target.value === '' ? null : +e.target.value; nwSchedulePreview(); } }),
     el('input', { class: 'rc-input col-span-3', type: 'number', value: b.max ?? '', placeholder: 'to (blank = more)',
       onchange: (e) => { b.max = e.target.value === '' ? null : +e.target.value; nwSchedulePreview(); } }),
-    el('button', { class: 'icon-btn col-span-1', onclick: () => { nw.countBands.splice(i, 1); nwCountForm(v); } }, '✕')));
+    el('button', { class: 'ic-icon-btn col-span-1', onclick: () => { nw.countBands.splice(i, 1); nwCountForm(v); } }, '✕')));
   $('nw-form').replaceChildren(
     el('p', { class: 'text-sm text-gray-600' }, 'Counts how many options each person ticked, e.g. Single / Dual / Triple product.'),
     el('div', { class: 'text-sm space-y-1' }, el('p', { class: 'text-gray-500' }, "Don't count these options:"),
@@ -1414,7 +1479,7 @@ function nwCountForm(v) {
         el('input', { type: 'checkbox', ...(nw.countExclude.has(o.label) ? { checked: '' } : {}),
           onchange: (e) => { e.target.checked ? nw.countExclude.add(o.label) : nw.countExclude.delete(o.label); nwSchedulePreview(); } }), o.label)))),
     el('div', { class: 'space-y-2' }, el('p', { class: 'text-sm text-gray-500' }, 'Groups (blank “to” = or more):'), ...bands,
-      el('button', { class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+      el('button', { class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
         nw.countBands.push({ label: '', min: null, max: null }); nwCountForm(v); } }, '+ Group')));
   nwSchedulePreview();
 }
@@ -1456,7 +1521,7 @@ function chips(choices, selected, onToggle) {
   return el('div', { class: 'flex flex-wrap gap-1' }, ...choices.map(c => {
     const on = selected.some(x => x === c.value);
     return el('button', { type: 'button', title: c.label, 'aria-pressed': String(on),
-      class: `chip max-w-[16rem] truncate ${on ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`,
+      class: `chip max-w-[16rem] truncate ${on ? 'bg-blue-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`,
       onclick: () => onToggle(c.value, !on) }, c.label);
   }));
 }
@@ -1467,7 +1532,7 @@ function moveItem(list, i, by) {
   [list[i], list[j]] = [list[j], list[i]];
 }
 const smallBtn = (text, title, onclick, disabled = false) =>
-  el('button', { type: 'button', class: 'icon-btn', title, 'aria-label': title, disabled: disabled ? '' : null, onclick }, text);
+  el('button', { type: 'button', class: 'ic-icon-btn', title, 'aria-label': title, disabled: disabled ? '' : null, onclick }, text);
 
 function nwPriorityForm(v) {
   const p = nw.prio, rerender = () => nwPriorityForm(v);
@@ -1516,7 +1581,7 @@ function nwPriorityForm(v) {
     el('p', { class: 'text-sm text-gray-600' }, 'One group per person, checked from the top: the first group someone matches wins ',
        '(e.g. Exams Officer, then Leader, then Teacher). Use ↑ ↓ to change the order.'),
     ...p.groups.map(card),
-    el('button', { type: 'button', class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+    el('button', { type: 'button', class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
       p.groups.push({ label: '', ways: [[nwNewRow(v)]] }); rerender(); } }, '+ Group'),
     el('label', { class: 'flex flex-wrap items-center gap-2 text-sm' },
       el('input', { type: 'checkbox', ...(p.elseOn ? { checked: '' } : {}), onchange: (e) => { p.elseOn = e.target.checked; nwSchedulePreview(); } }),
@@ -1593,10 +1658,10 @@ function nwCombosForm(v) {
         el('input', { type: 'checkbox', ...(nw.ignore.has(o.label) ? { checked: '' } : {}), onchange: (e) => {
           e.target.checked ? nw.ignore.add(o.label) : nw.ignore.delete(o.label);
           nw.combos.forEach(c => c.values.delete(o.label)); rerender(); } }), o.label)))),
-    options.length && options.length <= 8 ? el('button', { type: 'button', class: 'btn btn-ghost ring-1 ring-gray-200',
+    options.length && options.length <= 8 ? el('button', { type: 'button', class: 'ic-btn ic-btn--secondary ic-btn--sm',
       onclick: () => nwEveryCombination(v, options) }, 'Every combination people gave') : null,
     ...nw.combos.map(card),
-    el('button', { type: 'button', class: 'btn btn-ghost ring-1 ring-gray-200', onclick: () => {
+    el('button', { type: 'button', class: 'ic-btn ic-btn--secondary ic-btn--sm', onclick: () => {
       nw.combos.push({ label: '', kind: 'exact', values: new Set() }); rerender(); } }, '+ Combination'),
     el('p', { class: 'text-xs text-gray-400' }, 'People whose ticks match no combination are left out (missing).'));
   nwSchedulePreview();
@@ -1617,7 +1682,7 @@ async function nwEveryCombination(v, options) {
     nw.combos = combos.filter((_, i) => counts.get(i + 1) > 0);
     $('rc-status').textContent = `${plural(nw.combos.length, 'combination')} found`;
   } catch (e) {
-    $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message));
+    $('rc-status').replaceChildren(el('span', { class: 'text-danger' }, e.message));
     return;
   }
   nwCombosForm(v);
@@ -1723,13 +1788,13 @@ async function nwPreview() {
       d.outputs.length ? `Preview · ${plural(d.outputs.length, 'new column')}` : `Preview · ${base.toLocaleString()} respondents get a group`),
       ...bars(items, base));
   } catch (e) {
-    if (seq === nw.seq) box.replaceChildren(el('p', { class: 'text-red-600' }, e.message));
+    if (seq === nw.seq) box.replaceChildren(el('p', { class: 'text-danger' }, e.message));
   }
 }
 
 async function nwCreate() {
   let spec;
-  try { spec = nwSpec(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-red-600' }, e.message)); return; }
+  try { spec = nwSpec(); } catch (e) { $('rc-status').replaceChildren(el('span', { class: 'text-danger' }, e.message)); return; }
   const editing = rc.editing;
   const op = editing ? { op: 'update_derived', name: editing.name, derived: spec } : { op: 'add_derived', derived: spec };
   if (await edit([op])) {
@@ -1741,10 +1806,10 @@ async function nwCreate() {
 
 // ── Derived variable builder ──
 const builder = $('builder');
-const field = (label, input) => el('label', { class: 'text-sm block' }, el('span', { class: 'block text-gray-500 mb-1' }, label), input);
-const inputCls = 'w-full text-sm px-3 py-2 rounded-lg ring-1 ring-gray-300 bg-white';
+const field = (label, input) => el('label', { class: 'block' }, el('span', { class: 'ic-label' }, label), input);
+const inputCls = 'ic-input';
 function varSelect(vars, id) {
-  return el('select', { id, class: inputCls },
+  return el('select', { id, class: 'ic-select' },
     ...vars.map(v => el('option', { value: ref(v) }, v.label)));
 }
 function bandRows(rows) {
@@ -1804,7 +1869,7 @@ function renderBuilderForm(reset = true) {
       : { from: col, combos: [{ code: 1, label: `${opts[0]} only`, exact: [opts[0]] },
                               { code: 2, label: `${opts[0]} + ${opts[1] || '…'}`, exact: opts.slice(0, 2) }] };
     parts.push(el('p', { class: 'text-xs text-gray-500' }, RULE_HELP[rule]));
-    const area = el('textarea', { id: 'b-json', class: `${inputCls} font-mono text-xs`, rows: '12', spellcheck: 'false' });
+    const area = el('textarea', { id: 'b-json', class: 'ic-textarea font-mono text-xs', rows: '12', spellcheck: 'false' });
     area.value = JSON.stringify(template, null, 2);
     parts.push(area);
   }
@@ -1860,7 +1925,7 @@ async function builderRun(commit) {
   try {
     if (!$('b-label').value.trim()) throw new Error('Give the new variable a name.');
     spec = builderSpec();
-  } catch (e) { $('b-preview').replaceChildren(el('p', { class: 'text-red-600' }, e.message)); return; }
+  } catch (e) { $('b-preview').replaceChildren(el('p', { class: 'text-danger' }, e.message)); return; }
   const op = [{ op: 'add_derived', derived: spec }];
   if (commit) {
     if (await edit(op)) { builder.close(); toast(`Added "${spec.label}"`); }
@@ -1876,7 +1941,7 @@ async function builderRun(commit) {
       d.outputs.length ? `${d.outputs.length} new columns` : `${base.toLocaleString()} respondents get a group`),
       el('div', { class: 'space-y-1' }, bars(items, base)));
   } catch (e) {
-    $('b-preview').replaceChildren(el('p', { class: 'text-red-600' }, e.message));
+    $('b-preview').replaceChildren(el('p', { class: 'text-danger' }, e.message));
   }
 }
 
