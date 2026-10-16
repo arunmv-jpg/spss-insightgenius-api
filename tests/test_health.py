@@ -17,7 +17,7 @@ def test_root(client):
     # Root now serves HTML frontend or JSON fallback
     content_type = response.headers.get("content-type", "")
     if "html" in content_type:
-        assert "InsightGenius" in response.text
+        assert "Indico Crosstab" in response.text
     else:
         data = response.json()
         assert "docs" in data

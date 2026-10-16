@@ -14,9 +14,9 @@
 
 | # | Subsystem | Deliverable | Depends On |
 |---|-----------|-------------|------------|
-| 1 | **npm SDK** | `@insightgenius/sdk` — typed TS client | Nothing |
+| 1 | **npm SDK** | `@indicolabs/crosstab-sdk` — typed TS client | Nothing |
 | 2 | **Async Webhooks** | `POST /v1/tabulate` returns 202 + webhook callback | Nothing (backend only) |
-| 3 | **Next.js Template** | `create-insightgenius-app` starter + developer portal page | SDK |
+| 3 | **Next.js Template** | `create-indico-crosstab-app` starter + developer portal page | SDK |
 
 Each subsystem is independently deployable and testable.
 
@@ -24,20 +24,20 @@ Each subsystem is independently deployable and testable.
 
 ## File Structure
 
-### Subsystem 1: npm SDK (`insightgenius-sdk/`)
+### Subsystem 1: npm SDK (`indico-crosstab-sdk/`)
 
-New repo: `C:\Users\jorge\proyectos_python\insightgenius-sdk`
+New repo: `C:\Users\jorge\proyectos_python\indico-crosstab-sdk`
 
 ```
-insightgenius-sdk/
+indico-crosstab-sdk/
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
 ├── src/
-│   ├── index.ts                  # Public API: export { InsightGenius } + all types
-│   ├── client.ts                 # InsightGenius class — HTTP client, auth, error handling
+│   ├── index.ts                  # Public API: export { IndicoCrosstab } + all types
+│   ├── client.ts                 # Indico Crosstab class — HTTP client, auth, error handling
 │   ├── types.ts                  # All request/response types (TabulateSpec, Metadata, etc.)
-│   ├── errors.ts                 # InsightGeniusError, RateLimitError, AuthError classes
+│   ├── errors.ts                 # IndicoCrosstabError, RateLimitError, AuthError classes
 │   ├── endpoints/
 │   │   ├── files.ts              # upload(), download(), listLibrary()
 │   │   ├── metadata.ts           # getMetadata(), describeVariable()
@@ -79,13 +79,13 @@ quantipro-api/
 
 ### Subsystem 3: Next.js Template
 
-New repo: `C:\Users\jorge\proyectos_python\insightgenius-nextjs-template`
+New repo: `C:\Users\jorge\proyectos_python\indico-crosstab-nextjs-template`
 
 ```
-insightgenius-nextjs-template/
+indico-crosstab-nextjs-template/
 ├── package.json
 ├── next.config.ts
-├── .env.example                  # INSIGHTGENIUS_API_KEY=sk_test_...
+├── .env.example                  # INDICO_CROSSTAB_API_KEY=sk_test_...
 ├── app/
 │   ├── layout.tsx
 │   ├── page.tsx                  # Landing: "Your Displayr, your rules"
@@ -94,7 +94,7 @@ insightgenius-nextjs-template/
 │   ├── analyze/
 │   │   └── page.tsx              # Crosstab builder UI
 │   └── api/
-│       ├── upload/route.ts       # Server action: proxy upload to InsightGenius
+│       ├── upload/route.ts       # Server action: proxy upload to Indico Crosstab
 │       ├── metadata/route.ts     # Server action: get metadata
 │       ├── crosstab/route.ts     # Server action: run crosstab
 │       └── tabulate/route.ts     # Server action: generate Excel
@@ -104,7 +104,7 @@ insightgenius-nextjs-template/
 │   ├── crosstab-table.tsx        # Render crosstab with sig letters
 │   └── sig-letter-cell.tsx       # Colored significance letter (A/B/C)
 └── lib/
-    └── insight-genius.ts         # SDK instance (server-side singleton)
+    └── indico-crosstab.ts         # SDK instance (server-side singleton)
 ```
 
 ---
@@ -114,20 +114,20 @@ insightgenius-nextjs-template/
 ### Task 1: Project scaffolding + client skeleton
 
 **Files:**
-- Create: `insightgenius-sdk/package.json`
-- Create: `insightgenius-sdk/tsconfig.json`
-- Create: `insightgenius-sdk/vitest.config.ts`
-- Create: `insightgenius-sdk/src/index.ts`
-- Create: `insightgenius-sdk/src/client.ts`
-- Create: `insightgenius-sdk/src/errors.ts`
-- Create: `insightgenius-sdk/src/types.ts`
-- Test: `insightgenius-sdk/tests/client.test.ts`
+- Create: `indico-crosstab-sdk/package.json`
+- Create: `indico-crosstab-sdk/tsconfig.json`
+- Create: `indico-crosstab-sdk/vitest.config.ts`
+- Create: `indico-crosstab-sdk/src/index.ts`
+- Create: `indico-crosstab-sdk/src/client.ts`
+- Create: `indico-crosstab-sdk/src/errors.ts`
+- Create: `indico-crosstab-sdk/src/types.ts`
+- Test: `indico-crosstab-sdk/tests/client.test.ts`
 
 - [ ] **Step 1: Create project directory and initialize**
 
 ```bash
-mkdir -p C:/Users/jorge/proyectos_python/insightgenius-sdk
-cd C:/Users/jorge/proyectos_python/insightgenius-sdk
+mkdir -p C:/Users/jorge/proyectos_python/indico-crosstab-sdk
+cd C:/Users/jorge/proyectos_python/indico-crosstab-sdk
 npm init -y
 ```
 
@@ -141,9 +141,9 @@ npm install -D typescript vitest @types/node tsup
 
 ```json
 {
-  "name": "@insightgenius/sdk",
+  "name": "@indicolabs/crosstab-sdk",
   "version": "0.1.0",
-  "description": "TypeScript SDK for InsightGenius — deterministic survey data analysis API",
+  "description": "TypeScript SDK for Indico Crosstab — deterministic survey data analysis API",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -161,7 +161,7 @@ npm install -D typescript vitest @types/node tsup
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
   },
-  "keywords": ["spss", "survey", "market-research", "crosstab", "significance-testing", "insightgenius"],
+  "keywords": ["spss", "survey", "market-research", "crosstab", "significance-testing", "indicolabs"],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -214,28 +214,28 @@ export default defineConfig({
 - [ ] **Step 6: Write `src/errors.ts`**
 
 ```typescript
-export class InsightGeniusError extends Error {
+export class IndicoCrosstabError extends Error {
   public readonly code: string;
   public readonly statusCode: number;
   public readonly docUrl?: string;
 
   constructor(message: string, code: string, statusCode: number, docUrl?: string) {
     super(message);
-    this.name = "InsightGeniusError";
+    this.name = "IndicoCrosstabError";
     this.code = code;
     this.statusCode = statusCode;
     this.docUrl = docUrl;
   }
 }
 
-export class AuthenticationError extends InsightGeniusError {
+export class AuthenticationError extends IndicoCrosstabError {
   constructor(message = "Invalid or missing API key") {
     super(message, "UNAUTHORIZED", 401);
     this.name = "AuthenticationError";
   }
 }
 
-export class RateLimitError extends InsightGeniusError {
+export class RateLimitError extends IndicoCrosstabError {
   public readonly retryAfterMs: number;
 
   constructor(retryAfterMs: number) {
@@ -245,7 +245,7 @@ export class RateLimitError extends InsightGeniusError {
   }
 }
 
-export class ValidationError extends InsightGeniusError {
+export class ValidationError extends IndicoCrosstabError {
   constructor(message: string) {
     super(message, "VALIDATION_ERROR", 400);
     this.name = "ValidationError";
@@ -429,7 +429,7 @@ export interface ApiError {
 
 // ── Client Options ──────────────────────────────────────────────
 
-export interface InsightGeniusOptions {
+export interface IndicoCrosstabOptions {
   apiKey: string;
   baseUrl?: string;
   timeout?: number;
@@ -455,12 +455,12 @@ export interface CreatedKey {
 }
 ```
 
-- [ ] **Step 8: Write `src/client.ts` — the main InsightGenius class**
+- [ ] **Step 8: Write `src/client.ts` — the main Indico Crosstab class**
 
 ```typescript
-import { InsightGeniusError, AuthenticationError, RateLimitError, ValidationError } from "./errors";
+import { IndicoCrosstabError, AuthenticationError, RateLimitError, ValidationError } from "./errors";
 import type {
-  InsightGeniusOptions,
+  IndicoCrosstabOptions,
   ApiResponse,
   ApiError,
   UploadResult,
@@ -477,17 +477,17 @@ import type {
   CreatedKey,
 } from "./types";
 
-const DEFAULT_BASE_URL = "https://spss.insightgenius.io";
+const DEFAULT_BASE_URL = "https://crosstab.indicolabs.io";
 const DEFAULT_TIMEOUT = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
 
-export class InsightGenius {
+export class IndicoCrosstab {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly timeout: number;
   private readonly maxRetries: number;
 
-  constructor(options: InsightGeniusOptions | string) {
+  constructor(options: IndicoCrosstabOptions | string) {
     const opts = typeof options === "string" ? { apiKey: options } : options;
     if (!opts.apiKey) throw new Error("apiKey is required");
     this.apiKey = opts.apiKey;
@@ -557,7 +557,7 @@ export class InsightGenius {
 
         const json = await res.json();
         if (json.success === false) {
-          throw new InsightGeniusError(
+          throw new IndicoCrosstabError(
             json.error?.message ?? "Unknown error",
             json.error?.code ?? "UNKNOWN",
             res.status,
@@ -568,7 +568,7 @@ export class InsightGenius {
         return (json.data ?? json) as T;
       } catch (err) {
         clearTimeout(timer);
-        if (err instanceof InsightGeniusError) throw err;
+        if (err instanceof IndicoCrosstabError) throw err;
         lastError = err as Error;
         if (attempt === this.maxRetries) break;
       }
@@ -577,20 +577,20 @@ export class InsightGenius {
     throw lastError ?? new Error("Request failed after retries");
   }
 
-  private async parseError(res: Response): Promise<InsightGeniusError> {
+  private async parseError(res: Response): Promise<IndicoCrosstabError> {
     try {
       const json = await res.json();
       const err = json.error ?? json;
       if (res.status === 401) return new AuthenticationError(err.message);
       if (res.status === 400) return new ValidationError(err.message ?? "Validation error");
-      return new InsightGeniusError(
+      return new IndicoCrosstabError(
         err.message ?? res.statusText,
         err.code ?? `HTTP_${res.status}`,
         res.status,
         err.doc_url,
       );
     } catch {
-      return new InsightGeniusError(res.statusText, `HTTP_${res.status}`, res.status);
+      return new IndicoCrosstabError(res.statusText, `HTTP_${res.status}`, res.status);
     }
   }
 
@@ -778,10 +778,10 @@ export class InsightGenius {
 - [ ] **Step 9: Write `src/index.ts`**
 
 ```typescript
-export { InsightGenius } from "./client";
-export { InsightGeniusError, AuthenticationError, RateLimitError, ValidationError } from "./errors";
+export { IndicoCrosstab } from "./client";
+export { IndicoCrosstabError, AuthenticationError, RateLimitError, ValidationError } from "./errors";
 export type {
-  InsightGeniusOptions,
+  IndicoCrosstabOptions,
   UploadResult,
   Metadata,
   VariableInfo,
@@ -809,35 +809,35 @@ Create `tests/client.test.ts`:
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { InsightGenius, AuthenticationError, InsightGeniusError } from "../src";
+import { IndicoCrosstab, AuthenticationError, IndicoCrosstabError } from "../src";
 
-describe("InsightGenius constructor", () => {
+describe("Indico Crosstab constructor", () => {
   it("accepts string API key", () => {
-    const ig = new InsightGenius("sk_test_abc123");
-    expect(ig).toBeInstanceOf(InsightGenius);
+    const ig = new IndicoCrosstab("sk_test_abc123");
+    expect(ig).toBeInstanceOf(Indico Crosstab);
   });
 
   it("accepts options object", () => {
-    const ig = new InsightGenius({
+    const ig = new IndicoCrosstab({
       apiKey: "sk_test_abc123",
       baseUrl: "http://localhost:8000",
       timeout: 5000,
     });
-    expect(ig).toBeInstanceOf(InsightGenius);
+    expect(ig).toBeInstanceOf(Indico Crosstab);
   });
 
   it("throws if apiKey is empty", () => {
-    expect(() => new InsightGenius("")).toThrow("apiKey is required");
+    expect(() => new IndicoCrosstab("")).toThrow("apiKey is required");
   });
 
   it("throws if apiKey is missing from options", () => {
-    expect(() => new InsightGenius({ apiKey: "" })).toThrow("apiKey is required");
+    expect(() => new IndicoCrosstab({ apiKey: "" })).toThrow("apiKey is required");
   });
 });
 
 describe("Error classes", () => {
-  it("InsightGeniusError has code and statusCode", () => {
-    const err = new InsightGeniusError("test", "TEST_CODE", 400);
+  it("IndicoCrosstabError has code and statusCode", () => {
+    const err = new IndicoCrosstabError("test", "TEST_CODE", 400);
     expect(err.message).toBe("test");
     expect(err.code).toBe("TEST_CODE");
     expect(err.statusCode).toBe(400);
@@ -855,7 +855,7 @@ describe("Error classes", () => {
 - [ ] **Step 11: Run test to verify it passes**
 
 ```bash
-cd C:/Users/jorge/proyectos_python/insightgenius-sdk
+cd C:/Users/jorge/proyectos_python/indico-crosstab-sdk
 npx vitest run
 ```
 
@@ -875,7 +875,7 @@ Expected: `index.js`, `index.mjs`, `index.d.ts`, `index.d.mts` exist.
 ```bash
 git init
 git add -A
-git commit -m "feat: initial SDK scaffold — InsightGenius client, types, errors"
+git commit -m "feat: initial SDK scaffold — Indico Crosstab client, types, errors"
 ```
 
 ---
@@ -883,17 +883,17 @@ git commit -m "feat: initial SDK scaffold — InsightGenius client, types, error
 ### Task 2: HTTP integration tests with mock server
 
 **Files:**
-- Create: `insightgenius-sdk/tests/helpers/mock-server.ts`
-- Create: `insightgenius-sdk/tests/files.test.ts`
-- Create: `insightgenius-sdk/tests/metadata.test.ts`
-- Create: `insightgenius-sdk/tests/analysis.test.ts`
-- Create: `insightgenius-sdk/tests/tabulation.test.ts`
-- Create: `insightgenius-sdk/tests/errors.test.ts`
+- Create: `indico-crosstab-sdk/tests/helpers/mock-server.ts`
+- Create: `indico-crosstab-sdk/tests/files.test.ts`
+- Create: `indico-crosstab-sdk/tests/metadata.test.ts`
+- Create: `indico-crosstab-sdk/tests/analysis.test.ts`
+- Create: `indico-crosstab-sdk/tests/tabulation.test.ts`
+- Create: `indico-crosstab-sdk/tests/errors.test.ts`
 
 - [ ] **Step 1: Install MSW for mocking**
 
 ```bash
-cd C:/Users/jorge/proyectos_python/insightgenius-sdk
+cd C:/Users/jorge/proyectos_python/indico-crosstab-sdk
 npm install -D msw
 ```
 
@@ -1011,14 +1011,14 @@ export const mockServer = setupServer(...handlers);
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
-import { InsightGenius, AuthenticationError } from "../src";
+import { IndicoCrosstab, AuthenticationError } from "../src";
 import { mockServer } from "./helpers/mock-server";
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-const ig = new InsightGenius({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
+const ig = new IndicoCrosstab({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
 
 describe("files", () => {
   it("upload returns file_id and metadata", async () => {
@@ -1036,14 +1036,14 @@ describe("files", () => {
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
-import { InsightGenius } from "../src";
+import { IndicoCrosstab } from "../src";
 import { mockServer } from "./helpers/mock-server";
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-const ig = new InsightGenius({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
+const ig = new IndicoCrosstab({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
 
 describe("metadata", () => {
   it("returns structured metadata", async () => {
@@ -1060,14 +1060,14 @@ describe("metadata", () => {
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
-import { InsightGenius } from "../src";
+import { IndicoCrosstab } from "../src";
 import { mockServer } from "./helpers/mock-server";
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-const ig = new InsightGenius({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
+const ig = new IndicoCrosstab({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
 
 describe("frequency", () => {
   it("returns frequency table with stats", async () => {
@@ -1094,14 +1094,14 @@ describe("crosstab", () => {
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
-import { InsightGenius } from "../src";
+import { IndicoCrosstab } from "../src";
 import { mockServer } from "./helpers/mock-server";
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-const ig = new InsightGenius({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
+const ig = new IndicoCrosstab({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
 
 describe("tabulate", () => {
   it("returns Excel binary (ArrayBuffer)", async () => {
@@ -1124,7 +1124,7 @@ describe("tabulate", () => {
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
-import { InsightGenius, AuthenticationError } from "../src";
+import { IndicoCrosstab, AuthenticationError } from "../src";
 import { mockServer } from "./helpers/mock-server";
 import { http, HttpResponse } from "msw";
 
@@ -1134,12 +1134,12 @@ afterAll(() => mockServer.close());
 
 describe("error handling", () => {
   it("throws AuthenticationError on 401", async () => {
-    const ig = new InsightGenius({ apiKey: "bad_key", baseUrl: "http://localhost:8000" });
+    const ig = new IndicoCrosstab({ apiKey: "bad_key", baseUrl: "http://localhost:8000" });
     const blob = new Blob([new Uint8Array(10)]);
     await expect(ig.upload(blob)).rejects.toThrow(AuthenticationError);
   });
 
-  it("throws InsightGeniusError with code on API error", async () => {
+  it("throws IndicoCrosstabError with code on API error", async () => {
     mockServer.use(
       http.post("http://localhost:8000/v1/metadata", () =>
         HttpResponse.json(
@@ -1148,7 +1148,7 @@ describe("error handling", () => {
         ),
       ),
     );
-    const ig = new InsightGenius({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
+    const ig = new IndicoCrosstab({ apiKey: "sk_test_abc", baseUrl: "http://localhost:8000" });
     await expect(ig.getMetadata("test-id")).rejects.toThrow("Q99 not found");
   });
 });
@@ -1174,28 +1174,28 @@ git commit -m "test: integration tests with MSW mock server"
 ### Task 3: README with quickstart
 
 **Files:**
-- Create: `insightgenius-sdk/README.md`
+- Create: `indico-crosstab-sdk/README.md`
 
 - [ ] **Step 1: Write README**
 
 ```markdown
-# @insightgenius/sdk
+# @indicolabs/crosstab-sdk
 
-TypeScript SDK for [InsightGenius](https://spss.insightgenius.io) — deterministic survey data analysis with significance testing.
+TypeScript SDK for [Indico Crosstab](https://crosstab.indicolabs.io) — deterministic survey data analysis with significance testing.
 
 ## Install
 
 ```bash
-npm install @insightgenius/sdk
+npm install @indicolabs/crosstab-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { InsightGenius } from "@insightgenius/sdk";
+import { IndicoCrosstab } from "@indicolabs/crosstab-sdk";
 import { readFileSync, writeFileSync } from "fs";
 
-const ig = new InsightGenius("sk_test_your_key_here");
+const ig = new IndicoCrosstab("sk_test_your_key_here");
 
 // 1. Upload a .sav file
 const file = readFileSync("survey.sav");
@@ -1234,12 +1234,12 @@ writeFileSync("report.xlsx", Buffer.from(excel));
 
 ```typescript
 // Simple
-const ig = new InsightGenius("sk_test_...");
+const ig = new IndicoCrosstab("sk_test_...");
 
 // With options
-const ig = new InsightGenius({
+const ig = new IndicoCrosstab({
   apiKey: "sk_live_...",
-  baseUrl: "https://spss.insightgenius.io",  // default
+  baseUrl: "https://crosstab.indicolabs.io",  // default
   timeout: 120_000,                           // 2 min default
   maxRetries: 2,                              // default
 });
@@ -1265,7 +1265,7 @@ const ig = new InsightGenius({
 ### Error Handling
 
 ```typescript
-import { InsightGenius, AuthenticationError, RateLimitError, ValidationError } from "@insightgenius/sdk";
+import { IndicoCrosstab, AuthenticationError, RateLimitError, ValidationError } from "@indicolabs/crosstab-sdk";
 
 try {
   const meta = await ig.getMetadata(fileId);
@@ -1284,9 +1284,9 @@ try {
 
 ## Get an API Key
 
-1. Go to [spss.insightgenius.io/app/keys](https://spss.insightgenius.io/app/keys)
+1. Go to [crosstab.indicolabs.io/app/keys](https://crosstab.indicolabs.io/app/keys)
 2. Create a key
-3. Use it: `new InsightGenius("sk_live_...")`
+3. Use it: `new IndicoCrosstab("sk_live_...")`
 
 ## Build Your Own Displayr
 
@@ -1701,25 +1701,25 @@ git commit -m "feat: async webhooks — job store, status endpoint, webhook deli
 ### Task 6: Next.js project scaffold with SDK integration
 
 **Files:**
-- Create: `insightgenius-nextjs-template/package.json`
-- Create: `insightgenius-nextjs-template/next.config.ts`
-- Create: `insightgenius-nextjs-template/.env.example`
-- Create: `insightgenius-nextjs-template/lib/insight-genius.ts`
-- Create: `insightgenius-nextjs-template/app/layout.tsx`
-- Create: `insightgenius-nextjs-template/app/page.tsx`
+- Create: `indico-crosstab-nextjs-template/package.json`
+- Create: `indico-crosstab-nextjs-template/next.config.ts`
+- Create: `indico-crosstab-nextjs-template/.env.example`
+- Create: `indico-crosstab-nextjs-template/lib/indico-crosstab.ts`
+- Create: `indico-crosstab-nextjs-template/app/layout.tsx`
+- Create: `indico-crosstab-nextjs-template/app/page.tsx`
 
 - [ ] **Step 1: Create Next.js project**
 
 ```bash
 cd C:/Users/jorge/proyectos_python
-npx create-next-app@latest insightgenius-nextjs-template --typescript --tailwind --eslint --app --src-dir=false --import-alias="@/*" --use-npm
+npx create-next-app@latest indico-crosstab-nextjs-template --typescript --tailwind --eslint --app --src-dir=false --import-alias="@/*" --use-npm
 ```
 
 - [ ] **Step 2: Install SDK and shadcn/ui**
 
 ```bash
-cd C:/Users/jorge/proyectos_python/insightgenius-nextjs-template
-npm install @insightgenius/sdk
+cd C:/Users/jorge/proyectos_python/indico-crosstab-nextjs-template
+npm install @indicolabs/crosstab-sdk
 npx shadcn@latest init -d
 npx shadcn@latest add button card input label table tabs badge
 ```
@@ -1727,21 +1727,21 @@ npx shadcn@latest add button card input label table tabs badge
 - [ ] **Step 3: Write `.env.example`**
 
 ```
-# Get your key at https://spss.insightgenius.io/app/keys
-INSIGHTGENIUS_API_KEY=sk_test_your_key_here
+# Get your key at https://crosstab.indicolabs.io/app/keys
+INDICO_CROSSTAB_API_KEY=sk_test_your_key_here
 ```
 
-- [ ] **Step 4: Write `lib/insight-genius.ts`**
+- [ ] **Step 4: Write `lib/indico-crosstab.ts`**
 
 ```typescript
-import { InsightGenius } from "@insightgenius/sdk";
+import { IndicoCrosstab } from "@indicolabs/crosstab-sdk";
 
-if (!process.env.INSIGHTGENIUS_API_KEY) {
-  throw new Error("INSIGHTGENIUS_API_KEY is required. Get one at https://spss.insightgenius.io/app/keys");
+if (!process.env.INDICO_CROSSTAB_API_KEY) {
+  throw new Error("INDICO_CROSSTAB_API_KEY is required. Get one at https://crosstab.indicolabs.io/app/keys");
 }
 
-export const ig = new InsightGenius({
-  apiKey: process.env.INSIGHTGENIUS_API_KEY,
+export const ig = new IndicoCrosstab({
+  apiKey: process.env.INDICO_CROSSTAB_API_KEY,
 });
 ```
 
@@ -1755,7 +1755,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Survey Analyzer — Built with InsightGenius",
+  title: "Survey Analyzer — Built with Indico Crosstab",
   description: "Professional survey analysis with significance testing",
 };
 
@@ -1769,8 +1769,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <h1 className="text-lg font-semibold">Survey Analyzer</h1>
               <span className="text-xs text-gray-400">
                 Powered by{" "}
-                <a href="https://spss.insightgenius.io" className="underline" target="_blank">
-                  InsightGenius
+                <a href="https://crosstab.indicolabs.io" className="underline" target="_blank">
+                  Indico Crosstab
                 </a>
               </span>
             </div>
@@ -1797,7 +1797,7 @@ export default function Home() {
         <h2 className="text-4xl font-bold tracking-tight">Your surveys. Your platform.</h2>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
           Upload an SPSS file and get professional crosstabs with significance testing in seconds.
-          Built with the InsightGenius API.
+          Built with the Indico Crosstab API.
         </p>
       </div>
 
@@ -1848,7 +1848,7 @@ export default function Home() {
 ```bash
 git init
 git add -A
-git commit -m "feat: Next.js template scaffold with InsightGenius SDK"
+git commit -m "feat: Next.js template scaffold with Indico Crosstab SDK"
 ```
 
 ---
@@ -1856,16 +1856,16 @@ git commit -m "feat: Next.js template scaffold with InsightGenius SDK"
 ### Task 7: Upload page + metadata display
 
 **Files:**
-- Create: `insightgenius-nextjs-template/app/upload/page.tsx`
-- Create: `insightgenius-nextjs-template/app/api/upload/route.ts`
-- Create: `insightgenius-nextjs-template/app/api/metadata/route.ts`
-- Create: `insightgenius-nextjs-template/components/file-uploader.tsx`
+- Create: `indico-crosstab-nextjs-template/app/upload/page.tsx`
+- Create: `indico-crosstab-nextjs-template/app/api/upload/route.ts`
+- Create: `indico-crosstab-nextjs-template/app/api/metadata/route.ts`
+- Create: `indico-crosstab-nextjs-template/components/file-uploader.tsx`
 
 - [ ] **Step 1: Write `app/api/upload/route.ts` — server action**
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
-import { ig } from "@/lib/insight-genius";
+import { ig } from "@/lib/indico-crosstab";
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -1884,7 +1884,7 @@ export async function POST(req: NextRequest) {
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
-import { ig } from "@/lib/insight-genius";
+import { ig } from "@/lib/indico-crosstab";
 
 export async function POST(req: NextRequest) {
   const { file_id } = await req.json();
@@ -2103,12 +2103,12 @@ git commit -m "feat: upload page with drag-drop and metadata display"
 ### Task 8: Crosstab analysis page with significance letters
 
 **Files:**
-- Create: `insightgenius-nextjs-template/app/analyze/page.tsx`
-- Create: `insightgenius-nextjs-template/app/api/crosstab/route.ts`
-- Create: `insightgenius-nextjs-template/app/api/tabulate/route.ts`
-- Create: `insightgenius-nextjs-template/components/variable-picker.tsx`
-- Create: `insightgenius-nextjs-template/components/crosstab-table.tsx`
-- Create: `insightgenius-nextjs-template/components/sig-letter-cell.tsx`
+- Create: `indico-crosstab-nextjs-template/app/analyze/page.tsx`
+- Create: `indico-crosstab-nextjs-template/app/api/crosstab/route.ts`
+- Create: `indico-crosstab-nextjs-template/app/api/tabulate/route.ts`
+- Create: `indico-crosstab-nextjs-template/components/variable-picker.tsx`
+- Create: `indico-crosstab-nextjs-template/components/crosstab-table.tsx`
+- Create: `indico-crosstab-nextjs-template/components/sig-letter-cell.tsx`
 
 - [ ] **Step 1: Write `components/sig-letter-cell.tsx`**
 
@@ -2242,7 +2242,7 @@ export function CrosstabTable({ data }: Props) {
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
-import { ig } from "@/lib/insight-genius";
+import { ig } from "@/lib/indico-crosstab";
 
 export async function POST(req: NextRequest) {
   const { file_id, row, col } = await req.json();
@@ -2259,7 +2259,7 @@ export async function POST(req: NextRequest) {
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
-import { ig } from "@/lib/insight-genius";
+import { ig } from "@/lib/indico-crosstab";
 
 export async function POST(req: NextRequest) {
   const { file_id, spec } = await req.json();
@@ -2459,19 +2459,19 @@ git commit -m "feat: developer portal page with quickstart and code samples"
 
 After completing all tasks:
 
-- [ ] **SDK**: `cd insightgenius-sdk && npm test` — all tests pass
+- [ ] **SDK**: `cd indico-crosstab-sdk && npm test` — all tests pass
 - [ ] **SDK**: `npm run build` — produces dist/ with types
 - [ ] **Backend**: `cd quantipro-api && python -m pytest tests/ -x -q` — all tests pass (including job tests)
-- [ ] **Template**: `cd insightgenius-nextjs-template && npm run build` — builds without errors
+- [ ] **Template**: `cd indico-crosstab-nextjs-template && npm run build` — builds without errors
 - [ ] **E2E**: Upload .sav via template → see metadata → run crosstab → see sig letters → download Excel
 - [ ] **Webhook**: `POST /v1/tabulate` with `webhook_url` → returns 202 → `GET /v1/jobs/{id}` → status=done → webhook received
-- [ ] **Developer portal**: `https://spss.insightgenius.io/developers` loads with quickstart code
+- [ ] **Developer portal**: `https://crosstab.indicolabs.io/developers` loads with quickstart code
 
 ---
 
 ## Deployment Notes
 
-1. **SDK**: Publish to npm with `npm publish --access public` (requires npm account with `@insightgenius` scope)
+1. **SDK**: Publish to npm with `npm publish --access public` (requires npm account with `@indicolabs` scope)
 2. **Backend**: Push to `master` → Railway auto-deploys
 3. **Template**: Push to GitHub `quack2025/insightgenius-nextjs-template` → reference in SDK README
 4. **Developer portal**: Included in backend deploy (static HTML)

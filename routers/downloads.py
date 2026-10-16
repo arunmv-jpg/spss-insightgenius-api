@@ -27,7 +27,7 @@ async def store_download(file_bytes: bytes, filename: str) -> tuple[str, str]:
 
     settings = get_settings()
     token = str(uuid.uuid4())
-    base_url = settings.base_url or f"https://spss.insightgenius.io"
+    base_url = settings.base_url or f"https://crosstab.indicolabs.io"
     download_url = f"{base_url}/downloads/{token}"
 
     try:

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · Indico Crosstab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ui/ic.css">
+<script src="/static/ui/ic.js"></script>
+<style>
+  .set-row { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--ic-border); }
+  .set-row:first-of-type { border-top: 0; }
+  .set-row dt { width: 180px; flex-shrink: 0; color: var(--ic-text-muted); font-size: 13px; }
+  .set-row dd { margin: 0; flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+  .set-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 20px; }
+  @media (max-width: 960px) {
+    .set-links { grid-template-columns: 1fr; }
+    .set-row { flex-wrap: wrap; gap: 4px 12px; }
+    .set-row dt { width: 100%; }
+    .set-row dd { flex: 1 1 0; }
+  }
+</style>
+</head>
+<body class="ic-body">
+<div class="ic-app">
+  <ic-sidebar></ic-sidebar>
+  <div class="ic-main">
+    <ic-topbar></ic-topbar>
+    <main class="ic-page" style="max-width:960px">
+      <div class="ic-page-header">
+        <div>
+          <h1 class="ic-title">Settings</h1>
+          <p class="ic-subtitle">Your account and the ways to connect Indico Crosstab to other tools.</p>
+        </div>
+      </div>
+
+      <section class="ic-card" style="margin-bottom:20px">
+        <div class="ic-card-header"><h2 class="ic-section-title">Account</h2></div>
+        <dl style="margin:0">
+          <div class="set-row"><dt>Name</dt><dd id="acc-name">—</dd></div>
+          <div class="set-row"><dt>Email</dt><dd id="acc-email">—</dd></div>
+        </dl>
+        <div class="ic-card-footer" style="justify-content:flex-start">
+          <button class="ic-btn ic-btn--secondary" type="button" id="sign-out"><ic-icon name="log-out" size="16"></ic-icon>Sign out</button>
+        </div>
+      </section>
+
+      <section class="ic-card" style="margin-bottom:20px">
+        <div class="ic-card-header"><h2 class="ic-section-title">Connect to Claude (MCP)</h2></div>
+        <dl style="margin:0">
+          <div class="set-row">
+            <dt>Server URL</dt>
+            <dd class="ic-code" id="mcp-url"></dd>
+            <button class="ic-btn ic-btn--secondary ic-btn--sm" type="button" id="copy-mcp"><ic-icon name="copy" size="14"></ic-icon>Copy</button>
+          </div>
+          <div class="set-row">
+            <dt>Large files</dt>
+            <dd style="font-weight:400" class="ic-muted">Upload with your API key and give Claude the file ID.</dd>
+            <a class="ic-btn ic-btn--secondary ic-btn--sm" href="/upload">Open uploader</a>
+          </div>
+        </dl>
+      </section>
+
+      <section class="ic-card">
+        <div class="ic-card-header"><h2 class="ic-section-title">Developer resources</h2></div>
+        <div class="set-links">
+          <a class="ic-tile" href="/docs" target="_blank" rel="noopener">
+            <div class="ic-tile-icon"><ic-icon name="code" size="18"></ic-icon></div>
+            <div class="ic-tile-title">REST API reference</div>
+            <div class="ic-tile-desc">Interactive docs for every endpoint.</div>
+          </a>
+          <a class="ic-tile" href="/redoc" target="_blank" rel="noopener">
+            <div class="ic-tile-icon"><ic-icon name="book" size="18"></ic-icon></div>
+            <div class="ic-tile-title">API reference (ReDoc)</div>
+            <div class="ic-tile-desc">The same reference in a reading layout.</div>
+          </a>
+          <a class="ic-tile" href="/docs/mcp">
+            <div class="ic-tile-icon"><ic-icon name="sparkles" size="18"></ic-icon></div>
+            <div class="ic-tile-title">MCP guide</div>
+            <div class="ic-tile-desc">Tools, authentication and file sessions for Claude.</div>
+          </a>
+          <a class="ic-tile" href="/privacy">
+            <div class="ic-tile-icon"><ic-icon name="lock" size="18"></ic-icon></div>
+            <div class="ic-tile-title">Privacy</div>
+            <div class="ic-tile-desc">How uploaded data is processed and kept.</div>
+          </a>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+<script>
+(function () {
+  IC.me().then(u => {
+    if (!u) return;
+    document.getElementById('acc-name').textContent = u.name || '—';
+    document.getElementById('acc-email').textContent = u.email;
+  });
+  const url = location.origin + '/mcp/sse';
+  document.getElementById('mcp-url').textContent = url;
+  document.getElementById('copy-mcp').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(url); IC.toast('Server URL copied'); }
+    catch (_) { IC.toast('Couldn’t copy — select the URL and copy it instead', 'danger'); }
+  });
+  document.getElementById('sign-out').addEventListener('click', IC.signOut);
+})();
+</script>
+</body>
+</html>

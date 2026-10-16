@@ -24,6 +24,11 @@ os.environ["API_KEYS_JSON"] = json.dumps([
     }
 ])
 os.environ["APP_ENV"] = "development"
+# Web UI sign-in (pages are gated; the shared client signs in below)
+UI_EMAIL, UI_PASSWORD = "analyst@example.test", "test-password-123"
+os.environ["UI_LOGIN_EMAIL"] = UI_EMAIL
+os.environ["UI_LOGIN_PASSWORD"] = UI_PASSWORD
+os.environ["UI_LOGIN_NAME"] = "Test Analyst"
 
 # Clear settings cache so test env vars take effect
 from config import get_settings
@@ -35,6 +40,7 @@ init_key_registry()
 
 # Module-level client (avoids fixture ordering issues)
 _client = TestClient(app, raise_server_exceptions=False)
+_client.post("/auth/login", json={"email": UI_EMAIL, "password": UI_PASSWORD})
 
 
 @pytest.fixture

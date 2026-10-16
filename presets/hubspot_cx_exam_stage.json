@@ -1,0 +1,346 @@
+{
+  "id": "hubspot_cx_exam_stage",
+  "name": "HubSpot CX Exam Stage",
+  "description": "Job role group (one role per respondent by priority: Exams Officer > Leader, incl. Heads of Department who aren't teachers > Teacher > Other), number of products (Single / Dual / Triple), product mix, and one DRIVERS set from the detractor / passive / promoter driver questions. Data sheet: one 'Exam Stage' sheet with role / product / NPS / driver / score flag columns and a counts row, as in the analysts' Exam Stage workbook.",
+  "match": {
+    "columns": [
+      "Job role",
+      "Customer type",
+      "Exam Stage NPS",
+      "Detractors Drivers",
+      "Passive Drivers",
+      "Promoter Drivers"
+    ]
+  },
+  "edits": [
+    {
+      "op": "add_derived",
+      "derived": {
+        "name": "Job_role_group",
+        "label": "Job role group",
+        "rule": "priority",
+        "after": "Job_role_Other",
+        "params": {
+          "base": "Job role",
+          "groups": [
+            {
+              "code": 1,
+              "label": "Exams Officer",
+              "when": {
+                "var": "Job role",
+                "any": [
+                  "Exams Officer"
+                ]
+              }
+            },
+            {
+              "code": 2,
+              "label": "Leader",
+              "when": {
+                "or": [
+                  {
+                    "var": "Job role",
+                    "any": [
+                      "School Leader",
+                      "School Group/School District Leader"
+                    ]
+                  },
+                  {
+                    "and": [
+                      {
+                        "var": "Job role",
+                        "any": [
+                          "Head of Department"
+                        ]
+                      },
+                      {
+                        "var": "Job role",
+                        "none": [
+                          "Teacher"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "code": 3,
+              "label": "Teacher",
+              "when": {
+                "var": "Job role",
+                "any": [
+                  "Teacher"
+                ]
+              }
+            }
+          ],
+          "else": {
+            "code": 4,
+            "label": "Other"
+          }
+        }
+      }
+    },
+    {
+      "op": "add_derived",
+      "derived": {
+        "name": "Product_count",
+        "label": "Number of products",
+        "rule": "count",
+        "params": {
+          "from": "Customer type",
+          "bands": [
+            {
+              "code": 1,
+              "label": "Single product",
+              "min": 1,
+              "max": 1
+            },
+            {
+              "code": 2,
+              "label": "Dual product",
+              "min": 2,
+              "max": 2
+            },
+            {
+              "code": 3,
+              "label": "Triple product",
+              "min": 3,
+              "max": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "add_derived",
+      "derived": {
+        "name": "Product_mix",
+        "label": "Product mix",
+        "rule": "combination",
+        "params": {
+          "from": "Customer type",
+          "combos": [
+            {
+              "code": 1,
+              "label": "Resources only",
+              "exact": [
+                "Teaching and learning resources such as textbooks, digital tools, or curriculum support"
+              ]
+            },
+            {
+              "code": 2,
+              "label": "Programmes only",
+              "exact": [
+                "Programmes or curriculum"
+              ]
+            },
+            {
+              "code": 3,
+              "label": "Exams only",
+              "exact": [
+                "Exams or qualifications"
+              ]
+            },
+            {
+              "code": 4,
+              "label": "Resources + Programmes",
+              "exact": [
+                "Teaching and learning resources such as textbooks, digital tools, or curriculum support",
+                "Programmes or curriculum"
+              ]
+            },
+            {
+              "code": 5,
+              "label": "Programmes + Exams",
+              "exact": [
+                "Programmes or curriculum",
+                "Exams or qualifications"
+              ]
+            },
+            {
+              "code": 6,
+              "label": "Resources + Exams",
+              "exact": [
+                "Teaching and learning resources such as textbooks, digital tools, or curriculum support",
+                "Exams or qualifications"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "add_derived",
+      "derived": {
+        "name": "Programmes_or_exams",
+        "label": "Programmes AND/OR exams",
+        "rule": "combination",
+        "params": {
+          "from": "Customer type",
+          "combos": [
+            {
+              "code": 1,
+              "label": "Programmes and/or exams",
+              "within": [
+                "Programmes or curriculum",
+                "Exams or qualifications"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "add_derived",
+      "derived": {
+        "name": "DRIVERS",
+        "label": "Drivers",
+        "rule": "coalesce",
+        "params": {
+          "from": [
+            "Detractors Drivers",
+            "Passive Drivers",
+            "Promoter Drivers"
+          ]
+        }
+      }
+    },
+    {
+      "op": "set_data_workbook",
+      "settings": {
+        "title": "Exam Stage",
+        "drop_columns": [
+          "Response",
+          "Industry Standard Question Type",
+          "Sentiment",
+          "Submission Name",
+          "Source",
+          "Survey ID",
+          "Survey Type",
+          "Rating",
+          "Visitor ID",
+          "Tags"
+        ],
+        "groups": [
+          {
+            "after": "Job role",
+            "columns": [
+              {
+                "flags_of": "Job_role_group",
+                "headers": {
+                  "1": "(##) Exams officer (regardless of other roles)",
+                  "2": "(##) Leader (if not EO, incl HoD who aren't teachers)",
+                  "3": "(##) Teachers (All other roles)",
+                  "4": "(##) Other (no listed role, e.g. only Other)"
+                }
+              }
+            ]
+          },
+          {
+            "after": "Customer type",
+            "columns": [
+              {
+                "header": "Number of products",
+                "count": "Customer type"
+              },
+              {
+                "flags_of": "Product_count"
+              },
+              {
+                "header": "Resources only",
+                "var": "Product_mix",
+                "code": 1
+              },
+              {
+                "header": "Programmes only",
+                "var": "Product_mix",
+                "code": 2
+              },
+              {
+                "header": "Exams only",
+                "var": "Product_mix",
+                "code": 3
+              },
+              {
+                "header": "Resources + Programmes",
+                "var": "Product_mix",
+                "code": 4
+              },
+              {
+                "header": "Programmes + Exams",
+                "var": "Product_mix",
+                "code": 5
+              },
+              {
+                "header": "Programmes AND/OR exams",
+                "var": "Programmes_or_exams",
+                "code": 1
+              },
+              {
+                "header": "Resources + Exams",
+                "var": "Product_mix",
+                "code": 6
+              }
+            ]
+          },
+          {
+            "after": "Exam Stage NPS",
+            "columns": [
+              {
+                "header": "Promoters",
+                "var": "Exam_Stage_NPS_group",
+                "code": 3
+              },
+              {
+                "header": "Passives",
+                "var": "Exam_Stage_NPS_group",
+                "code": 2
+              },
+              {
+                "header": "Detractors",
+                "var": "Exam_Stage_NPS_group",
+                "code": 1
+              }
+            ]
+          },
+          {
+            "after": "Promoter Drivers",
+            "columns": [
+              {
+                "header": "DRIVERS",
+                "first_of": [
+                  "Detractors Drivers",
+                  "Passive Drivers",
+                  "Promoter Drivers"
+                ]
+              },
+              {
+                "flags_of": "DRIVERS",
+                "order": [
+                  "accessibility",
+                  "quality",
+                  "ease of working",
+                  "support",
+                  "communication",
+                  "outcomes",
+                  "value for money"
+                ],
+                "last": [
+                  "Other"
+                ]
+              }
+            ]
+          }
+        ],
+        "score_flags": [
+          1,
+          5
+        ],
+        "tabs": [],
+        "percent_row": false
+      }
+    }
+  ]
+}

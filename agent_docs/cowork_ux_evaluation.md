@@ -1,8 +1,8 @@
-# Claude Co-Work: UX Evaluation of Talk2Data InsightGenius Chat
+# Claude Co-Work: UX Evaluation of Indico Crosstab Chat
 
 ## Instructions
 
-You are evaluating the web app at **https://spss.insightgenius.io/export-mcp**. This is a conversational analysis tool where market researchers upload SPSS files and ask questions in natural language. The AI (Claude Sonnet) calls a deterministic statistical engine to produce professional results.
+You are evaluating the web app at **https://crosstab.indicolabs.io/export-mcp**. This is a conversational analysis tool where market researchers upload SPSS files and ask questions in natural language. The AI (Claude Sonnet) calls a deterministic statistical engine to produce professional results.
 
 ## Test file
 

@@ -1,16 +1,16 @@
-# UX Evaluation Prompt for SPSS InsightGenius
+# UX Evaluation Prompt for Indico Crosstab
 
-> Copy this prompt into Claude in Chrome. Then navigate to https://spss.insightgenius.io and share your screen or take screenshots at each step.
+> Copy this prompt into Claude in Chrome. Then navigate to https://crosstab.indicolabs.io and share your screen or take screenshots at each step.
 
 ---
 
 ## Prompt
 
-You are a UX researcher evaluating **SPSS InsightGenius** — a web tool that lets market researchers upload SPSS (.sav) files and generate professional Excel crosstabs with significance testing.
+You are a UX researcher evaluating **Indico Crosstab** — a web tool that lets market researchers upload SPSS (.sav) files and generate professional Excel crosstabs with significance testing.
 
 **Target user**: A market research analyst (30-50 years old) who currently uses PSPP, WinCross, or SPSS to create crosstabs manually. They are not developers — they don't know what an API is. They want to upload a file, configure their tables, and download an Excel.
 
-**URL**: https://spss.insightgenius.io
+**URL**: https://crosstab.indicolabs.io
 
 ### Your task
 
@@ -104,7 +104,7 @@ Compare the UX to:
 - Displayr (web, paid)
 - Q Research Software (web, paid)
 
-What does InsightGenius do better? What does it do worse?
+What does Indico Crosstab do better? What does it do worse?
 
 #### 10. Final Score
 

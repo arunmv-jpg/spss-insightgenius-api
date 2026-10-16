@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "SPSS InsightGenius API",
-    "description": "**SPSS InsightGenius API** \u2014 REST API for processing SPSS (.sav) files.\n\nPowered by QuantipyMRX for market research analysis: crosstabs with significance testing, auto-detection of question types, NPS, Top/Bottom Box, nets, and AI-powered Reporting Ticket parsing via Claude Haiku.\n\n## Authentication\nAll endpoints require `Authorization: Bearer sk_live_...` or `sk_test_...`\n\n## Rate Limits\n| Plan | Requests/min | Max file size |\n|------|-------------|---------------|\n| Free (sk_test_) | 10 | 5 MB |\n| Pro | 60 | 50 MB |\n| Business | 200 | 200 MB |\n",
+    "title": "Indico Crosstab API",
+    "description": "**Indico Crosstab API** \u2014 REST API for processing SPSS (.sav) files.\n\nPowered by QuantipyMRX for market research analysis: crosstabs with significance testing, auto-detection of question types, NPS, Top/Bottom Box, nets, and AI-powered Reporting Ticket parsing via Claude Haiku.\n\n## Authentication\nAll endpoints require `Authorization: Bearer sk_live_...` or `sk_test_...`\n\n## Rate Limits\n| Plan | Requests/min | Max file size |\n|------|-------------|---------------|\n| Free (sk_test_) | 10 | 5 MB |\n| Pro | 60 | 50 MB |\n| Business | 200 | 200 MB |\n",
     "version": "1.0.0"
   },
   "paths": {

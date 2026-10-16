@@ -14,10 +14,13 @@ from fastapi.responses import StreamingResponse
 from auth import require_scope, KeyConfig
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
+from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
-from services.data_loader import load_data
+from services.data_loader import SPSS_FORMATS, file_format, load_data
+from services.data_workbook import append_data_workbook
 from services.tabulation_builder import TabulateSpec, build_tabulation
+from shared.filenames import output_filename
 
 router = APIRouter(tags=["Processing"])
 
@@ -36,7 +39,7 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
     (MRS sheet or Grid summary). Only ungrouped variables get individual sheets.
     """
     # Step 1: Load and extract metadata
-    data = load_data(file_bytes, filename)
+    data = load_data(file_bytes, filename, options.get("_codebook"))
     meta = QuantiProEngine.extract_metadata(data)
 
     # Step 2: Pick banners — ticket overrides auto-detect
@@ -91,6 +94,21 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
             grid_groups[name] = {"variables": members, "show": ["t2b", "b2b", "mean"]}
             grouped_vars.update(members)
 
+    # A single option of a multi-select set is a poor banner, and tabulating the set
+    # against one of its own members fails — drop auto-picked banners that are grouped.
+    if not ticket_banners and banner_set & grouped_vars:
+        banners = [b for b in banners if b not in grouped_vars]
+        if not banners:
+            for v in meta.get("variables", []):
+                vl = v.get("value_labels")
+                if vl and 2 <= len(vl) <= 8 and v["name"] not in grouped_vars:
+                    banners.append(v["name"])
+                    if len(banners) >= options.get("max_banners", 3):
+                        break
+        if not banners:
+            raise ValueError("No suitable banner variables found in the dataset")
+        banner_set = set(banners)
+
     # Step 4: Build stubs — ticket overrides auto-detect
     ticket_stubs = options.get("ticket_stubs")
     if ticket_stubs:
@@ -119,13 +137,21 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
         nets = ticket_nets
     else:
         all_nets = meta.get("preset_nets") or {}
+        if options.get("_codebook") is not None:  # nets set in the codebook replace the guessed ones
+            all_nets = {**all_nets, **options["_codebook"].table_nets()}
         nets = {k: v for k, v in all_nets.items() if k in set(stubs)}
 
     # Step 6: Build spec
+    # Decipher-style default: CAPITAL letters at the main level (95%), lowercase at 90%
+    levels = options.get("significance_levels")
+    if not levels:
+        primary = float(options.get("significance_level", 0.95))
+        levels = [primary, 0.90] if primary > 0.90 else [primary]
+
     spec = TabulateSpec(
         banners=banners,
         stubs=stubs if stubs else ["_all_"],
-        significance_level=options.get("significance_level", 0.95),
+        significance_levels=levels,
         include_means=True,
         include_total_column=True,
         output_mode=options.get("output_mode", "multi_sheet"),
@@ -162,7 +188,7 @@ def _run_auto_analyze(file_bytes: bytes, filename: str, options: dict):
 
     return {
         "excel_bytes": result.excel_bytes,
-        "filename": f"auto_analysis_{filename.rsplit('.', 1)[0]}.xlsx",
+        "filename": output_filename("analysis", filename),
         "_tabulation_result": result,
         "_spec": spec,
         "_data": data,
@@ -192,14 +218,17 @@ async def auto_analyze(
     request: Request,
     file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     ticket: UploadFile = File(None, description="Reporting Ticket .docx — AI parses it to override auto-detection"),
-    options: str = Form("{}", description='Optional JSON: {"max_banners": 3, "output_mode": "multi_sheet", "significance_level": 0.95}'),
+    options: str = Form("{}", description='Optional JSON: {"max_banners": 3, "output_mode": "multi_sheet", "significance_level": 0.95, '
+                                         '"significance_levels": [0.95, 0.90]}. Default: CAPITAL letters at 95%, lowercase at 90%'),
     key: KeyConfig = Depends(require_scope("process")),
     _rl: None = Depends(check_rate_limit),
 ):
     start = time.perf_counter()
 
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
+    cb = await resolve_codebook(codebook, file_id)
 
     try:
         options_dict = json.loads(options)
@@ -213,7 +242,7 @@ async def auto_analyze(
             from services.ticket_parser import TicketParser
             parser = TicketParser()
             # Get variable list for fuzzy matching
-            data_tmp = await run_in_executor(load_data, file_bytes, filename)
+            data_tmp = await run_in_executor(load_data, file_bytes, filename, cb)
             meta_tmp = await run_in_executor(QuantiProEngine.extract_metadata, data_tmp)
             var_list = [v["name"] for v in (meta_tmp.get("variables") or [])]
             ticket_spec = await parser.parse(ticket_bytes, var_list)
@@ -234,6 +263,7 @@ async def auto_analyze(
             logger.warning("[AUTO] Ticket parsing failed (continuing with auto-detect): %s", e)
 
     try:
+        options_dict["_codebook"] = cb
         result = await run_in_executor(_run_auto_analyze, file_bytes, filename, options_dict)
     except (asyncio.TimeoutError, RuntimeError):
         raise
@@ -270,6 +300,14 @@ async def auto_analyze(
                     logger.info("[AUTO] Executive summary added (%d chars)", len(summary_text))
         except Exception as e:
             logger.warning("[AUTO] Executive summary failed (non-blocking): %s", e)
+
+    # Respondent data sheets (FULL DATA + category tabs) when the codebook asks for them (e.g. a setup)
+    if (cb is not None and cb.data_workbook is not None and file_format(filename) not in SPSS_FORMATS
+            and options_dict.get("include_data_workbook", True)):
+        try:
+            excel_bytes = await run_in_executor(append_data_workbook, excel_bytes, file_bytes, filename, cb)
+        except Exception as e:
+            logger.warning("[AUTO] Data workbook failed (non-blocking): %s", e)
 
     return StreamingResponse(
         io.BytesIO(excel_bytes),

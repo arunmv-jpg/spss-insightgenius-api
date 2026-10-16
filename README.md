@@ -1,8 +1,8 @@
-# SPSS InsightGenius API
+# Indico Crosstab API
 
 **Professional SPSS processing API + MCP server for market research.** Upload .sav files, get crosstabs with significance testing, auto-detected question types, and publication-ready Excel exports. Includes AI-powered zero-config analysis.
 
-**Live**: [spss.insightgenius.io](https://spss.insightgenius.io) | **API Docs**: [spss.insightgenius.io/docs](https://spss.insightgenius.io/docs) | **MCP**: `spss.insightgenius.io/mcp/sse`
+**Live**: [crosstab.indicolabs.io](https://crosstab.indicolabs.io) | **API Docs**: [crosstab.indicolabs.io/docs](https://crosstab.indicolabs.io/docs) | **MCP**: `crosstab.indicolabs.io/mcp/sse`
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### Option 1: Web UI (no code needed)
 
-1. Open [spss.insightgenius.io](https://spss.insightgenius.io)
+1. Open [crosstab.indicolabs.io](https://crosstab.indicolabs.io)
 2. Drag & drop your `.sav` file
 3. Click **Auto-Analyze** for instant results, or configure manually:
    - Select banner variables (demographics for columns)
@@ -18,10 +18,17 @@
    - Enable Top 2 Box / Means
 4. Click **Generate Excel** → download your tabulation
 
+### Review how a file was read
+
+In the web app (`/app`) this is **Step 2 — Review data**, right after upload; the following steps (banners, stubs, tabulation, one-click analysis) use the reviewed coding. Standalone: open `/review`, drop any SPSS / Excel / CSV file and see the codebook — how every column was coded, with
+counts and reasons — next to a live crosstab and chart. Fix anything that was misread (rename, change type,
+exclude "Don't know" from bases, merge or reorder answers) and build derived variables (bands, groups,
+Single/Dual/Triple counts, priority groups…) with a live preview. Approve to run the full analysis.
+
 ### Option 2: Auto-Analyze (zero config)
 
 ```bash
-curl -X POST https://spss.insightgenius.io/v1/auto-analyze \
+curl -X POST https://crosstab.indicolabs.io/v1/auto-analyze \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@survey.sav" \
   -o auto_analysis.xlsx
@@ -32,7 +39,7 @@ AI auto-detects banners, groups variables into MRS/Grid, applies nets, and gener
 ### Option 3: Full Control
 
 ```bash
-curl -X POST https://spss.insightgenius.io/v1/tabulate \
+curl -X POST https://crosstab.indicolabs.io/v1/tabulate \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@survey.sav" \
   -F 'spec={
@@ -51,7 +58,7 @@ curl -X POST https://spss.insightgenius.io/v1/tabulate \
 import requests, json
 
 resp = requests.post(
-    "https://spss.insightgenius.io/v1/tabulate",
+    "https://crosstab.indicolabs.io/v1/tabulate",
     headers={"Authorization": "Bearer YOUR_API_KEY"},
     files={"file": open("survey.sav", "rb")},
     data={"spec": json.dumps({
@@ -68,7 +75,7 @@ print(f"Done: {resp.headers['X-Stubs-Success']} tables generated")
 
 ### Option 5: MCP (for AI agents)
 
-Connect to `https://spss.insightgenius.io/mcp/sse` and use any of the 12 tools. Files are passed as base64.
+Connect to `https://crosstab.indicolabs.io/mcp/sse` and use any of the 12 tools. Files are passed as base64.
 
 ---
 
@@ -79,6 +86,7 @@ Connect to `https://spss.insightgenius.io/mcp/sse` and use any of the 12 tools. 
 | **POST** | `/v1/auto-analyze` | **Zero-config** — upload .sav, get complete Excel (AI-detected banners, MRS, grids, nets) |
 | **POST** | `/v1/tabulate` | **Full tabulation → Excel** with sig letters, nets, means, MRS, grids, custom groups. Accepts optional .docx Reporting Ticket. |
 | POST | `/v1/metadata` | Variable metadata + suggested banners + detected groups + preset nets |
+| POST | `/v1/codebook` | How each column is coded: codes + raw answers + counts, missing codes, multi-selects, derived variables, reasons (also `GET /v1/files/{file_id}/codebook`). Send `edits` to change it (rename, recode, exclude from base, merge, derived variables: bands / recode / priority / count / combination / coalesce / flags); `PATCH /v1/files/{file_id}/codebook` saves edits with the file session. Analysis endpoints accept the edited `codebook` |
 | POST | `/v1/frequency` | Frequency table (counts, %, mean, std, median) |
 | POST | `/v1/crosstab` | Single crosstab with sig letters (A/B/C) + chi-square p-value |
 | POST | `/v1/correlation` | Correlation matrix (Pearson/Spearman/Kendall) with p-values |
@@ -147,6 +155,11 @@ Column proportion z-test with letter notation (A/B/C):
 - Supports weighted (Kish effective-n) and unweighted
 - Means tested with independent T-test
 - Confidence levels: 90%, 95%, 99%
+- Two levels (Decipher style, default for auto-analyze): `"significance_levels": [0.95, 0.90]` shows
+  CAPITAL letters at 95% and lowercase at 90% only (e.g. `58.6% ACd`). JSON adds
+  `significance_letters_secondary` per cell
+- Low-base markers on the Base row: `*` base < 100, `**` base < 30 (`low_base_warn` / `low_base_flag`,
+  0 = off); the base stays numeric in Excel. `/v1/crosstab` returns `column_bases` and `low_base`
 
 ---
 
@@ -186,8 +199,30 @@ cd spss-insightgenius-api
 pip install -r requirements.txt
 cp .env.example .env  # Edit with your API key hash
 python main.py        # → http://localhost:8000
-python -m pytest tests/ -v  # 68 tests
+python -m pytest tests/ -q
 ```
+
+Testing locally without API keys: set `AUTH_DISABLED=true` (requests without a key run as an
+anonymous user; never use in production), e.g.
+`AUTH_DISABLED=true python -m uvicorn main:app --port 8000`.
+
+Survey exports (Excel/CSV) are covered by a golden test on a **synthetic** HubSpot-style file
+(`tests/fixtures/exports/`, generated by `make_hubspot_cx_sample.py`; never commit real client
+data, this repo is public). After an intended output change, regenerate and review the snapshot:
+`UPDATE_GOLDEN=1 python -m pytest tests/test_cx_pulse_golden.py`.
+
+Client rules are **setups**, not code: named lists of codebook edits in `presets/` (e.g. the
+HubSpot CX job-role priority groups, Single / Dual / Triple product, product mix, DRIVERS).
+`GET /v1/setups`, `POST /v1/setups/match` and `POST /v1/setups/apply` (built-in `setup_id`, or an
+exported `setup` JSON); edits that don't fit a file are skipped and reported. The review page applies
+a setup whose columns are all present automatically, offers partial matches, and can save the user's
+own changes as a setup file for the next wave. See [RECODING_PLAN.md](RECODING_PLAN.md) §6.
+
+Respondent **data sheets** (FULL DATA with 1/blank flag columns + one sheet per category, with % and
+count rows) come from the codebook's `data_workbook` setting (`services/data_workbook.py`): set it in
+the review page's *Data sheets* panel or with a setup (the HubSpot setups reproduce the analysts'
+workbook). Auto-analyze appends them when the codebook has the setting;
+`POST /v1/exports/data-workbook` returns them on their own.
 
 ## Stack
 
@@ -201,4 +236,4 @@ python -m pytest tests/ -v  # 68 tests
 | MCP | FastMCP with SSE transport |
 | Deploy | Railway (Docker, Gunicorn, 4 replicas, auto-deploy) |
 
-Built by [Genius Labs](https://github.com/quack2025).
+Built by [Indico Labs](https://indicolabs.io).

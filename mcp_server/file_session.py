@@ -36,7 +36,7 @@ def _decode_base64(file_base64: str) -> bytes:
         raise ToolError(json.dumps(_make_error(
             "file_too_large",
             f"File exceeds {MAX_BASE64_BYTES // 1024 // 1024}MB limit.",
-            "Upload at https://spss.insightgenius.io/upload instead.",
+            "Upload at https://crosstab.indicolabs.io/upload instead.",
         )))
     return decoded
 
@@ -84,8 +84,8 @@ async def _resolve_file(
                     "Your file session has expired (sessions last 30 minutes). "
                     "Please upload your file again.",
                     "Guide the user to re-upload their file using spss_upload_file "
-                    "or via https://spss.insightgenius.io/upload",
-                    upload_url="https://spss.insightgenius.io/upload",
+                    "or via https://crosstab.indicolabs.io/upload",
+                    upload_url="https://crosstab.indicolabs.io/upload",
                 )))
             meta_raw = await r.get(meta_key)
             # Refresh sliding TTL on both keys
@@ -118,10 +118,10 @@ async def _resolve_file(
     raise ToolError(json.dumps(_make_error(
         "file_missing",
         "No file provided. Please upload your data file first. "
-        "For large files (> 1MB), go to https://spss.insightgenius.io/upload and tell me the code that appears.",
+        "For large files (> 1MB), go to https://crosstab.indicolabs.io/upload and tell me the code that appears.",
         "Ask the user to either: (1) upload the file in this conversation for base64 encoding, "
-        "or (2) upload at https://spss.insightgenius.io/upload and provide the file_id.",
-        upload_url="https://spss.insightgenius.io/upload",
+        "or (2) upload at https://crosstab.indicolabs.io/upload and provide the file_id.",
+        upload_url="https://crosstab.indicolabs.io/upload",
     )))
 
 
@@ -139,7 +139,7 @@ def _load_data(file_bytes: bytes, format_str: str, filename: str) -> SPSSData:
         raise ToolError(json.dumps(_make_error(
             "unsupported_format",
             f"The file format .{format_str} is not supported. "
-            "Talk2Data accepts: .sav (SPSS), .csv, .tsv, .xlsx, and .xls files.",
+            "Indico Crosstab accepts: .sav (SPSS), .csv, .tsv, .xlsx, and .xls files.",
             "Ask the user if they can export their data in one of the supported formats.",
             supported_formats=[".sav", ".csv", ".tsv", ".xlsx", ".xls"],
         )))

@@ -10,6 +10,7 @@ from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
 from services.quantipy_engine import QuantiProEngine, QUANTIPYMRX_AVAILABLE
 from services.data_loader import load_data
+from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 
@@ -22,6 +23,7 @@ async def frequency(
     request: Request,
     file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     variable: str = Form(..., description="Variable name to analyze"),
     weight: str | None = Form(None, description="Weight variable name"),
     key: KeyConfig = Depends(require_scope("frequency")),
@@ -29,9 +31,10 @@ async def frequency(
 ):
     start = time.perf_counter()
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
+    cb = await resolve_codebook(codebook, file_id)
 
     try:
-        data = await run_in_executor(load_data, file_bytes, filename)
+        data = await run_in_executor(load_data, file_bytes, filename, cb)
     except (asyncio.TimeoutError, RuntimeError):
         raise
     except Exception as e:

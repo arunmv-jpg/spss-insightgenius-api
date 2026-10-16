@@ -55,7 +55,7 @@ User: Just analyze everything in this file
 
 → spss_auto_analyze(file_id="xyz789")
 ← {
-    download_url: "https://spss.insightgenius.io/downloads/tmp_abc.xlsx",
+    download_url: "https://crosstab.indicolabs.io/downloads/tmp_abc.xlsx",
     download_expires_in_seconds: 300,
     stubs_processed: 62,
     banners_used: ["CLA_EDAD"],

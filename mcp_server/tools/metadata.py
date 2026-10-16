@@ -21,7 +21,7 @@ async def spss_upload_file(
     """Get a file_id for analysis. Users upload files via the web UI, not through this tool.
 
     IMPORTANT — How file upload works:
-    1. Ask the user to go to https://spss.insightgenius.io/upload
+    1. Ask the user to go to https://crosstab.indicolabs.io/upload
     2. They drag & drop their file there and get a file_id (e.g., "abc123")
     3. They paste the file_id back in chat
     4. You use that file_id in all subsequent tool calls (spss_get_metadata, spss_analyze_frequencies, etc.)
@@ -34,7 +34,7 @@ async def spss_upload_file(
     Authentication: OAuth (Claude.ai) = no api_key needed. Claude Desktop = pass api_key.
 
     Args:
-        file_id:  File ID from https://spss.insightgenius.io/upload. Ask user if you don't have one.
+        file_id:  File ID from https://crosstab.indicolabs.io/upload. Ask user if you don't have one.
         api_key:  API key (sk_test_... or sk_live_...). Optional if connected via OAuth.
     """
     await _auth_async(api_key)
@@ -70,10 +70,10 @@ async def spss_upload_file(
     # No file_id provided — direct user to upload page
     return {
         "file_id": None,
-        "upload_url": "https://spss.insightgenius.io/upload",
+        "upload_url": "https://crosstab.indicolabs.io/upload",
         "message": (
             "To analyze a file, the user needs to upload it first:\n"
-            "1. Go to https://spss.insightgenius.io/upload\n"
+            "1. Go to https://crosstab.indicolabs.io/upload\n"
             "2. Drag & drop the file (.sav, .csv, or .xlsx)\n"
             "3. Copy the file_id shown after upload\n"
             "4. Paste it back here\n\n"
@@ -177,6 +177,53 @@ async def get_variable_info(
         file_id=file_id,
         variables_analyzed=var_list,
         sample_size=result.get("n_cases", 0),
+        format_detected=fmt,
+        response_format=response_format,
+    )
+
+
+async def get_codebook(
+    api_key: str = "",
+    file_base64: str | None = None,
+    filename: str = "upload.sav",
+    file_id: str | None = None,
+    response_format: str = "json",
+) -> dict[str, Any]:
+    """Show how every column of an uploaded file is coded — the codebook.
+
+    For each column: role (single / multi / numeric / text / date / ignore), SPSS name and label,
+    codes with the raw answers mapped to them and respondent counts, user-missing codes
+    ("Don't know" excluded from bases), multi-select options, derived variables (e.g. NPS
+    groups) and the reason behind each decision. Use it to check an Excel/CSV upload was
+    understood correctly before analysing, or to explain where a code came from.
+
+    Authentication: If connected via OAuth (Claude.ai connector), no api_key needed. If using Claude Desktop or direct API, pass api_key (sk_test_... or sk_live_...).
+
+    Args:
+        api_key:         Your API key (sk_test_... or sk_live_...).
+        file_id:         File session ID from spss_upload_file (preferred).
+        file_base64:     Base64-encoded file content (fallback if no file_id).
+        filename:        Original filename, with extension (default: upload.sav).
+        response_format: 'json' or 'markdown'.
+    """
+    from services.data_loader import SUPPORTED_FORMATS, describe_file, file_format
+
+    await _auth_async(api_key)
+    file_bytes, fmt = await _resolve_file(file_id, file_base64, filename)
+    if fmt not in SUPPORTED_FORMATS:
+        raise ToolError(f"Unsupported file format .{fmt}")
+    if file_format(filename) != fmt:
+        filename = f"{filename}.{fmt}"
+    try:
+        result = await run_in_executor(describe_file, file_bytes, filename)
+    except Exception as e:
+        raise ToolError(f"Failed to read codebook: {e}")
+
+    return build_mcp_response(
+        tool="spss_get_codebook",
+        results=result,
+        file_id=file_id,
+        sample_size=result["codebook"]["source"]["rows"],
         format_detected=fmt,
         response_format=response_format,
     )

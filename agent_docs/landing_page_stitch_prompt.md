@@ -1,4 +1,4 @@
-# Prompt para Google Stitch — SPSS InsightGenius Landing + App
+# Prompt para Google Stitch — Indico Crosstab Landing + App
 
 > Genera todos los assets de diseño (wireframes, mockups, componentes) para un sitio web completo. El output se va a implementar en React + Vite + Tailwind + shadcn/ui, desplegado en Vercel. La autenticación será via Supabase Auth. Genera diseños que respeten una arquitectura de componentes reutilizables.
 
@@ -6,12 +6,12 @@
 
 ## Contexto del producto
 
-**SPSS InsightGenius** es una herramienta web + API + MCP server que permite a investigadores de mercado procesar archivos SPSS (.sav), CSV y Excel para obtener tablas cruzadas profesionales con pruebas de significancia estadística.
+**Indico Crosstab** es una herramienta web + API + MCP server que permite a investigadores de mercado procesar archivos SPSS (.sav), CSV y Excel para obtener tablas cruzadas profesionales con pruebas de significancia estadística.
 
-**Producto live:** https://spss.insightgenius.io
-**API Docs:** https://spss.insightgenius.io/docs
-**MCP Docs:** https://spss.insightgenius.io/docs/mcp
-**Privacy:** https://spss.insightgenius.io/privacy
+**Producto live:** https://crosstab.indicolabs.io
+**API Docs:** https://crosstab.indicolabs.io/docs
+**MCP Docs:** https://crosstab.indicolabs.io/docs/mcp
+**Privacy:** https://crosstab.indicolabs.io/privacy
 
 ### Tres modos de uso:
 
@@ -24,7 +24,7 @@
 ### Stack técnico (para que los diseños sean implementables):
 - **Frontend:** React 18 + Vite + TypeScript + Tailwind CSS + shadcn/ui
 - **Auth:** Supabase Auth (email + Google OAuth)
-- **Backend API:** FastAPI (ya existe en https://spss.insightgenius.io)
+- **Backend API:** FastAPI (ya existe en https://crosstab.indicolabs.io)
 - **Deploy:** Vercel (frontend) + Railway (backend API)
 - **Pagos:** Stripe Checkout
 
@@ -62,12 +62,12 @@
 - **Sub-headline:** "Sube tu .sav, haz clic en Auto-Analyze, descarga tu Excel con pruebas de significancia. Sin PSPP, sin WinCross, sin esperar al equipo de DP."
 - **CTA principal:** "Prueba gratis — Sube tu archivo" → va a /app (si logueado) o /signup (si no)
 - **CTA secundario:** "Ver cómo funciona →" → scroll a sección demo
-- **Visual:** Mockup: archivo .sav entrando por la izquierda → interfaz de InsightGenius → Excel con letras de significancia (A, B, C en rojo) saliendo por la derecha
+- **Visual:** Mockup: archivo .sav entrando por la izquierda → interfaz de Indico Crosstab → Excel con letras de significancia (A, B, C en rojo) saliendo por la derecha
 
 #### Social Proof Bar
 - "Procesa archivos SPSS de hasta 200MB · 14 tipos de análisis · Pruebas de significancia al 90/95/99% · Usado por agencias en 5 países"
 
-#### Section: "Tres formas de usar InsightGenius"
+#### Section: "Tres formas de usar Indico Crosstab"
 Tres cards horizontales:
 
 **Card 1: "Sube y descarga" (ícono: Upload + Download)**
@@ -75,7 +75,7 @@ Tres cards horizontales:
 → Botón: "Probar ahora"
 
 **Card 2: "Habla con tus datos" (ícono: Chat bubble + Chart)**
-"Conecta InsightGenius a Claude Desktop o Claude.ai y haz preguntas en lenguaje natural: '¿Cuál es el NPS por región?' → obtén la tabla con significancia, el insight, y el contenido listo para presentación."
+"Conecta Indico Crosstab a Claude Desktop o Claude.ai y haz preguntas en lenguaje natural: '¿Cuál es el NPS por región?' → obtén la tabla con significancia, el insight, y el contenido listo para presentación."
 → Botón: "Ver cómo funciona →" → /docs/mcp
 
 **Card 3: "Automatiza tus trackers" (ícono: Gear + Repeat)**
@@ -96,7 +96,7 @@ Tres bloques problema → solución:
 
 1. "PSPP es complicado y SPSS cuesta $99/mes" → "Sube tu archivo, haz clic. Sin instalación."
 2. "Mi equipo de DP tarda 2-3 días" → "Auto-Analyze genera el Excel completo. En minutos."
-3. "ChatGPT no tiene significancia estadística" → "InsightGenius calcula con scipy/pandas. Estadística real, no alucinaciones."
+3. "ChatGPT no tiene significancia estadística" → "Indico Crosstab calcula con scipy/pandas. Estadística real, no alucinaciones."
 
 #### Section: "Análisis disponibles"
 Grid de 14 items con íconos:
@@ -127,7 +127,7 @@ CTAs: "Empezar gratis" / "Obtener Pro" / "Obtener Business" / "Contactar"
 
 #### Footer
 - Links: Docs · API Reference · MCP Server · Privacy Policy
-- "Built by Genius Labs · support@surveycoder.io"
+- "Built by Indico Labs · support@surveycoder.io"
 - NO incluir link a GitHub (repo privado)
 
 ---
@@ -158,7 +158,7 @@ Esta es la versión autenticada del procesador SPSS. Reemplaza el frontend embeb
 
 #### Layout
 - **Sidebar izquierdo (colapsable):**
-  - Logo InsightGenius
+  - Logo Indico Crosstab
   - "New Analysis" (botón prominente)
   - "My API Keys" → /app/keys
   - "Usage" → /app/usage
@@ -170,7 +170,7 @@ Esta es la versión autenticada del procesador SPSS. Reemplaza el frontend embeb
   - "Sign Out"
 
 - **Área principal:**
-  El procesador SPSS actual (misma funcionalidad que spss.insightgenius.io):
+  El procesador SPSS actual (misma funcionalidad que crosstab.indicolabs.io):
   1. Upload .sav/.csv/.xlsx (drag & drop)
   2. Auto-Analyze button (one-click)
   3. Manual config: banners, stubs, MRS, Grid, Custom Groups, Options
@@ -229,7 +229,7 @@ Esta es la versión autenticada del procesador SPSS. Reemplaza el frontend embeb
 
 2. **Auth state:** Supabase `onAuthStateChange` → Context provider. Protected routes redirect a /login si no autenticado.
 
-3. **API calls:** El frontend llama al backend existente en https://spss.insightgenius.io/v1/*. La API key del usuario se guarda en Supabase (tabla `api_keys`) y se envía como `Authorization: Bearer` header.
+3. **API calls:** El frontend llama al backend existente en https://crosstab.indicolabs.io/v1/*. La API key del usuario se guarda en Supabase (tabla `api_keys`) y se envía como `Authorization: Bearer` header.
 
 4. **Stripe:** Checkout Sessions creadas server-side. El frontend solo redirect a la URL de checkout. Webhook en el backend confirma el pago y upgradea el plan.
 

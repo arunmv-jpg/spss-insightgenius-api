@@ -16,10 +16,12 @@ from fastapi.responses import StreamingResponse
 from auth import KeyConfig, require_scope
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
+from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from services.quantipy_engine import QuantiProEngine
 from services.data_loader import load_data
 from services.tabulation_builder import TabulateSpec, build_tabulation, _build_excel
+from shared.filenames import output_filename
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,10 @@ _MAX_FILE_SIZE = {
         '  "nets": {"Q_2": {"Top 2 Box": [5, 6], "Bottom 2 Box": [1, 2]}},\n'
         '  "title": "Customer Satisfaction Study 2026"\n'
         "}\n```\n\n"
-        "Set `stubs` to `[\"_all_\"]` to auto-select all variables with value labels."
+        "Set `stubs` to `[\"_all_\"]` to auto-select all variables with value labels.\n\n"
+        "Optional: `significance_levels: [0.95, 0.90]` shows CAPITAL letters at 95% and lowercase "
+        "at 90%; `low_base_warn` / `low_base_flag` (default 100 / 30, 0 = off) mark small bases "
+        "with `*` / `**`."
     ),
     response_class=StreamingResponse,
 )
@@ -61,6 +66,7 @@ async def tabulate(
     request: Request,
     file: UploadFile = File(None, description=".sav file to tabulate (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     spec: str = Form(..., description="JSON tabulation specification"),
     ticket: UploadFile | None = File(None, description="Optional .docx Reporting Ticket — Haiku parses it into a tab plan"),
     webhook_url: str | None = Form(None, description="URL to POST job result when processing completes. If provided, returns 202 with job_id instead of blocking."),
@@ -71,6 +77,7 @@ async def tabulate(
     request_id = getattr(request.state, "request_id", "")
 
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
+    cb = await resolve_codebook(codebook, file_id)
 
     # ── Check file size ──
     max_size = _MAX_FILE_SIZE.get(key.plan, _MAX_FILE_SIZE["free"])
@@ -96,12 +103,14 @@ async def tabulate(
             _ticket_bytes = await ticket.read()
 
         async def _do_tabulate():
-            data = await run_in_executor(load_data, _file_bytes, _filename)
+            data = await run_in_executor(load_data, _file_bytes, _filename, cb)
             spec_dict = json.loads(_spec)
+            if cb is not None:
+                spec_dict["nets"] = cb.table_nets(spec_dict.get("nets"))
             spec_obj = TabulateSpec(**spec_dict)
             result = await run_in_executor(build_tabulation, QuantiProEngine, data, spec_obj)
             excel_bytes = await run_in_executor(_build_excel, result, spec_obj, data)
-            token, download_url = await store_download(excel_bytes, f"{spec_obj.title or 'tabulation'}.xlsx")
+            token, download_url = await store_download(excel_bytes, output_filename("tables", _filename))
             return excel_bytes, download_url
 
         asyncio.create_task(run_tabulation_job(job_id, _do_tabulate))
@@ -131,7 +140,7 @@ async def tabulate(
 
             # Load SPSS first for variable list context
             data_for_vars = await run_in_executor(
-                load_data, file_bytes, filename
+                load_data, file_bytes, filename, cb
             )
             var_info = [
                 {"name": c, "label": "", "type": str(data_for_vars.df[c].dtype)}
@@ -168,33 +177,39 @@ async def tabulate(
     custom_groups = spec_dict.get("custom_groups")
     # Allow Total-only export (no banners) — include_total_column will provide the Total column
 
-    tab_spec = TabulateSpec(
-        banner=banner,
-        banners=banners,
-        custom_groups=spec_dict.get("custom_groups"),
-        stubs=spec_dict.get("stubs", ["_all_"]),
-        weight=spec_dict.get("weight"),
-        significance_level=spec_dict.get("significance_level", 0.95),
-        nets=spec_dict.get("nets"),
-        mrs_groups=spec_dict.get("mrs_groups"),
-        grid_groups=spec_dict.get("grid_groups"),
-        grid_mode=spec_dict.get("grid_mode", "individual"),
-        include_means=spec_dict.get("include_means", False),
-        include_total_column=spec_dict.get("include_total_column", True),
-        output_mode=spec_dict.get("output_mode", "multi_sheet"),
-        show_counts=spec_dict.get("show_counts", True),
-        show_percentages=spec_dict.get("show_percentages", True),
-        show_chi2=spec_dict.get("show_chi2", True),
-        include_summary=spec_dict.get("include_summary", False),
-        study_context=spec_dict.get("study_context"),
-        filters=spec_dict.get("filters"),
-        title=spec_dict.get("title", ""),
-    )
+    try:
+        tab_spec = TabulateSpec(
+            banner=banner,
+            banners=banners,
+            custom_groups=spec_dict.get("custom_groups"),
+            stubs=spec_dict.get("stubs", ["_all_"]),
+            weight=spec_dict.get("weight"),
+            significance_level=spec_dict.get("significance_level", 0.95),
+            significance_levels=spec_dict.get("significance_levels"),
+            low_base_warn=int(spec_dict.get("low_base_warn", 100)),
+            low_base_flag=int(spec_dict.get("low_base_flag", 30)),
+            nets=cb.table_nets(spec_dict.get("nets")) if cb is not None else spec_dict.get("nets"),
+            mrs_groups=spec_dict.get("mrs_groups"),
+            grid_groups=spec_dict.get("grid_groups"),
+            grid_mode=spec_dict.get("grid_mode", "individual"),
+            include_means=spec_dict.get("include_means", False),
+            include_total_column=spec_dict.get("include_total_column", True),
+            output_mode=spec_dict.get("output_mode", "multi_sheet"),
+            show_counts=spec_dict.get("show_counts", True),
+            show_percentages=spec_dict.get("show_percentages", True),
+            show_chi2=spec_dict.get("show_chi2", True),
+            include_summary=spec_dict.get("include_summary", False),
+            study_context=spec_dict.get("study_context"),
+            filters=spec_dict.get("filters"),
+            title=spec_dict.get("title", ""),
+        )
+    except ValueError as e:
+        raise HTTPException(400, detail={"code": "VALIDATION_ERROR", "message": str(e)})
 
     # ── Load SPSS ──
     try:
         data = await run_in_executor(
-            load_data, file_bytes, filename
+            load_data, file_bytes, filename, cb
         )
     except (asyncio.TimeoutError, RuntimeError):
         raise
@@ -283,7 +298,7 @@ async def tabulate(
 
     # ── Return Excel ──
     import io
-    file_name = f"tabulation_{banners_str}_{data.file_name.rsplit('.', 1)[0]}.xlsx"
+    file_name = output_filename("tables", data.file_name)
 
     return StreamingResponse(
         io.BytesIO(result.excel_bytes),

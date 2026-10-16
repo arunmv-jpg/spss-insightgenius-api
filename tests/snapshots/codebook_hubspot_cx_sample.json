@@ -1,0 +1,1299 @@
+{
+ "version": 0,
+ "source": {
+  "format": "xlsx",
+  "adapter": "generic",
+  "rows": 400,
+  "columns": 37
+ },
+ "variables": [
+  {
+   "column": "Record ID",
+   "name": "Record_ID",
+   "label": "Record ID",
+   "role": "numeric",
+   "measure": "scale",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "number",
+   "tags": [],
+   "inferred": {
+    "rule": "numeric",
+    "reason": "Numbers",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Email",
+   "name": null,
+   "label": "Email",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Contact first name",
+   "name": null,
+   "label": "Contact first name",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Contact last name",
+   "name": null,
+   "label": "Contact last name",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Response",
+   "name": null,
+   "label": "Response",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Industry Standard Question Type",
+   "name": null,
+   "label": "Industry Standard Question Type",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Sentiment",
+   "name": "Sentiment",
+   "label": "Sentiment",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:constant",
+    "reason": "Same answer in every row ('Not Applicable')",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Submission Name",
+   "name": null,
+   "label": "Submission Name",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Date",
+   "name": "Date",
+   "label": "Date",
+   "role": "date",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "datetime",
+   "tags": [],
+   "inferred": {
+    "rule": "date",
+    "reason": "Dates/times",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Source",
+   "name": "Source",
+   "label": "Source",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:constant",
+    "reason": "Same answer in every row ('Shareable Link')",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Survey ID",
+   "name": "Survey_ID",
+   "label": "Survey ID",
+   "role": "numeric",
+   "measure": "scale",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "number",
+   "tags": [],
+   "inferred": {
+    "rule": "numeric",
+    "reason": "Numbers",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Survey Type",
+   "name": "Survey_Type",
+   "label": "Survey Type",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:constant",
+    "reason": "Same answer in every row ('Custom Survey')",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Rating",
+   "name": null,
+   "label": "Rating",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Visitor id",
+   "name": null,
+   "label": "Visitor id",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Tags",
+   "name": null,
+   "label": "Tags",
+   "role": "ignore",
+   "measure": null,
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": null,
+   "tags": [],
+   "inferred": {
+    "rule": "empty",
+    "reason": "No answers in this column",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Centre Number",
+   "name": "Centre_Number",
+   "label": "Centre Number",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "400 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Centre Name",
+   "name": "Centre_Name",
+   "label": "Centre Name",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "400 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Job role",
+   "name": null,
+   "label": "Job role",
+   "role": "multi",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": ";",
+   "options": [
+    {
+     "label": "Exams Officer",
+     "name": "Job_role_Exams_Officer",
+     "count": null
+    },
+    {
+     "label": "Head of Department",
+     "name": "Job_role_Head_of_Department",
+     "count": null
+    },
+    {
+     "label": "School Group/School District Leader",
+     "name": "Job_role_School_Group_School_District_Leader",
+     "count": null
+    },
+    {
+     "label": "School Leader",
+     "name": "Job_role_School_Leader",
+     "count": null
+    },
+    {
+     "label": "Teacher",
+     "name": "Job_role_Teacher",
+     "count": null
+    },
+    {
+     "label": "Other",
+     "name": "Job_role_Other",
+     "count": null
+    }
+   ],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "multi:delimited",
+    "reason": "67% of answers list several options separated by ';' (6 distinct options)",
+    "confidence": 0.9
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Job role not listed",
+   "name": "Job_role_not_listed",
+   "label": "Job role not listed",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "68 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Customer type",
+   "name": null,
+   "label": "Customer type",
+   "role": "multi",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": ";",
+   "options": [
+    {
+     "label": "Exams or qualifications",
+     "name": "Customer_type_Exams_or_qualifications",
+     "count": null
+    },
+    {
+     "label": "Not applicable - my centre does not use Acme products /services",
+     "name": "Customer_type_Not_applicable_my_centre_does_not_use_Acme_product",
+     "count": null
+    },
+    {
+     "label": "Programmes or curriculum",
+     "name": "Customer_type_Programmes_or_curriculum",
+     "count": null
+    },
+    {
+     "label": "Teaching and learning resources such as textbooks, digital tools, or curriculum support",
+     "name": "Customer_type_Teaching_and_learning_resources_such_as_textbooks_",
+     "count": null
+    },
+    {
+     "label": "Other",
+     "name": "Customer_type_Other",
+     "count": null
+    }
+   ],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "multi:delimited",
+    "reason": "65% of answers list several options separated by ';' (5 distinct options)",
+    "confidence": 0.9
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Alternative products & services",
+   "name": "Alternative_products_services",
+   "label": "Alternative products & services",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:open",
+    "reason": "Open answers: 7 different of 7",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "CX Pulse Overall NPS",
+   "name": "CX_Pulse_Overall_NPS",
+   "label": "CX Pulse Overall NPS",
+   "role": "numeric",
+   "measure": "nominal",
+   "codes": [
+    {
+     "code": 0.0,
+     "label": "0",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 1.0,
+     "label": "1",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 2.0,
+     "label": "2",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 3.0,
+     "label": "3",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 4.0,
+     "label": "4",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 5.0,
+     "label": "5",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 6.0,
+     "label": "6",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 7.0,
+     "label": "7",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 8.0,
+     "label": "8",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 9.0,
+     "label": "9",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 10.0,
+     "label": "10",
+     "match": [],
+     "count": null
+    }
+   ],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "number",
+   "tags": [],
+   "inferred": {
+    "rule": "numeric:rating",
+    "reason": "Whole numbers 0-10: treated as a rating scale",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Detractors Drivers",
+   "name": null,
+   "label": "Detractors Drivers",
+   "role": "multi",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": ";",
+   "options": [
+    {
+     "label": "The accessibility of Acme's products and services",
+     "name": "Detractors_Drivers_The_accessibility_of_Acme_s_products_and_serv",
+     "count": null
+    },
+    {
+     "label": "The communication I receive from Acme",
+     "name": "Detractors_Drivers_The_communication_I_receive_from_Acme",
+     "count": null
+    },
+    {
+     "label": "The ease of working with Acme",
+     "name": "Detractors_Drivers_The_ease_of_working_with_Acme",
+     "count": null
+    },
+    {
+     "label": "The outcomes my learners can achieve with Acme",
+     "name": "Detractors_Drivers_The_outcomes_my_learners_can_achieve_with_Acm",
+     "count": null
+    },
+    {
+     "label": "The quality of Acme's products and services",
+     "name": "Detractors_Drivers_The_quality_of_Acme_s_products_and_services",
+     "count": null
+    },
+    {
+     "label": "The support Acme provide",
+     "name": "Detractors_Drivers_The_support_Acme_provide",
+     "count": null
+    },
+    {
+     "label": "The value for money of Acme's products and services",
+     "name": "Detractors_Drivers_The_value_for_money_of_Acme_s_products_and_se",
+     "count": null
+    },
+    {
+     "label": "Other",
+     "name": "Detractors_Drivers_Other",
+     "count": null
+    }
+   ],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "multi:delimited",
+    "reason": "84% of answers list several options separated by ';' (8 distinct options)",
+    "confidence": 0.9
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Passive Drivers",
+   "name": null,
+   "label": "Passive Drivers",
+   "role": "multi",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": ";",
+   "options": [
+    {
+     "label": "The accessibility of Acme's products and services",
+     "name": "Passive_Drivers_The_accessibility_of_Acme_s_products_and_service",
+     "count": null
+    },
+    {
+     "label": "The communication I receive from Acme",
+     "name": "Passive_Drivers_The_communication_I_receive_from_Acme",
+     "count": null
+    },
+    {
+     "label": "The ease of working with Acme",
+     "name": "Passive_Drivers_The_ease_of_working_with_Acme",
+     "count": null
+    },
+    {
+     "label": "The outcomes my learners can achieve with Acme",
+     "name": "Passive_Drivers_The_outcomes_my_learners_can_achieve_with_Acme",
+     "count": null
+    },
+    {
+     "label": "The quality of Acme's products and services",
+     "name": "Passive_Drivers_The_quality_of_Acme_s_products_and_services",
+     "count": null
+    },
+    {
+     "label": "The support Acme provide",
+     "name": "Passive_Drivers_The_support_Acme_provide",
+     "count": null
+    },
+    {
+     "label": "The value for money of Acme's products and services",
+     "name": "Passive_Drivers_The_value_for_money_of_Acme_s_products_and_servi",
+     "count": null
+    },
+    {
+     "label": "Other",
+     "name": "Passive_Drivers_Other",
+     "count": null
+    }
+   ],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "multi:delimited",
+    "reason": "68% of answers list several options separated by ';' (8 distinct options)",
+    "confidence": 0.9
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Promoter Drivers",
+   "name": null,
+   "label": "Promoter Drivers",
+   "role": "multi",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": ";",
+   "options": [
+    {
+     "label": "The accessibility of Acme's products and services",
+     "name": "Promoter_Drivers_The_accessibility_of_Acme_s_products_and_servic",
+     "count": null
+    },
+    {
+     "label": "The communication I receive from Acme",
+     "name": "Promoter_Drivers_The_communication_I_receive_from_Acme",
+     "count": null
+    },
+    {
+     "label": "The ease of working with Acme",
+     "name": "Promoter_Drivers_The_ease_of_working_with_Acme",
+     "count": null
+    },
+    {
+     "label": "The outcomes my learners can achieve with Acme",
+     "name": "Promoter_Drivers_The_outcomes_my_learners_can_achieve_with_Acme",
+     "count": null
+    },
+    {
+     "label": "The quality of Acme's products and services",
+     "name": "Promoter_Drivers_The_quality_of_Acme_s_products_and_services",
+     "count": null
+    },
+    {
+     "label": "The support Acme provide",
+     "name": "Promoter_Drivers_The_support_Acme_provide",
+     "count": null
+    },
+    {
+     "label": "The value for money of Acme's products and services",
+     "name": "Promoter_Drivers_The_value_for_money_of_Acme_s_products_and_serv",
+     "count": null
+    },
+    {
+     "label": "Other",
+     "name": "Promoter_Drivers_Other",
+     "count": null
+    }
+   ],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "multi:delimited",
+    "reason": "68% of answers list several options separated by ';' (8 distinct options)",
+    "confidence": 0.9
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Other drivers",
+   "name": "Other_drivers",
+   "label": "Other drivers",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:open",
+    "reason": "Open answers: 39 different of 39",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Detractor Contact Permission",
+   "name": "Detractor_Contact_Permission",
+   "label": "Detractor Contact Permission",
+   "role": "single",
+   "measure": "nominal",
+   "codes": [
+    {
+     "code": 1.0,
+     "label": "Yes",
+     "match": [
+      "Yes"
+     ],
+     "count": null
+    },
+    {
+     "code": 2.0,
+     "label": "No",
+     "match": [
+      "No"
+     ],
+     "count": null
+    }
+   ],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "yes_no",
+    "reason": "Yes/No question",
+    "confidence": 0.95
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Detractor experience detail",
+   "name": "Detractor_experience_detail",
+   "label": "Detractor experience detail",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:open",
+    "reason": "Open answers: 18 different of 18",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "CX Principle - Ease",
+   "name": "CX_Principle_Ease",
+   "label": "CX Principle - Ease",
+   "role": "numeric",
+   "measure": "nominal",
+   "codes": [
+    {
+     "code": 1.0,
+     "label": "1",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 2.0,
+     "label": "2",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 3.0,
+     "label": "3",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 4.0,
+     "label": "4",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 5.0,
+     "label": "5",
+     "match": [],
+     "count": null
+    }
+   ],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "number",
+   "tags": [],
+   "inferred": {
+    "rule": "numeric:rating",
+    "reason": "Whole numbers 1-5: treated as a rating scale",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Detail on ease of working with us",
+   "name": "Detail_on_ease_of_working_with_us",
+   "label": "Detail on ease of working with us",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "145 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "CX Principle - Quality",
+   "name": "CX_Principle_Quality",
+   "label": "CX Principle - Quality",
+   "role": "numeric",
+   "measure": "nominal",
+   "codes": [
+    {
+     "code": 1.0,
+     "label": "1",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 2.0,
+     "label": "2",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 3.0,
+     "label": "3",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 4.0,
+     "label": "4",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 5.0,
+     "label": "5",
+     "match": [],
+     "count": null
+    }
+   ],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "number",
+   "tags": [],
+   "inferred": {
+    "rule": "numeric:rating",
+    "reason": "Whole numbers 1-5: treated as a rating scale",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Detail on Quality of products, services, experiences",
+   "name": "Detail_on_Quality_of_products_services_experiences",
+   "label": "Detail on Quality of products, services, experiences",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "102 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "CX Principle - Accessible",
+   "name": "CX_Principle_Accessible",
+   "label": "CX Principle - Accessible",
+   "role": "numeric",
+   "measure": "nominal",
+   "codes": [
+    {
+     "code": 1.0,
+     "label": "1",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 2.0,
+     "label": "2",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 3.0,
+     "label": "3",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 4.0,
+     "label": "4",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 5.0,
+     "label": "5",
+     "match": [],
+     "count": null
+    }
+   ],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "number",
+   "tags": [],
+   "inferred": {
+    "rule": "numeric:rating",
+    "reason": "Whole numbers 1-5: treated as a rating scale",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Detail on accessibile & inclusive",
+   "name": "Detail_on_accessibile_inclusive",
+   "label": "Detail on accessibile & inclusive",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "95 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Exam Results Alternative",
+   "name": "Exam_Results_Alternative",
+   "label": "Exam Results Alternative",
+   "role": "single",
+   "measure": "nominal",
+   "codes": [
+    {
+     "code": 1.0,
+     "label": "Strongly Disagree",
+     "match": [
+      "Strongly Disagree"
+     ],
+     "count": null
+    },
+    {
+     "code": 2.0,
+     "label": "Disagree",
+     "match": [
+      "Disagree"
+     ],
+     "count": null
+    },
+    {
+     "code": 3.0,
+     "label": "Neither agree or disagree",
+     "match": [
+      "Neither agree or disagree"
+     ],
+     "count": null
+    },
+    {
+     "code": 4.0,
+     "label": "Agree",
+     "match": [
+      "Agree"
+     ],
+     "count": null
+    },
+    {
+     "code": 5.0,
+     "label": "Strongly Agree",
+     "match": [
+      "Strongly Agree"
+     ],
+     "count": null
+    }
+   ],
+   "missing": [
+    {
+     "code": 98.0,
+     "label": "I do not know",
+     "match": [
+      "I do not know"
+     ],
+     "count": null
+    },
+    {
+     "code": 99.0,
+     "label": "Not applicable - No results received",
+     "match": [
+      "Not applicable - No results received"
+     ],
+     "count": null
+    }
+   ],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "scale:known",
+    "reason": "Matches a known 5-point rating scale; coded in scale order; 2 'don't know'-type answer(s) excluded from bases",
+    "confidence": 0.95
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "Exam Results Rating Explanation",
+   "name": "Exam_Results_Rating_Explanation",
+   "label": "Exam Results Rating Explanation",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "112 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  },
+  {
+   "column": "CX General Feedback",
+   "name": "CX_General_Feedback",
+   "label": "CX General Feedback",
+   "role": "text",
+   "measure": "nominal",
+   "codes": [],
+   "missing": [],
+   "value_labels": null,
+   "nets": [],
+   "delimiter": null,
+   "options": [],
+   "source": "text",
+   "tags": [],
+   "inferred": {
+    "rule": "text:many",
+    "reason": "212 different answers (more than 50)",
+    "confidence": 1.0
+   },
+   "status": "ok",
+   "base": null
+  }
+ ],
+ "derived": [
+  {
+   "name": "CX_Pulse_Overall_NPS_group",
+   "label": "CX Pulse Overall NPS: NPS group",
+   "rule": "bands",
+   "source": "CX_Pulse_Overall_NPS",
+   "after": "CX_Pulse_Overall_NPS",
+   "params": {
+    "bands": [
+     {
+      "code": 1.0,
+      "label": "Detractor (0-6)",
+      "min": 0,
+      "max": 6
+     },
+     {
+      "code": 2.0,
+      "label": "Passive (7-8)",
+      "min": 7,
+      "max": 8
+     },
+     {
+      "code": 3.0,
+      "label": "Promoter (9-10)",
+      "min": 9,
+      "max": 10
+     }
+    ]
+   },
+   "codes": [
+    {
+     "code": 1.0,
+     "label": "Detractor (0-6)",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 2.0,
+     "label": "Passive (7-8)",
+     "match": [],
+     "count": null
+    },
+    {
+     "code": 3.0,
+     "label": "Promoter (9-10)",
+     "match": [],
+     "count": null
+    }
+   ],
+   "outputs": [],
+   "measure": "ordinal",
+   "inferred": {
+    "rule": "nps",
+    "reason": "0-10 'recommend' question: NPS groups 0-6 / 7-8 / 9-10",
+    "confidence": 1.0
+   }
+  }
+ ],
+ "data_workbook": null
+}

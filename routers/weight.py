@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from auth import KeyConfig, require_auth
 from middleware.processing import run_in_executor
 from middleware.rate_limiter import check_rate_limit
+from shared.codebook_resolver import resolve_codebook
 from shared.file_resolver import resolve_file
 from shared.response import success_response
 from services.quantipy_engine import QuantiProEngine
@@ -22,6 +23,7 @@ router = APIRouter(tags=["Weighting"])
 async def weight_preview(
     file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     variable: str = Form(...),
     key: KeyConfig = Depends(require_auth),
     _rl: None = Depends(check_rate_limit),
@@ -31,9 +33,10 @@ async def weight_preview(
     Returns counts and percentages per value, with labels from SPSS metadata.
     """
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
+    cb = await resolve_codebook(codebook, file_id)
 
     def _preview():
-        data = load_data(file_bytes, filename)
+        data = load_data(file_bytes, filename, cb)
         df = data.df
         if variable not in df.columns:
             return {"error": f"Variable '{variable}' not found."}
@@ -88,6 +91,7 @@ async def weight_preview(
 async def weight_compute(
     file: UploadFile = File(None, description="Data file: .sav, .csv, .tsv, .xlsx, .xls (or use file_id)"),
     file_id: str | None = Form(None, description="File session ID from /v1/library/upload"),
+    codebook: str | None = Form(None, description="Codebook JSON from /v1/codebook (edited coding); default: inferred, or saved for file_id"),
     targets: str = Form(...),
     max_iterations: int = Form(50),
     max_weight: float = Form(5.0),
@@ -108,6 +112,7 @@ async def weight_compute(
     Returns weight statistics, convergence info, and before/after distributions.
     """
     file_bytes, filename = await resolve_file(file=file, file_id=file_id)
+    cb = await resolve_codebook(codebook, file_id)
 
     try:
         targets_parsed = json.loads(targets)
@@ -120,7 +125,7 @@ async def weight_compute(
     def _compute():
         from services.rim_weighter import WeightTarget, compute_rim_weight
 
-        data = load_data(file_bytes, filename)
+        data = load_data(file_bytes, filename, cb)
 
         # Build WeightTarget objects
         weight_targets = []

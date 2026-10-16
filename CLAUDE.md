@@ -1,10 +1,10 @@
-# SPSS InsightGenius API — CLAUDE.md
+# Indico Crosstab API — CLAUDE.md
 
 ## What this project is
 
 REST API + MCP server for deterministic market research data analysis. Processes SPSS files and generates professional Excel tabulations with significance testing. The product IS the API — frontends are convenience wrappers.
 
-**URL:** https://spss.insightgenius.io
+**URL:** https://crosstab.indicolabs.io
 **GitHub:** quack2025/spss-insightgenius-api
 **Deploy:** Railway (auto-deploy from `master`, 4 replicas)
 **Engine:** QuantipyMRX (Python 3.11 + pandas + scipy)
@@ -54,13 +54,37 @@ User identity = `key.name`. NEVER accept user_id from client input.
 | Metadata | POST /v1/metadata |
 | Analysis | /v1/frequency, /v1/crosstab, /v1/anova, /v1/correlation, /v1/gap-analysis, /v1/satisfaction-summary |
 | Tabulation | POST /v1/tabulate (sync + async webhook), POST /v1/auto-analyze |
-| Export | POST /v1/convert |
+| Export | POST /v1/convert, POST /v1/exports/data-workbook (FULL DATA + category sheets from the codebook) |
 | AI | POST /v1/smart-spec, /v1/parse-ticket, /v1/chat, /v1/chat-stream |
 | Weighting | POST /v1/weight/preview, /v1/weight/compute |
 | Wave | POST /v1/wave-compare |
+| Setups | GET /v1/setups, POST /v1/setups/match, POST /v1/setups/apply (client rules as data, `presets/`) |
 | Jobs | GET /v1/jobs/{job_id} |
 | Keys | POST/GET/DELETE /v1/keys |
 | MCP | 13 tools at /mcp/sse |
+
+## Web UI
+
+Static pages in `public/`, routed in `main.py`. One design system for every page:
+- `public/ui/ic.css`: tokens and component classes (`.ic-btn`, `.ic-card`, `.ic-table`, `.ic-stepper`, `.ic-dropzone`, `.ic-option`, `.ic-result`, `.ic-modal`…).
+- `public/ui/ic.js`: `<ic-sidebar>`, `<ic-topbar>` and `<ic-icon>`, plus the `window.IC` helpers.
+- `public/ui/tw.js`: Tailwind theme for pages whose scripts still build utility-class markup.
+- `public/ui/datasets.js`: library calls and the shared datasets table.
+- New pages copy the skeleton in `home.html`. Don't add new colours or a second style system.
+
+Sidebar sections and the pages behind them:
+- Home: `/home`
+- Datasets: `/datasets`, `/datasets/upload`, `/datasets/{id}`
+- Transformations: `/review`
+- Workflows: `/workflows` → `/export` (tabulation), `/express`, `/wizard`, `/export-mcp` (AI chat)
+- Settings: `/settings`
+
+Sign-in:
+- `/` is the split-screen sign-in.
+- App pages need the `ic_session` cookie (`routers/ui_auth.py`). Without it they redirect to `/?next=…`.
+- There is one account, set by `UI_LOGIN_EMAIL` / `UI_LOGIN_PASSWORD` (`UI_LOGIN_NAME` is optional). Sign-in is refused while either is unset.
+- `/upload` (MCP uploader), `/privacy` and `/docs/mcp` stay public.
+- The pages still call the API with the demo key from `/static/config.js`.
 
 ## Testing
 
@@ -83,10 +107,10 @@ python -m pytest tests/ -x -q --tb=short  # 114 tests, ~22s
 
 ## npm SDK
 
-`@insightgenius/sdk` at `C:\Users\jorge\proyectos_python\insightgenius-sdk`
+`@indicolabs/crosstab-sdk` at `C:\Users\jorge\proyectos_python\indico-crosstab-sdk`
 
 ```typescript
-const ig = new InsightGenius("sk_test_...");
+const ig = new IndicoCrosstab("sk_test_...");
 const { file_id } = await ig.upload(file, "survey.sav");
 const meta = await ig.getMetadata(file_id);
 const ct = await ig.crosstab(file_id, { row: "Q1", col: "Gender" });
@@ -95,4 +119,4 @@ const excel = await ig.tabulate(file_id, { banners: ["Gender"], stubs: ["_all_"]
 
 ## Enterprise Standards
 
-See `~/.claude/projects/C--Users-jorge/memory/enterprise_api_standards.md` for the full checklist that this project and all Genius Labs API products must follow.
+See `~/.claude/projects/C--Users-jorge/memory/enterprise_api_standards.md` for the full checklist that this project and all Indico Labs API products must follow.

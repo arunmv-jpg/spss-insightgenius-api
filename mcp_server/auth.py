@@ -122,8 +122,8 @@ async def _auth_async(api_key: str = "") -> KeyConfig:
             raise ToolError(json.dumps(_make_error(
                 "invalid_token",
                 "Your OAuth session has expired or is invalid. "
-                "Please reconnect Talk2Data in Claude.ai settings.",
-                "Tell the user to go to Claude.ai Settings > Connectors > Talk2Data > Reconnect",
+                "Please reconnect Indico Crosstab in Claude.ai settings.",
+                "Tell the user to go to Claude.ai Settings > Connectors > Indico Crosstab > Reconnect",
                 details=str(e),
             )))
 
@@ -134,10 +134,10 @@ async def _auth_async(api_key: str = "") -> KeyConfig:
         raise ToolError(json.dumps(_make_error(
             "invalid_api_key",
             "The API key you provided is not valid. "
-            "Please check your key at https://spss.insightgenius.io/account. "
+            "Please check your key at https://crosstab.indicolabs.io/account. "
             "It should look like sk_test_... or sk_live_...",
             "Ask the user to verify their API key. Do NOT retry with a different guessed key.",
-            docs_url="https://spss.insightgenius.io/docs/mcp#authentication",
+            docs_url="https://crosstab.indicolabs.io/docs/mcp#authentication",
         )))
 
     # Rate limit for non-free plans
@@ -183,8 +183,8 @@ def _auth(api_key: str = "") -> KeyConfig:
         raise ToolError(json.dumps(_make_error(
             "invalid_api_key",
             "The API key you provided is not valid. "
-            "Please check your key at https://spss.insightgenius.io/account. "
+            "Please check your key at https://crosstab.indicolabs.io/account. "
             "It should look like sk_test_... or sk_live_...",
             "Ask the user to verify their API key. Do NOT retry with a different guessed key.",
-            docs_url="https://spss.insightgenius.io/docs/mcp#authentication",
+            docs_url="https://crosstab.indicolabs.io/docs/mcp#authentication",
         )))

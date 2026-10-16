@@ -2,15 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Talk2Data InsightGenius — AI Analysis</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Chat · Indico Crosstab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ui/ic.css">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="/static/ui/tw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="/static/config.js"></script>
+<script src="/static/ui/ic.js"></script>
 <style>
+  .hidden { display: none !important; }
   .chat-msg { animation: fadeIn 0.3s ease-out; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .dropzone-active { border-color: #2563eb !important; background: #eff6ff !important; }
   .typing-indicator span, .typing-dots span { animation: blink 1.4s infinite both; font-size: 1.5em; }
   .typing-indicator span:nth-child(2), .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
   .typing-indicator span:nth-child(3), .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
@@ -19,231 +24,293 @@
   @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
   pre { white-space: pre-wrap; word-break: break-word; }
   .copy-btn { opacity: 0; transition: opacity 0.2s; cursor: pointer; z-index: 10; }
-  .group:hover .copy-btn { opacity: 1; }
-  .markdown-content table { border: 1px solid #e5e7eb; border-radius: 8px; }
+  .group:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+  .markdown-content { overflow-wrap: anywhere; }
+  .markdown-content table { border: 1px solid var(--ic-border); border-radius: 8px; display: block; overflow-x: auto; }
   .markdown-content th { font-size: 0.75rem; }
   .markdown-content td { font-size: 0.75rem; }
   .markdown-content h3 { font-weight: 700; margin-top: 1rem; margin-bottom: 0.25rem; }
   .markdown-content p { margin-bottom: 0.5rem; }
+  .markdown-content p:last-child { margin-bottom: 0; }
   .markdown-content ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
   .markdown-content strong { font-weight: 700; }
+
+  /* Page header with the loaded-file badge on the right */
+  #file-badge { height: auto; min-height: 26px; padding: 4px 12px; white-space: normal; max-width: 100%; font-weight: 500; }
+
+  /* Pick-a-file stage */
+  .lib-name { cursor: text; }
+  .lib-sub { font-size: 12px; color: var(--ic-text-subtle); font-weight: 400; margin-top: 1px; }
+  .lib-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+  .lib-actions .ic-icon-btn:hover { color: var(--ic-danger); background: var(--ic-danger-bg); }
+  #library-search { width: 240px; max-width: 100%; }
+  #upload-status { margin-top: 14px; font-size: 13px; text-align: center; color: var(--ic-blue-600); }
+  #upload-status.text-red-600 { color: var(--ic-danger); }
+
+  /* Data preparation stage */
+  .prep-steps { position: sticky; top: calc(var(--ic-topbar-h) + 20px); }
+  .prep-section + .prep-section { border-top: 1px solid var(--ic-border); }
+  .prep-section { padding: 22px 24px; scroll-margin-top: calc(var(--ic-topbar-h) + 16px); }
+  .prep-block + .prep-block { margin-top: 22px; }
+  .prep-block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .prep-block-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; }
+  .prep-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .prep-list .ic-option { align-items: flex-start; }
+  .prep-list .ic-option-body { flex: 1; min-width: 0; }
+  .prep-list .ic-option input[type="checkbox"] { margin-top: 9px; }
+  .prep-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .prep-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--ic-text-muted); background: var(--ic-surface-muted); border: 1px solid var(--ic-border); border-radius: 6px; padding: 1px 6px; }
+  .prep-var { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--ic-text-muted); }
+  .prep-remove { margin-top: 2px; }
+  .prep-remove:hover { color: var(--ic-danger); background: var(--ic-danger-bg); }
+  .prep-info { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--ic-border); border-radius: var(--ic-radius); background: #fff; }
+  .prep-info + .prep-info { margin-top: 8px; }
+  .prep-footer { flex-wrap: wrap; }
+  .prep-footer #prep-summary { flex: 1 1 100%; }
+  .gb-var { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .gb-var:hover { background: var(--ic-surface-muted); }
+  .gb-var .gb-label { color: var(--ic-text-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+  /* Chat stage: full-height card, messages scroll, composer pinned */
+  .chat-card { display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - var(--ic-topbar-h) - 160px); min-height: 460px; }
+  .chat-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; background: var(--ic-surface-muted); }
+  .chat-composer { border-top: 1px solid var(--ic-border); background: #fff; padding: 14px 16px 10px; }
+  .chat-composer form { display: flex; gap: 10px; }
+  .chat-composer .ic-input { height: 42px; }
+  .chat-composer .ic-btn { height: 42px; }
+  .chat-composer .ic-help { text-align: center; margin-top: 8px; }
+  .suggest-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  @media (max-width: 960px) {
+    .chat-card { height: 75vh; }
+    .prep-steps { position: static; }
+  }
+  @media (max-width: 600px) {
+    .ic-page-header { flex-direction: column; }
+    .prep-section { padding: 18px 16px; }
+    .chat-messages { padding: 14px 12px; }
+    .chat-msg > div { max-width: 92% !important; }
+  }
 </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col">
-
-<!-- Header -->
-<header class="bg-white border-b px-6 py-3 flex items-center justify-between">
-  <div class="flex items-center gap-3">
-    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-      </svg>
-    </div>
-    <div>
-      <h1 class="text-lg font-bold text-gray-900">Talk2Data InsightGenius</h1>
-      <p class="text-xs text-gray-500">AI-powered survey analysis • Deterministic results</p>
-    </div>
-  </div>
-  <div id="file-badge" class="hidden items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full">
-    <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-    <span id="file-badge-text" class="text-sm text-green-700"></span>
-  </div>
-</header>
-
-<!-- Main -->
-<main class="flex-1 flex flex-col max-w-4xl mx-auto w-full">
-
-  <!-- Upload zone + Library (shown when no file loaded) -->
-  <div id="upload-zone" class="flex-1 overflow-y-auto p-6">
-    <div class="max-w-2xl mx-auto">
-      <!-- Upload -->
-      <div id="dropzone" class="w-full border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center cursor-pointer hover:border-blue-400 transition-colors mb-6"
-           ondragover="event.preventDefault(); this.classList.add('dropzone-active')"
-           ondragleave="this.classList.remove('dropzone-active')"
-           ondrop="handleDrop(event)"
-           onclick="document.getElementById('file-input').click()">
-        <input id="file-input" type="file" accept=".sav,.por,.zsav,.csv,.tsv,.xlsx,.xls" class="hidden" onchange="handleFile(this.files[0])">
-        <svg class="mx-auto w-10 h-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-        </svg>
-        <p class="text-base font-medium text-gray-700">Drop your file here</p>
-        <p class="text-sm text-gray-500 mt-1">.sav, .csv, .xlsx — up to 50MB</p>
-        <p id="upload-status" class="text-sm text-blue-600 mt-3 hidden"></p>
+<body class="ic-body">
+<div class="ic-app">
+  <ic-sidebar></ic-sidebar>
+  <div class="ic-main">
+    <ic-topbar></ic-topbar>
+    <main class="ic-page">
+      <a class="ic-back" href="/workflows"><ic-icon name="arrow-left" size="16"></ic-icon>Back</a>
+      <div class="ic-page-header">
+        <div>
+          <h1 class="ic-title">AI Chat</h1>
+          <p class="ic-subtitle">Ask questions about your survey in plain language. Numbers are computed by the SPSS engine, so results are deterministic.</p>
+        </div>
+        <div id="file-badge" class="hidden ic-badge ic-badge--success ic-badge-dot">
+          <span id="file-badge-text"></span>
+        </div>
       </div>
 
-      <!-- Library -->
-      <div id="library-section">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold text-gray-700">My Files</h2>
-          <div class="flex gap-2">
-            <input id="library-search" type="text" placeholder="Search files & variables..."
-                   oninput="searchLibrary(this.value)"
-                   class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                   autocomplete="off">
+      <!-- Upload zone + Library (shown when no file loaded) -->
+      <div id="upload-zone" class="ic-stack">
+        <section class="ic-card ic-card-body">
+          <div id="dropzone" class="ic-dropzone" style="padding:48px 24px"
+               ondragover="event.preventDefault(); this.classList.add('is-over')"
+               ondragleave="this.classList.remove('is-over')"
+               ondrop="handleDrop(event)"
+               onclick="document.getElementById('file-input').click()">
+            <input id="file-input" type="file" accept=".sav,.por,.zsav,.csv,.tsv,.xlsx,.xls" class="hidden" onchange="handleFile(this.files[0])">
+            <span class="ic-dropzone-icon"><ic-icon name="upload-cloud" size="36"></ic-icon></span>
+            <span class="ic-dropzone-title">Drag and drop your file here</span>
+            <span class="ic-help">or</span>
+            <span class="ic-btn ic-btn--primary" style="margin:6px 0 10px">Browse Files</span>
+            <span class="ic-dropzone-hint">Supports SAV, POR, ZSAV, CSV, TSV, XLS and XLSX — up to 50MB.</span>
           </div>
-        </div>
-        <div id="library-list" class="space-y-2">
-          <p class="text-sm text-gray-400 text-center py-4">Loading library...</p>
-        </div>
-      </div>
-    </div>
-  </div>
+          <p id="upload-status" class="hidden"></p>
+        </section>
 
-  <!-- Data Prep panel (shown after upload, before chat) -->
-  <div id="prep-panel" class="hidden flex-1 overflow-y-auto p-6">
-    <div class="max-w-2xl mx-auto">
-      <div class="mb-6">
-        <h2 class="text-lg font-bold text-gray-900">Data Preparation</h2>
-        <p class="text-sm text-gray-500 mt-1">We auto-detected the structure of your file. Review and adjust before analyzing.</p>
-      </div>
-
-      <!-- MRS Groups -->
-      <div id="prep-mrs" class="mb-5">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="w-6 h-6 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-xs font-bold">M</span>
-            <h3 class="text-sm font-semibold text-gray-800">Multiple Response Sets</h3>
-            <span id="prep-mrs-count" class="text-xs text-gray-400"></span>
+        <!-- Library -->
+        <section id="library-section" class="ic-card">
+          <div class="ic-card-header" style="flex-wrap:wrap">
+            <h2 class="ic-section-title">My Files</h2>
+            <input id="library-search" type="search" placeholder="Search files &amp; variables..."
+                   oninput="searchLibrary(this.value)" class="ic-input ic-input--sm" autocomplete="off" aria-label="Search files and variables">
           </div>
-          <button onclick="showGroupBuilder('mrs')" class="text-xs text-purple-600 hover:text-purple-800 font-medium">+ Add MRS group</button>
-        </div>
-        <p class="text-xs text-gray-400 ml-8 mb-2">Binary yes/no variables grouped together (e.g., brand awareness). Click to expand and see members.</p>
-        <div id="prep-mrs-list" class="space-y-1"></div>
+          <div id="library-list">
+            <p class="ic-empty">Loading library...</p>
+          </div>
+        </section>
       </div>
 
-      <!-- Grid Batteries -->
-      <div id="prep-grids" class="mb-5">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">G</span>
-            <h3 class="text-sm font-semibold text-gray-800">Grid / Scale Batteries</h3>
-            <span id="prep-grids-count" class="text-xs text-gray-400"></span>
+      <!-- Data Prep panel (shown after upload, before chat) -->
+      <div id="prep-panel" class="hidden">
+        <div class="ic-split-step">
+          <div class="prep-steps">
+            <div id="prep-stepper"></div>
           </div>
-          <button onclick="showGroupBuilder('grid')" class="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Add Grid group</button>
+          <section class="ic-card">
+            <div class="ic-card-header">
+              <div>
+                <h2 class="ic-section-title">Data Preparation</h2>
+                <p class="ic-help" style="margin-top:2px">We auto-detected the structure of your file. Review and adjust before analyzing.</p>
+              </div>
+            </div>
+
+            <!-- Step 1: question groups -->
+            <div class="prep-section" id="prep-step-groups">
+              <!-- MRS Groups -->
+              <div id="prep-mrs" class="prep-block">
+                <div class="prep-block-head">
+                  <div class="prep-block-title">
+                    <span class="ic-option-icon" style="width:28px;height:28px"><ic-icon name="list" size="15"></ic-icon></span>
+                    Multiple Response Sets
+                    <span id="prep-mrs-count" class="ic-help" style="font-weight:400"></span>
+                  </div>
+                  <button type="button" onclick="showGroupBuilder('mrs')" class="ic-btn ic-btn--ghost ic-btn--sm"><ic-icon name="plus" size="14"></ic-icon>Add MRS group</button>
+                </div>
+                <p class="ic-help">Binary yes/no variables grouped together (e.g., brand awareness). Members are listed under each group.</p>
+                <div id="prep-mrs-list" class="prep-list"></div>
+              </div>
+
+              <!-- Grid Batteries -->
+              <div id="prep-grids" class="prep-block">
+                <div class="prep-block-head">
+                  <div class="prep-block-title">
+                    <span class="ic-option-icon" style="width:28px;height:28px"><ic-icon name="grid" size="15"></ic-icon></span>
+                    Grid / Scale Batteries
+                    <span id="prep-grids-count" class="ic-help" style="font-weight:400"></span>
+                  </div>
+                  <button type="button" onclick="showGroupBuilder('grid')" class="ic-btn ic-btn--ghost ic-btn--sm"><ic-icon name="plus" size="14"></ic-icon>Add Grid group</button>
+                </div>
+                <p class="ic-help">Scale variables with the same response options (e.g., satisfaction 1-5). Shows T2B/Mean in one compact table.</p>
+                <div id="prep-grids-list" class="prep-list"></div>
+              </div>
+            </div>
+
+            <!-- Step 2: banners, weight, nets -->
+            <div class="prep-section" id="prep-step-banners">
+              <!-- Demographics / Banners -->
+              <div id="prep-demos" class="prep-block">
+                <div class="prep-block-head">
+                  <div class="prep-block-title">
+                    <span class="ic-option-icon" style="width:28px;height:28px"><ic-icon name="columns" size="15"></ic-icon></span>
+                    Demographics (suggested banners)
+                  </div>
+                </div>
+                <p class="ic-help">Choose the variables to cross your questions by.</p>
+                <div id="prep-demos-list" class="prep-list"></div>
+              </div>
+
+              <div class="prep-block">
+                <!-- Weight -->
+                <div id="prep-weight" class="prep-info">
+                  <span class="ic-option-icon"><ic-icon name="scale" size="16"></ic-icon></span>
+                  <div>
+                    <div class="ic-option-title">Weight Variable</div>
+                    <div id="prep-weight-info" class="ic-option-desc"></div>
+                  </div>
+                </div>
+
+                <!-- Nets -->
+                <div id="prep-nets" class="prep-info" style="flex-wrap:wrap">
+                  <span class="ic-option-icon"><ic-icon name="layers" size="16"></ic-icon></span>
+                  <div style="flex:1;min-width:0">
+                    <div class="ic-option-title">Auto-detected Nets <span id="prep-nets-count" class="ic-help" style="font-weight:400"></span></div>
+                    <div id="prep-nets-info" class="ic-option-desc"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: context -->
+            <div class="prep-section" id="prep-step-context">
+              <!-- Reporting Ticket (optional .docx) -->
+              <div id="ticket-section" class="prep-block">
+                <div class="prep-block-head">
+                  <div class="prep-block-title">
+                    <span class="ic-option-icon" style="width:28px;height:28px"><ic-icon name="file-text" size="15"></ic-icon></span>
+                    Reporting Ticket
+                    <span class="ic-help" style="font-weight:400">(optional — AI parses your .docx tab spec)</span>
+                  </div>
+                </div>
+                <div class="ic-row" style="margin-top:10px;align-items:stretch">
+                  <div id="ticket-dropzone" class="ic-dropzone ic-dropzone--sm" style="flex:1"
+                       onclick="document.getElementById('ticket-input').click()">
+                    <input id="ticket-input" type="file" accept=".docx" class="hidden" onchange="handleTicket(this.files[0])">
+                    <p id="ticket-label" class="ic-dropzone-hint" style="font-size:12.5px">Drop .docx or click to browse</p>
+                  </div>
+                  <button type="button" id="ticket-clear" class="hidden ic-btn ic-btn--danger ic-btn--sm" style="align-self:center" onclick="clearTicket()">Clear</button>
+                </div>
+              </div>
+
+              <!-- Study Context -->
+              <div id="prep-context" class="prep-block">
+                <div class="prep-block-head">
+                  <label class="prep-block-title" for="prep-study-context">
+                    <span class="ic-option-icon" style="width:28px;height:28px"><ic-icon name="book" size="15"></ic-icon></span>
+                    Study Brief / Objectives
+                    <span class="ic-help" style="font-weight:400">(optional — improves AI analysis)</span>
+                  </label>
+                </div>
+                <textarea id="prep-study-context" rows="3" oninput="updatePrepSummary()" class="ic-textarea" style="margin-top:10px"
+                  placeholder="Paste your study brief or describe the objectives. Example: 'Evaluate EGO hair cream performance vs competitors among Colombian men 18-45. Key questions: satisfaction drivers, purchase channel optimization, NPS by demographic.'"></textarea>
+              </div>
+            </div>
+
+            <!-- Summary + Actions -->
+            <div class="ic-card-footer prep-footer">
+              <div id="prep-summary" class="ic-alert ic-alert--info hidden">
+                <span><span class="font-semibold">Ready:</span> <span id="prep-summary-text"></span></span>
+              </div>
+              <button type="button" onclick="skipPrep()" class="ic-btn ic-btn--secondary">Skip</button>
+              <button type="button" onclick="confirmPrep()" class="ic-btn ic-btn--primary">Confirm &amp; Start Chat<ic-icon name="arrow-right" size="16"></ic-icon></button>
+            </div>
+          </section>
         </div>
-        <p class="text-xs text-gray-400 ml-8 mb-2">Scale variables with same response options (e.g., satisfaction 1-5). Shows T2B/Mean in one compact table.</p>
-        <div id="prep-grids-list" class="space-y-1"></div>
       </div>
 
       <!-- Group Builder Modal -->
-      <div id="group-builder" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
-          <div class="p-4 border-b">
-            <h3 id="group-builder-title" class="font-semibold text-gray-800">Create Group</h3>
-            <input id="group-builder-name" type="text" placeholder="Group name (e.g., 'Brand Awareness')"
-                   class="mt-2 w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <div id="group-builder" class="hidden ic-modal-backdrop">
+        <div class="ic-modal" role="dialog" aria-modal="true" aria-labelledby="group-builder-title" style="max-width:560px">
+          <div class="ic-modal-header" style="flex-direction:column;align-items:stretch;gap:10px">
+            <div class="ic-row" style="justify-content:space-between">
+              <h3 id="group-builder-title" class="ic-section-title">Create Group</h3>
+              <button type="button" class="ic-icon-btn" aria-label="Close" onclick="cancelGroupBuilder()"><ic-icon name="x" size="16"></ic-icon></button>
+            </div>
+            <input id="group-builder-name" type="text" placeholder="Group name (e.g., 'Brand Awareness')" class="ic-input" aria-label="Group name">
           </div>
-          <div class="p-4 flex-1 overflow-y-auto">
-            <input id="group-builder-search" type="text" placeholder="Search variables..."
-                   class="w-full text-xs border border-gray-200 rounded-lg px-3 py-1.5 mb-3 focus:outline-none focus:ring-1 focus:ring-blue-300"
-                   oninput="filterGroupVars(this.value)">
-            <div id="group-builder-vars" class="space-y-1 max-h-60 overflow-y-auto"></div>
+          <div class="ic-modal-body">
+            <input id="group-builder-search" type="search" placeholder="Search variables..." class="ic-input ic-input--sm" style="margin-bottom:10px"
+                   oninput="filterGroupVars(this.value)" aria-label="Search variables">
+            <div id="group-builder-vars" style="max-height:15rem;overflow-y:auto"></div>
           </div>
-          <div class="p-4 border-t flex justify-between">
-            <span id="group-builder-selected" class="text-xs text-gray-500">0 selected</span>
-            <div class="flex gap-2">
-              <button onclick="cancelGroupBuilder()" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-              <button onclick="saveGroup()" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700">Create Group</button>
+          <div class="ic-modal-footer" style="justify-content:space-between;align-items:center">
+            <span id="group-builder-selected" class="ic-help">0 selected</span>
+            <div class="ic-row">
+              <button type="button" onclick="cancelGroupBuilder()" class="ic-btn ic-btn--secondary">Cancel</button>
+              <button type="button" onclick="saveGroup()" class="ic-btn ic-btn--primary">Create Group</button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Demographics / Banners -->
-      <div id="prep-demos" class="mb-5">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">D</span>
-          <h3 class="text-sm font-semibold text-gray-800">Demographics (suggested banners)</h3>
-        </div>
-        <div id="prep-demos-list" class="space-y-1"></div>
-      </div>
+      <!-- Chat area (shown after prep confirmed) -->
+      <section id="chat-area" class="hidden ic-card chat-card">
+        <div id="messages" class="chat-messages"></div>
 
-      <!-- Weight -->
-      <div id="prep-weight" class="mb-5">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">W</span>
-          <h3 class="text-sm font-semibold text-gray-800">Weight Variable</h3>
+        <!-- Input -->
+        <div class="chat-composer">
+          <form onsubmit="sendMessage(event)">
+            <input id="chat-input" type="text" placeholder="Ask anything about your data..." class="ic-input" autocomplete="off" aria-label="Message">
+            <button type="submit" id="send-btn" class="ic-btn ic-btn--primary"><ic-icon name="send" size="16"></ic-icon>Send</button>
+          </form>
+          <p class="ic-help">Powered by Claude Sonnet • Numbers computed by an SPSS Engine (deterministic)</p>
         </div>
-        <div id="prep-weight-info" class="text-sm text-gray-500 ml-8"></div>
-      </div>
-
-      <!-- Nets -->
-      <div id="prep-nets" class="mb-6">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="w-6 h-6 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-xs font-bold">N</span>
-          <h3 class="text-sm font-semibold text-gray-800">Auto-detected Nets</h3>
-          <span id="prep-nets-count" class="text-xs text-gray-400"></span>
-        </div>
-        <div id="prep-nets-info" class="text-sm text-gray-500 ml-8"></div>
-      </div>
-
-      <!-- Reporting Ticket (optional .docx) -->
-      <div id="ticket-section" class="mb-5">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-xs font-bold">T</span>
-          <h3 class="text-sm font-semibold text-gray-700">Reporting Ticket</h3>
-          <span class="text-xs text-gray-400">(optional — AI parses your .docx tab spec)</span>
-        </div>
-        <div class="flex gap-2 ml-7">
-          <div id="ticket-dropzone" class="flex-1 border border-dashed border-purple-200 rounded-lg p-3 text-center cursor-pointer hover:border-purple-400 transition-colors"
-               onclick="document.getElementById('ticket-input').click()">
-            <input id="ticket-input" type="file" accept=".docx" class="hidden" onchange="handleTicket(this.files[0])">
-            <p id="ticket-label" class="text-xs text-gray-500">Drop .docx or click to browse</p>
-          </div>
-          <button id="ticket-clear" class="hidden px-3 py-1 text-xs text-red-500 border border-red-200 rounded-lg hover:bg-red-50" onclick="clearTicket()">Clear</button>
-        </div>
-      </div>
-
-      <!-- Study Context -->
-      <div id="prep-context" class="mb-6">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold">B</span>
-          <h3 class="text-sm font-semibold text-gray-800">Study Brief / Objectives</h3>
-          <span class="text-xs text-gray-400">(optional — improves AI analysis)</span>
-        </div>
-        <textarea id="prep-study-context" rows="3" oninput="updatePrepSummary()" placeholder="Paste your study brief or describe the objectives. Example: 'Evaluate EGO hair cream performance vs competitors among Colombian men 18-45. Key questions: satisfaction drivers, purchase channel optimization, NPS by demographic.'"
-          class="w-full ml-8 mr-4 p-3 text-sm border border-gray-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-gray-400" style="width: calc(100% - 2rem);"></textarea>
-      </div>
-
-      <!-- Summary + Actions -->
-      <div id="prep-summary" class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800 hidden">
-        <span class="font-semibold">Ready:</span> <span id="prep-summary-text"></span>
-      </div>
-      <div class="flex gap-3 pt-4 border-t">
-        <button onclick="confirmPrep()" class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700">
-          Confirm & Start Chat
-        </button>
-        <button onclick="skipPrep()" class="px-4 py-3 text-gray-600 border border-gray-300 rounded-xl text-sm hover:bg-gray-50">
-          Skip
-        </button>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
-
-  <!-- Chat area (shown after prep confirmed) -->
-  <div id="chat-area" class="hidden flex-1 flex flex-col">
-    <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
-
-    <!-- Input -->
-    <div class="border-t bg-white p-4">
-      <form onsubmit="sendMessage(event)" class="flex gap-3">
-        <input id="chat-input" type="text" placeholder="Ask anything about your data..."
-               class="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-               autocomplete="off">
-        <button type="submit" id="send-btn"
-                class="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-          Send
-        </button>
-      </form>
-      <p class="text-xs text-gray-400 mt-2 text-center">
-        Powered by Claude Sonnet • Numbers computed by an SPSS Engine (deterministic)
-      </p>
-    </div>
-  </div>
-</main>
+</div>
 
 <script>
-const API_KEY = window.__INSIGHTGENIUS_DEMO_KEY__ || 'demo';
+const API_KEY = window.__INDICO_CROSSTAB_DEMO_KEY__ || 'demo';
 const API_BASE = window.location.origin;
 const AUTH_HEADERS = { 'Authorization': `Bearer ${API_KEY}` };
 
@@ -259,6 +326,7 @@ let currentFile = null;  // raw File object for metadata call
 let currentTicket = null;  // .docx reporting ticket
 let chatHistory = [];
 let prepContext = null;  // {mrs_groups, grid_groups, demographics, weight, nets, study_context}
+let currentLibraryId = null;  // library id when the file was opened from the library (?dataset=)
 
 // ── Session Persistence ─────────────────────────────────────────
 function saveSession() {
@@ -266,6 +334,7 @@ function saveSession() {
     sessionStorage.setItem('ig_session', JSON.stringify({
       fileId: currentFileId,
       fileName: currentFileName,
+      libraryId: currentLibraryId,
       fileInfo: { n_cases: _fileInfo?.n_cases, n_variables: _fileInfo?.n_variables },
       chatHistory: chatHistory.slice(-20),
       prepContext: prepContext,
@@ -279,6 +348,7 @@ function restoreSession() {
     if (saved && saved.fileId) {
       currentFileId = saved.fileId;
       currentFileName = saved.fileName;
+      currentLibraryId = saved.libraryId || null;
       chatHistory = saved.chatHistory || [];
       prepContext = saved.prepContext;
       return true;
@@ -300,8 +370,8 @@ function handleTicket(file) {
   }
   currentTicket = file;
   document.getElementById('ticket-label').textContent = `✓ ${file.name}`;
-  document.getElementById('ticket-label').classList.add('text-purple-700', 'font-medium');
-  document.getElementById('ticket-label').classList.remove('text-gray-500');
+  document.getElementById('ticket-label').classList.add('font-medium');
+  document.getElementById('ticket-dropzone').classList.add('has-file');
   document.getElementById('ticket-clear').classList.remove('hidden');
 }
 
@@ -309,8 +379,8 @@ function clearTicket() {
   currentTicket = null;
   document.getElementById('ticket-input').value = '';
   document.getElementById('ticket-label').textContent = 'Drop .docx reporting ticket or click to browse';
-  document.getElementById('ticket-label').classList.remove('text-purple-700', 'font-medium');
-  document.getElementById('ticket-label').classList.add('text-gray-500');
+  document.getElementById('ticket-label').classList.remove('font-medium');
+  document.getElementById('ticket-dropzone').classList.remove('has-file');
   document.getElementById('ticket-clear').classList.add('hidden');
 }
 
@@ -318,7 +388,7 @@ function clearTicket() {
 
 function handleDrop(e) {
   e.preventDefault();
-  e.target.closest('#dropzone').classList.remove('dropzone-active');
+  e.target.closest('#dropzone').classList.remove('is-over');
   const file = e.dataTransfer.files[0];
   if (file) handleFile(file);
 }
@@ -344,6 +414,7 @@ async function handleFile(file) {
     if (fileData.file_id) {
       currentFileId = fileData.file_id;
       currentFileName = file.name;
+      currentLibraryId = null;
       currentFile = file;
 
       // Fetch metadata for prep panel
@@ -414,30 +485,39 @@ function showPrepPanel(fileInfo, meta) {
     prepContext.demographics.push({variable: v.name, label: v.label, n_categories: Object.keys(v.value_labels || {}).length, enabled: false});
   }
 
+  // Vertical stepper: jumps between the three sections of the card
+  _prepStep(0, false);
+
   // Render MRS
   const mrsList = document.getElementById('prep-mrs-list');
   document.getElementById('prep-mrs-count').textContent = `(${mrsGroups.length} detected)`;
-  mrsList.innerHTML = mrsGroups.length === 0
-    ? '<p class="text-sm text-gray-400 ml-8">No MRS detected. Click "+ Add MRS group" to create one.</p>'
-    : mrsGroups.map((g, i) => _renderGroupItem('mrs', g, i)).join('');
+  mrsList.replaceChildren(...(mrsGroups.length === 0
+    ? [_prepEmpty('No MRS detected. Click "Add MRS group" to create one.')]
+    : mrsGroups.map((g, i) => _renderGroupItem('mrs', g, i))));
 
   // Render Grids
   const gridsList = document.getElementById('prep-grids-list');
   document.getElementById('prep-grids-count').textContent = `(${gridGroups.length} detected)`;
-  gridsList.innerHTML = gridGroups.length === 0
-    ? '<p class="text-sm text-gray-400 ml-8">No grids detected. Click "+ Add Grid group" to create one.</p>'
-    : gridGroups.map((g, i) => _renderGroupItem('grid', g, i)).join('');
+  gridsList.replaceChildren(...(gridGroups.length === 0
+    ? [_prepEmpty('No grids detected. Click "Add Grid group" to create one.')]
+    : gridGroups.map((g, i) => _renderGroupItem('grid', g, i))));
 
   // Render Demographics
   const demosList = document.getElementById('prep-demos-list');
-  demosList.innerHTML = prepContext.demographics.map((d, i) => `
-    <label class="flex items-center gap-2 ml-8 py-1 text-sm cursor-pointer">
-      <input type="checkbox" ${d.enabled ? 'checked' : ''} data-type="demo" data-idx="${i}" onchange="togglePrepItem('demo',${i},this.checked)"
-             class="rounded text-green-600 w-4 h-4">
-      <span class="font-mono text-xs text-gray-500">${d.variable}</span>
-      <span class="text-gray-700">${(d.label || '').substring(0, 45)}${(d.label || '').length > 45 ? '...' : ''}</span>
-      <span class="text-gray-400">(${d.n_categories || '?'} cats)</span>
-    </label>`).join('');
+  demosList.replaceChildren(...prepContext.demographics.map((d, i) => {
+    const label = (d.label || '');
+    const cb = IC.el('input', { type: 'checkbox', 'data-type': 'demo', 'data-idx': i,
+      onchange: e => togglePrepItem('demo', i, e.target.checked) });
+    cb.checked = !!d.enabled;
+    return IC.el('label', { class: 'ic-option' },
+      IC.el('span', { class: 'ic-option-icon' }, IC.icon('columns', 16)),
+      IC.el('div', { class: 'ic-option-body' },
+        IC.el('div', { class: 'ic-option-title' },
+          IC.el('span', { class: 'prep-var', text: d.variable }), ' ',
+          label.substring(0, 45) + (label.length > 45 ? '...' : '')),
+        IC.el('div', { class: 'ic-option-desc', text: `(${d.n_categories || '?'} cats)` })),
+      cb);
+  }));
 
   // Weight
   document.getElementById('prep-weight-info').textContent = prepContext.weight
@@ -455,39 +535,60 @@ function showPrepPanel(fileInfo, meta) {
   if (openEnds.length > 0) {
     const names = openEnds.slice(0, 5).map(v => v.name).join(', ');
     const moreText = openEnds.length > 5 ? `... +${openEnds.length - 5} more` : '';
-    const warningHtml = `<div class="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-      <span class="font-semibold">${openEnds.length} open-ended question${openEnds.length > 1 ? 's' : ''} detected</span>
-      (${names}${moreText}) — text responses, skipped in export.
-    </div>`;
-    document.getElementById('prep-nets-info').insertAdjacentHTML('afterend', warningHtml);
+    const warning = IC.el('div', { class: 'ic-alert ic-alert--warning', style: { marginTop: '10px', flex: '1 1 100%', fontSize: '12.5px' } },
+      IC.icon('alert', 16),
+      IC.el('span', {},
+        IC.el('span', { class: 'font-semibold', text: `${openEnds.length} open-ended question${openEnds.length > 1 ? 's' : ''} detected` }),
+        ` (${names}${moreText}) — text responses, skipped in export.`));
+    document.getElementById('prep-nets').append(warning);
   }
 
   // Update summary line
   updatePrepSummary();
 }
 
+const PREP_STEPS = [
+  { label: 'Question groups', id: 'prep-step-groups' },
+  { label: 'Banners & weights', id: 'prep-step-banners' },
+  { label: 'Context & brief', id: 'prep-step-context' },
+];
+
+function _prepStep(i, scroll = true) {
+  IC.stepper(document.getElementById('prep-stepper'), PREP_STEPS.map(s => s.label), i,
+    { vertical: true, onSelect: j => _prepStep(j) });
+  if (scroll) document.getElementById(PREP_STEPS[i].id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function _prepEmpty(text) {
+  return IC.el('p', { class: 'ic-help', style: { padding: '4px 2px' }, text });
+}
+
 function _renderGroupItem(type, g, idx) {
-  const color = type === 'mrs' ? 'purple' : 'blue';
   const source = g.source === 'label_pattern' ? 'AI' : g.source === 'name_pattern' ? 'AI' : '';
-  const sourceBadge = source ? `<span class="text-[10px] bg-${color}-100 text-${color}-600 px-1.5 py-0.5 rounded-full">${source}</span>` : '';
   const members = (g.variables || []).map(v => {
     const varInfo = prepContext.all_variables.find(x => x.name === v);
     const label = varInfo?.label?.split(':').pop()?.trim() || v;
-    return `<span class="text-xs text-gray-500 bg-gray-100 rounded px-1.5 py-0.5">${label}</span>`;
-  }).join(' ');
+    // Long labels repeat the question first; the answer is at the end, so show that part.
+    const short = label.length > 48 ? '…' + label.slice(-46).trim() : label;
+    return IC.el('span', { class: 'prep-chip', text: short, title: label });
+  });
 
-  return `
-    <div class="ml-8 py-1.5">
-      <label class="flex items-center gap-2 text-sm cursor-pointer">
-        <input type="checkbox" checked data-type="${type}" data-idx="${idx}" onchange="togglePrepItem('${type}',${idx},this.checked)"
-               class="rounded text-${color}-600 w-4 h-4">
-        <span class="font-medium text-gray-700">${(g.display_name || g.name).substring(0,50)}</span>
-        <span class="text-gray-400">(${g.variables.length} vars)</span>
-        ${sourceBadge}
-        <button onclick="removeGroup('${type}',${idx})" class="ml-auto text-xs text-gray-400 hover:text-red-500">x</button>
-      </label>
-      <div class="flex flex-wrap gap-1 mt-1 ml-6">${members}</div>
-    </div>`;
+  const cb = IC.el('input', { type: 'checkbox', 'data-type': type, 'data-idx': idx,
+    onchange: e => togglePrepItem(type, idx, e.target.checked) });
+  cb.checked = g.enabled !== false;
+  const remove = IC.el('button', { type: 'button', class: 'ic-icon-btn prep-remove', title: 'Remove group', 'aria-label': 'Remove group',
+    onclick: e => { e.preventDefault(); removeGroup(type, idx); } }, IC.icon('x', 14));
+
+  return IC.el('label', { class: 'ic-option' },
+    IC.el('span', { class: 'ic-option-icon' }, IC.icon(type === 'mrs' ? 'list' : 'grid', 16)),
+    IC.el('div', { class: 'ic-option-body' },
+      IC.el('div', { class: 'ic-option-title ic-row', style: { gap: '8px', flexWrap: 'wrap' } },
+        IC.el('span', { text: (g.display_name || g.name).substring(0, 50) }),
+        source ? IC.el('span', { class: 'ic-badge ic-badge--info', text: source }) : null),
+      IC.el('div', { class: 'ic-option-desc', text: `(${g.variables.length} vars)` }),
+      IC.el('div', { class: 'prep-chips' }, members)),
+    remove,
+    cb);
 }
 
 let _groupBuilderType = null;
@@ -511,7 +612,7 @@ function _renderGroupBuilderVars(filter) {
   prepContext.grid_groups.filter(g => g.enabled).forEach(g => g.variables.forEach(v => grouped.add(v)));
   const banners = new Set(prepContext.demographics.filter(d => d.enabled).map(d => d.variable));
 
-  const html = vars.filter(v => {
+  const rows = vars.filter(v => {
     if (grouped.has(v.name) || banners.has(v.name)) return false; // Already used
     if (!v.value_labels || Object.keys(v.value_labels).length < 2) return false;
     if (filter) {
@@ -521,16 +622,17 @@ function _renderGroupBuilderVars(filter) {
     return true;
   }).map(v => {
     const nCats = Object.keys(v.value_labels || {}).length;
-    const checked = _groupBuilderSelected.has(v.name) ? 'checked' : '';
-    return `<label class="flex items-center gap-2 py-1 text-sm cursor-pointer hover:bg-gray-50 rounded px-2">
-      <input type="checkbox" ${checked} onchange="toggleGroupVar('${v.name}',this.checked)" class="rounded w-4 h-4">
-      <span class="font-mono text-xs text-gray-600">${v.name}</span>
-      <span class="text-gray-500 text-xs truncate">${(v.label || '').substring(0,50)}</span>
-      <span class="text-gray-400 text-[10px] ml-auto">(${nCats})</span>
-    </label>`;
-  }).join('');
+    const cb = IC.el('input', { type: 'checkbox', class: 'ic-checkbox', onchange: e => toggleGroupVar(v.name, e.target.checked) });
+    cb.checked = _groupBuilderSelected.has(v.name);
+    return IC.el('label', { class: 'gb-var' },
+      cb,
+      IC.el('span', { class: 'prep-var', text: v.name }),
+      IC.el('span', { class: 'gb-label', text: (v.label || '').substring(0, 50) }),
+      IC.el('span', { class: 'ic-help', style: { marginLeft: 'auto', flexShrink: '0' }, text: `(${nCats})` }));
+  });
 
-  document.getElementById('group-builder-vars').innerHTML = html || '<p class="text-sm text-gray-400 text-center py-4">No available variables match your search</p>';
+  document.getElementById('group-builder-vars').replaceChildren(...(rows.length ? rows
+    : [IC.el('p', { class: 'ic-empty', style: { padding: '16px' }, text: 'No available variables match your search' })]));
 }
 
 function filterGroupVars(query) {
@@ -566,15 +668,15 @@ function saveGroup() {
     const mrsList = document.getElementById('prep-mrs-list');
     const idx = prepContext.mrs_groups.length - 1;
     // Remove "no MRS detected" message if present
-    if (mrsList.querySelector('p')) mrsList.innerHTML = '';
-    mrsList.innerHTML += _renderGroupItem('mrs', group, idx);
+    if (mrsList.querySelector(':scope > p')) mrsList.replaceChildren();
+    mrsList.append(_renderGroupItem('mrs', group, idx));
     document.getElementById('prep-mrs-count').textContent = `(${prepContext.mrs_groups.filter(g => g.enabled).length} groups)`;
   } else {
     prepContext.grid_groups.push(group);
     const gridsList = document.getElementById('prep-grids-list');
     const idx = prepContext.grid_groups.length - 1;
-    if (gridsList.querySelector('p')) gridsList.innerHTML = '';
-    gridsList.innerHTML += _renderGroupItem('grid', group, idx);
+    if (gridsList.querySelector(':scope > p')) gridsList.replaceChildren();
+    gridsList.append(_renderGroupItem('grid', group, idx));
     document.getElementById('prep-grids-count').textContent = `(${prepContext.grid_groups.filter(g => g.enabled).length} groups)`;
   }
 
@@ -587,9 +689,9 @@ function removeGroup(type, idx) {
   // Re-render
   const list = document.getElementById(type === 'mrs' ? 'prep-mrs-list' : 'prep-grids-list');
   const groups = type === 'mrs' ? prepContext.mrs_groups : prepContext.grid_groups;
-  list.innerHTML = groups.length === 0
-    ? `<p class="text-sm text-gray-400 ml-8">No ${type === 'mrs' ? 'MRS' : 'grids'} configured. Click "+ Add" to create one.</p>`
-    : groups.map((g, i) => _renderGroupItem(type, g, i)).join('');
+  list.replaceChildren(...(groups.length === 0
+    ? [_prepEmpty(`No ${type === 'mrs' ? 'MRS' : 'grids'} configured. Click "Add" to create one.`)]
+    : groups.map((g, i) => _renderGroupItem(type, g, i))));
   const countEl = document.getElementById(type === 'mrs' ? 'prep-mrs-count' : 'prep-grids-count');
   countEl.textContent = `(${groups.filter(g => g.enabled).length} groups)`;
 }
@@ -696,12 +798,12 @@ function showChat(fileInfo) {
   );
 
   // Smart Suggest buttons
-  const suggestHtml = `<div class="flex flex-wrap gap-2 mt-2">
-    <button onclick="runSuggestion('What are the key demographics and how is the sample distributed?')" class="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 border border-blue-200">📊 Demographics overview</button>
-    <button onclick="runSuggestion('Generate a complete Excel with all questions crossed by the main demographics, include T2B, means, and significance testing')" class="px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded-full hover:bg-green-100 border border-green-200">📥 Full Excel tabulation</button>
-    <button onclick="runSuggestion('What are the most interesting findings in this dataset? Look for significant differences and unexpected patterns.')" class="px-3 py-1.5 text-xs bg-purple-50 text-purple-700 rounded-full hover:bg-purple-100 border border-purple-200">🔍 Key findings</button>
-    <button onclick="runSuggestion('Run a correlation analysis between all scale variables and tell me what drives overall satisfaction')" class="px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded-full hover:bg-amber-100 border border-amber-200">📈 Satisfaction drivers</button>
-    <button onclick="runSuggestion('Suggest the 5 most relevant analyses for this dataset based on the variable types and study objectives')" class="px-3 py-1.5 text-xs bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 border border-indigo-200">💡 Suggest analyses</button>
+  const suggestHtml = `<div class="suggest-chips">
+    <button type="button" onclick="runSuggestion('What are the key demographics and how is the sample distributed?')" class="ic-btn ic-btn--secondary ic-btn--sm"><ic-icon name="chart" size="14"></ic-icon>Demographics overview</button>
+    <button type="button" onclick="runSuggestion('Generate a complete Excel with all questions crossed by the main demographics, include T2B, means, and significance testing')" class="ic-btn ic-btn--secondary ic-btn--sm"><ic-icon name="download" size="14"></ic-icon>Full Excel tabulation</button>
+    <button type="button" onclick="runSuggestion('What are the most interesting findings in this dataset? Look for significant differences and unexpected patterns.')" class="ic-btn ic-btn--secondary ic-btn--sm"><ic-icon name="search" size="14"></ic-icon>Key findings</button>
+    <button type="button" onclick="runSuggestion('Run a correlation analysis between all scale variables and tell me what drives overall satisfaction')" class="ic-btn ic-btn--secondary ic-btn--sm"><ic-icon name="zap" size="14"></ic-icon>Satisfaction drivers</button>
+    <button type="button" onclick="runSuggestion('Suggest the 5 most relevant analyses for this dataset based on the variable types and study objectives')" class="ic-btn ic-btn--secondary ic-btn--sm"><ic-icon name="sparkles" size="14"></ic-icon>Suggest analyses</button>
   </div>`;
   addMessage('assistant', suggestHtml, true);
 
@@ -873,7 +975,8 @@ function createStreamBubble() {
   bubble.innerHTML = '<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>';
 
   const status = document.createElement('div');
-  status.className = 'stream-status text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 mt-2 hidden inline-block';
+  status.className = 'stream-status ic-badge ic-badge--info hidden';
+  status.style.marginTop = '8px';
   bubble.appendChild(status);
 
   div.appendChild(bubble);
@@ -928,8 +1031,10 @@ function addMessage(role, content, rawHtml = false) {
 
   const bubble = document.createElement('div');
   bubble.className = role === 'user'
-    ? 'bg-blue-600 text-white rounded-2xl rounded-br-sm px-4 py-3 text-sm'
-    : 'bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-gray-800 shadow-sm markdown-content';
+    ? 'bg-blue-800 text-white rounded-2xl rounded-br-sm px-4 py-3 text-sm'
+    : rawHtml
+      ? 'text-sm'
+      : 'bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-gray-800 shadow-sm markdown-content';
 
   bubble.innerHTML = rawHtml ? content : simpleMarkdown(content);
   wrapper.appendChild(bubble);
@@ -937,7 +1042,9 @@ function addMessage(role, content, rawHtml = false) {
   // Copy button for assistant messages (not raw HTML like suggestion buttons)
   if (role === 'assistant' && !rawHtml && content.length > 50) {
     const copyBtn = document.createElement('button');
-    copyBtn.className = 'copy-btn absolute top-2 right-2 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 border border-gray-200';
+    copyBtn.type = 'button';
+    copyBtn.className = 'copy-btn ic-btn ic-btn--secondary ic-btn--sm absolute top-2 right-2';
+    copyBtn.style.height = '24px';
     copyBtn.textContent = 'Copy';
     copyBtn.onclick = () => {
       navigator.clipboard.writeText(content).then(() => {
@@ -960,8 +1067,9 @@ function addChart(chartSpec) {
 
   const wrapper = document.createElement('div');
   wrapper.className = 'max-w-[90%] bg-white border border-gray-200 rounded-2xl p-4 shadow-sm';
+  wrapper.style.width = '640px';
   wrapper.setAttribute('data-chart-title', chartSpec.title || '');
-  wrapper.innerHTML = `<p class="text-sm font-medium text-gray-700 mb-3">${chartSpec.title || 'Chart'}</p>`;
+  wrapper.append(IC.el('p', { class: 'ic-section-title', style: { fontSize: '13.5px', marginBottom: '12px' }, text: chartSpec.title || 'Chart' }));
 
   const canvas = document.createElement('canvas');
   canvas.style.maxHeight = '300px';
@@ -977,14 +1085,9 @@ function addDownload(url) {
   const container = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = 'chat-msg flex justify-start';
-  div.innerHTML = `
-    <a href="${url}" target="_blank"
-       class="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 hover:bg-green-100">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-      </svg>
-      Download Excel
-    </a>`;
+  div.append(IC.el('a', { href: url, target: '_blank', class: 'ic-btn ic-btn--secondary' },
+    IC.el('span', { style: { color: 'var(--ic-success)', display: 'inline-flex' } }, IC.icon('file-sheet', 16)),
+    'Download Excel', IC.icon('download', 14)));
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
@@ -1013,14 +1116,16 @@ function hideTyping() {
 
 // ── Chart Rendering ─────────────────────────────────────────────
 
-// MR color palette — professional, consistent, accessible
+// MR color palette — brand navy/blue scale (ic.css) for generic series;
+// semantic colours (scale, NPS, positive/negative) stay red→green.
 const MR_COLORS = {
-  primary: '#2563eb', secondary: '#7c3aed', accent: '#0891b2',
+  primary: '#2f4fb3', secondary: '#16244f', accent: '#4a6cd4',
   positive: '#059669', negative: '#dc2626', neutral: '#6b7280',
   scale: ['#dc2626','#f97316','#eab308','#84cc16','#059669'],  // Red→Green
-  series: ['#2563eb','#7c3aed','#0891b2','#f59e0b','#ec4899','#14b8a6','#8b5cf6','#f43f5e'],
+  series: ['#16244f','#4a6cd4','#9fb2e9','#2f4fb3','#6f88dc','#1f3266','#c8d3f3','#0f1b3d'],
   nps: { detractor: '#dc2626', passive: '#f59e0b', promoter: '#059669 '},
 };
+if (window.Chart) Chart.defaults.font.family = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
 
 function renderChart(canvas, spec) {
   // Route to specialized renderers
@@ -1472,7 +1577,7 @@ function renderTable(rows) {
       // Bold cells (significance, key findings)
       const isBold = /\*\*/.test(cell);
       const cleanCell = cell.replace(/\*\*/g, '');
-      const style = isBold ? 'font-weight:700;color:#1e40af;' : '';
+      const style = isBold ? 'font-weight:700;color:var(--ic-blue-600);' : '';
       html += `<td class="px-3 py-1.5 border-b border-gray-100 text-gray-600" style="${style}">${cleanCell}</td>`;
     }
     html += '</tr>';
@@ -1493,47 +1598,48 @@ async function loadLibrary() {
     libraryFiles = (data.data?.files) || [];
     renderLibrary(libraryFiles);
   } catch (e) {
-    document.getElementById('library-list').innerHTML =
-      '<p class="text-sm text-gray-400 text-center py-4">Could not load library</p>';
+    document.getElementById('library-list').replaceChildren(
+      IC.el('p', { class: 'ic-empty', text: 'Could not load library' }));
   }
 }
 
 function renderLibrary(files) {
   const container = document.getElementById('library-list');
   if (files.length === 0) {
-    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No files yet. Upload one above.</p>';
+    container.replaceChildren(IC.el('div', { class: 'ic-empty' },
+      IC.icon('database', 32), IC.el('p', { text: 'No files yet. Upload one above.' })));
     return;
   }
-  container.innerHTML = files.map(f => {
+  const rows = files.map(f => {
     const date = new Date(f.created_at).toLocaleDateString();
-    const sizeMB = (f.size_bytes / 1024 / 1024).toFixed(1);
-    return `
-    <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 transition-colors group">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-gray-800 truncate" ondblclick="renameFile('${f.id}',this)" title="Double-click to rename">${f.display_name || f.filename}</p>
-          <p class="text-xs text-gray-400">${f.filename} • ${f.n_cases} cases × ${f.n_variables} vars • ${sizeMB} MB • ${date}</p>
-        </div>
-      </div>
-      <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onclick="loadLibraryFile('${f.id}','${f.filename}',${f.n_cases},${f.n_variables})"
-                class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-          Analyze
-        </button>
-        <button onclick="deleteLibraryFile('${f.id}')"
-                class="px-2 py-1.5 text-gray-400 hover:text-red-500 text-xs">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-          </svg>
-        </button>
-      </div>
-    </div>`;
-  }).join('');
+    const name = IC.el('span', { class: 'lib-name', title: 'Double-click to rename', text: f.display_name || f.filename });
+    name.addEventListener('dblclick', () => renameFile(f.id, name));
+    const showSub = f.display_name && f.display_name !== f.filename;
+    return IC.el('tr', {},
+      IC.el('td', {},
+        IC.el('div', { class: 'ic-file-cell' },
+          IC.el('span', { class: 'ic-file-icon' }, IC.icon(IC.fileIcon(f.filename), 18)),
+          IC.el('div', { style: { minWidth: '0' } },
+            name,
+            showSub ? IC.el('div', { class: 'lib-sub', text: f.filename }) : null))),
+      IC.el('td', { class: 'num', text: `${IC.number(f.n_cases)} × ${IC.number(f.n_variables)}` }),
+      IC.el('td', { class: 'num', text: IC.bytes(f.size_bytes) }),
+      IC.el('td', { class: 'ic-muted', text: date }),
+      IC.el('td', {},
+        IC.el('div', { class: 'lib-actions' },
+          IC.el('button', { type: 'button', class: 'ic-btn ic-btn--primary ic-btn--sm',
+            onclick: () => loadLibraryFile(f.id, f.filename, f.n_cases, f.n_variables) },
+            IC.icon('message', 14), 'Analyze'),
+          IC.el('button', { type: 'button', class: 'ic-icon-btn', title: 'Delete file', 'aria-label': 'Delete file',
+            onclick: () => deleteLibraryFile(f.id) }, IC.icon('trash', 16)))));
+  });
+  container.replaceChildren(IC.el('div', { class: 'ic-table-wrap' },
+    IC.el('table', { class: 'ic-table' },
+      IC.el('thead', {}, IC.el('tr', {},
+        IC.el('th', { text: 'Name' }), IC.el('th', { class: 'num', text: 'Rows × Columns' }),
+        IC.el('th', { class: 'num', text: 'Size' }), IC.el('th', { text: 'Uploaded' }),
+        IC.el('th', {}, IC.el('span', { class: 'sr-only', text: 'Actions' })))),
+      IC.el('tbody', {}, rows))));
 }
 
 async function loadLibraryFile(libraryId, filename, nCases, nVars) {
@@ -1548,6 +1654,7 @@ async function loadLibraryFile(libraryId, filename, nCases, nVars) {
     if (data.success) {
       currentFileId = data.data.file_id;
       currentFileName = filename;
+      currentLibraryId = libraryId;
 
       // Fetch metadata for prep panel
       status.textContent = 'Analyzing structure...';
@@ -1634,8 +1741,40 @@ async function searchLibrary(query) {
   }, 300);
 }
 
+// Opened as /export-mcp?dataset=<library_id> (links from the Datasets pages):
+// load that library file through the normal library flow.
+async function openDatasetFromParam(libraryId) {
+  const status = document.getElementById('upload-status');
+  try {
+    const resp = await authFetch(`${API_BASE}/v1/library/${encodeURIComponent(libraryId)}`);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error?.message || 'Dataset not found');
+    const d = data.data || {};
+    await loadLibraryFile(libraryId, d.filename, d.n_cases, d.n_variables);
+  } catch (e) {
+    status.textContent = `Error: ${e.message}`;
+    status.classList.remove('hidden');
+    status.classList.add('text-red-600');
+  }
+}
+
+const _datasetParam = new URLSearchParams(location.search).get('dataset');
+if (_datasetParam) {
+  // The param wins over a stored session for a different file
+  try {
+    const stored = JSON.parse(sessionStorage.getItem('ig_session'));
+    if (stored && stored.fileId && stored.libraryId !== _datasetParam) clearSession();
+  } catch (e) {}
+  // Drop the param so a reload doesn't redo it
+  const url = new URL(location.href);
+  url.searchParams.delete('dataset');
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+}
+
 // Page init — restore session or show upload
-if (restoreSession()) {
+const _restored = restoreSession();
+if (!_restored && _datasetParam) openDatasetFromParam(_datasetParam);
+if (_restored) {
   // Restore chat UI with previous conversation
   document.getElementById('upload-zone').classList.add('hidden');
   document.getElementById('chat-area').classList.remove('hidden');

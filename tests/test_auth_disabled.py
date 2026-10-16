@@ -56,7 +56,12 @@ def test_mcp_anonymous_when_disabled(auth_disabled):
     from mcp_server.auth import _auth, _auth_async
     assert _auth("") is ANONYMOUS_KEY
     assert _auth("demo") is ANONYMOUS_KEY
-    assert asyncio.run(_auth_async("")) is ANONYMOUS_KEY
+    # Own loop: asyncio.run() would unset the default loop that test_mcp.py relies on
+    loop = asyncio.new_event_loop()
+    try:
+        assert loop.run_until_complete(_auth_async("")) is ANONYMOUS_KEY
+    finally:
+        loop.close()
 
 
 def test_no_header_rejected_by_default(client):
