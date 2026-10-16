@@ -372,3 +372,31 @@ def test_recode_else_collects_unassigned_answers(raw, cb):
     assert (cols["Agree_vs_rest"] == 2.0).sum() == answers.isin(["Strongly Disagree", "Disagree", "Neither agree or disagree"]).sum()
     assert cols["Agree_vs_rest"].isna().sum() == answers.isin(["I do not know", "Not applicable - No results received"]).sum()
     assert [c.label for c in edited.find_derived("Agree_vs_rest").codes] == ["Agree", "Everyone else"]
+
+
+# ── numbers are code values, even when labels are numbers too ────────────────
+
+def _numeric_labelled_scale():
+    """Codes 1..6 whose labels are numbers ("1", "4", …) that don't match the codes."""
+    from services.codebook.model import Code, Codebook, Source, Variable
+    labels = ["1", "4", "5", "6", "7", "MISSING"]
+    var = Variable(column="Q5", name="Q5", label="Scale", role="single", measure="ordinal", source="number",
+                   codes=[Code(code=float(i + 1), label=label) for i, label in enumerate(labels)])
+    return Codebook(source=Source(format="csv"), variables=[var]), pd.DataFrame({"Q5": [1.0, 2, 3, 4, 5, 6, 4, 6]})
+
+
+def test_set_missing_by_code_ignores_numeric_labels():
+    cb, df = _numeric_labelled_scale()
+    var = apply_ops(cb, [{"op": "set_missing", "var": "Q5", "code": 6}], df).variable("Q5")
+    assert [(m.code, m.label) for m in var.missing] == [(6.0, "MISSING")]
+    assert [c.label for c in var.codes] == ["1", "4", "5", "6", "7"]
+
+
+def test_set_codes_by_code_ignores_numeric_labels():
+    cb, df = _numeric_labelled_scale()
+    edited = apply_ops(cb, [{"op": "set_codes", "var": "Q5", "map": [[4, 40]]}], df)
+    assert (40.0, "6") in [(c.code, c.label) for c in edited.variable("Q5").codes]
+    assert (apply_codebook(df, edited).columns["Q5"] == 40.0).sum() == 2  # the rows coded 4, not those labelled "4"
+    # a string is still matched by label
+    relabelled = apply_ops(cb, [{"op": "relabel_code", "var": "Q5", "code": "MISSING", "label": "No answer"}], df)
+    assert relabelled.variable("Q5").codes[-1].label == "No answer"

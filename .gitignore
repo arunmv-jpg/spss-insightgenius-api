@@ -17,3 +17,6 @@ venv/
 
 # Generated analysis workbooks
 outputs/
+
+# Client example jobs (raw data, tables, reports)
+Example Jobs/

@@ -368,3 +368,55 @@ def test_tabulate_invalid_stub(client, auth_headers, test_sav_bytes):
     )
     assert resp.status_code == 400
     assert resp.json()["detail"]["code"] == "VARIABLE_NOT_FOUND"
+
+
+def _crosstab_rows(ws):
+    """{row label: [cell values]} for one tabulation sheet, plus the column header labels."""
+    all_rows = list(ws.iter_rows(values_only=True))
+    base_at = next(i for i, r in enumerate(all_rows) if r[0] == "Base (N)")
+    rows = {str(r[0]): list(r[1:]) for r in all_rows if r[0] is not None}
+    return rows, list(all_rows[base_at - 2][1:])  # value labels sit above the letters row
+
+
+def test_tabulate_overlapping_custom_groups_keep_their_bases(client, auth_headers, test_sav_bytes, tmp_path):
+    """A respondent in two custom groups counts in both (groups used to overwrite each other)."""
+    import pyreadstat
+    path = tmp_path / "t.sav"
+    path.write_bytes(test_sav_bytes)
+    df, _ = pyreadstat.read_sav(str(path))
+    spec = json.dumps({
+        "banner": "gender",
+        "stubs": ["satisfaction"],
+        "custom_groups": [
+            {"name": "Males", "conditions": [{"variable": "gender", "operator": "eq", "value": 1.0}]},
+            {"name": "Young", "conditions": [{"variable": "age_group", "operator": "eq", "value": 1.0}]},
+        ],
+    })
+    resp = client.post("/v1/tabulate", headers=auth_headers,
+                       files={"file": ("test.sav", test_sav_bytes, "application/octet-stream")},
+                       data={"spec": spec})
+    assert resp.status_code == 200
+    rows, headers = _crosstab_rows(load_workbook(io.BytesIO(resp.content))["satisfaction"])
+    bases = dict(zip(headers, rows["Base (N)"]))
+    assert bases["Males"] == (df["gender"] == 1).sum() > 0
+    assert bases["Young"] == (df["age_group"] == 1).sum() > 0
+
+
+def test_tabulate_custom_groups_only_shows_answer_rows(client, auth_headers, test_sav_bytes):
+    """With custom groups as the only banner, stub tables keep their answer rows."""
+    spec = json.dumps({
+        "stubs": ["satisfaction"],
+        "custom_groups": [
+            {"name": "Males", "conditions": [{"variable": "gender", "operator": "eq", "value": 1.0}]},
+            {"name": "Females", "conditions": [{"variable": "gender", "operator": "eq", "value": 2.0}]},
+        ],
+    })
+    for mode in ("multi_sheet", "single_sheet"):
+        resp = client.post("/v1/tabulate", headers=auth_headers,
+                           files={"file": ("test.sav", test_sav_bytes, "application/octet-stream")},
+                           data={"spec": json.dumps({**json.loads(spec), "output_mode": mode})})
+        assert resp.status_code == 200
+        wb = load_workbook(io.BytesIO(resp.content))
+        ws = wb["satisfaction"] if mode == "multi_sheet" else wb[wb.sheetnames[-1]]
+        labels = {str(r[0]) for r in ws.iter_rows(values_only=True)}
+        assert {"Very dissatisfied", "Neutral", "Very satisfied"} <= labels, mode

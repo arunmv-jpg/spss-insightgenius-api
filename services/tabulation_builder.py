@@ -294,43 +294,26 @@ def build_tabulation(engine_cls: Any, data: Any, spec: TabulateSpec) -> Tabulati
                 letter_idx += 1
 
     # ── Custom groups as virtual banner columns ──
-    custom_groups = spec.parsed_custom_groups
-    custom_col_name = "_custom_group_"
-    has_custom = len(custom_groups) > 0
-
-    if has_custom:
-        # Create a synthetic column in df where each custom group gets an integer code
-        # Rows that match NO group get NaN (excluded from crosstab)
-        custom_series = pd.Series(np.nan, index=df.index)
-        custom_vl = {}
-        for gi, cg in enumerate(custom_groups):
-            mask = _apply_group_mask(df, cg.conditions)
-            # Assign group code (1-based). Later groups overwrite earlier if overlapping.
-            custom_series = custom_series.where(~mask, float(gi + 1))
-            custom_vl[float(gi + 1)] = cg.name
-
-        df[custom_col_name] = custom_series
-        banners = list(banners) + [custom_col_name]
-
-        cg_b_idx = len(banners) - 1
-        for gi, cg in enumerate(custom_groups):
-            banner_columns.append(BannerColumn(
-                banner_var=custom_col_name,
-                banner_label="Custom Groups",
-                value=str(float(gi + 1)),
-                value_label=cg.name,
-                letter=all_letters[letter_idx],
-                banner_index=cg_b_idx,
-            ))
-            letter_idx += 1
-
-        # Patch meta so crosstab can find value labels
-        if not hasattr(meta, "_custom_vl_patched"):
-            vvl = getattr(meta, "variable_value_labels", {})
-            vvl[custom_col_name] = custom_vl
-            meta._custom_vl_patched = True
-            cnl = getattr(meta, "column_names_to_labels", {})
-            cnl[custom_col_name] = "Custom Groups"
+    # Each group is its own 0/1 column (1 = in the group, NaN = not), so overlapping
+    # groups (a respondent in a role group and a setting group) keep their full base.
+    vvl = getattr(meta, "variable_value_labels", {})
+    cnl = getattr(meta, "column_names_to_labels", {})
+    for gi, cg in enumerate(spec.parsed_custom_groups):
+        cg_col = f"_custom_group_{gi + 1}_"
+        mask = _apply_group_mask(df, cg.conditions)
+        df[cg_col] = pd.Series(np.nan, index=df.index).where(~mask, 1.0)
+        vvl[cg_col] = {1.0: cg.name}
+        cnl[cg_col] = cg.name
+        banners = list(banners) + [cg_col]
+        banner_columns.append(BannerColumn(
+            banner_var=cg_col,
+            banner_label="Custom Groups",
+            value="1.0",
+            value_label=cg.name,
+            letter=all_letters[letter_idx],
+            banner_index=len(banners) - 1,
+        ))
+        letter_idx += 1
 
     # ── Nested (cross-product) banners ──
     # Format: [{"parent_var": "Q_27", "child_var": "Q_10"}]
@@ -1279,7 +1262,8 @@ def _write_crosstab_sheet(ws, sheet_result: SheetResult, spec: TabulateSpec, dat
     # Collect all unique row values/labels across all banner crosstabs
     all_rows = []
     seen_rv = set()
-    for banner_var in banners:
+    # Every column's crosstab, not just the regular banners: Total and custom groups count too
+    for banner_var in dict.fromkeys(bc.banner_var for bc in banner_columns):
         ct = all_ct.get(banner_var, {})
         for row_data in ct.get("table", []):
             rv = row_data.get("row_value")
@@ -1778,7 +1762,7 @@ def _write_single_sheet(ws, result: TabulationResult, spec: TabulateSpec, data: 
         # ── Data rows ──
         all_rows = []
         seen_rv = set()
-        for bvar in banners:
+        for bvar in dict.fromkeys(bc.banner_var for bc in banner_columns):
             ct = all_ct.get(bvar, {})
             for rd in ct.get("table", []):
                 rv = rd.get("row_value")

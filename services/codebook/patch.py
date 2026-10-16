@@ -81,10 +81,15 @@ def _used_names(cb: Codebook) -> set[str]:
 
 
 def _code(var: Variable, value: Any) -> Code:
-    for c in [*var.codes, *var.missing]:
-        if (isinstance(value, (int, float)) and c.code == float(value)) or str(value).casefold() == c.label.casefold():
-            return c
-    raise EditError(f"'{value}' is not a code of '{var.name or var.column}'")
+    """A number is a code value (labels can be numbers too: code 6 may read "7"); a string is a label."""
+    codes = [*var.codes, *var.missing]
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        match = next((c for c in codes if c.code == float(value)), None)
+    else:
+        match = next((c for c in codes if str(value).casefold() == c.label.casefold()), None)
+    if match is None:
+        raise EditError(f"'{value}' is not a code of '{var.name or var.column}'")
+    return match
 
 
 def _pin(var: Variable, code: Code) -> None:
